@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "204385191760",
+    "project_id": "mykoc-45c10",
+    "storage_bucket": "mykoc-45c10.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:204385191760:android:1f71db631db646cff0ce55",
+        "android_client_info": {
+          "package_name": "com.mykoc.mykoc"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDoGHltd5HZMerkEmjd4LCOLrhGBRpgkOM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
