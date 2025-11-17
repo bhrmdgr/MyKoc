@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mykoc/pages/home/homeModel.dart';
+import 'package:mykoc/pages/classroom/class_model.dart';
+import 'package:mykoc/firebase/classroom/classroom_service.dart';
 import 'package:mykoc/services/storage/local_storage_service.dart';
 
 class HomeViewModel extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final ClassroomService _classroomService = ClassroomService();
   final LocalStorageService _localStorage = LocalStorageService();
 
   HomeModel? _homeData;
   HomeModel? get homeData => _homeData;
+
+  List<ClassModel> _classes = [];
+  List<ClassModel> get classes => _classes;
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -48,6 +54,23 @@ class HomeViewModel extends ChangeNotifier {
       totalTasks: 5,
       upcomingSessions: _getDummySessions(),
     );
+
+    // Local'den sınıfları da yükle
+    if (role == 'mentor') {
+      final localClasses = _localStorage.getClassesList();
+      if (localClasses != null && localClasses.isNotEmpty) {
+        _classes = localClasses
+            .map((data) => ClassModel.fromMap(data))
+            .toList();
+        debugPrint('📦 Local\'den ${_classes.length} sınıf yüklendi');
+      }
+    } else {
+      final localClass = _localStorage.getStudentClass();
+      if (localClass != null) {
+        _classes = [ClassModel.fromMap(localClass)];
+        debugPrint('📦 Local\'den öğrenci sınıfı yüklendi');
+      }
+    }
   }
 
   Future<void> _loadFromFirestore() async {
@@ -69,7 +92,28 @@ class HomeViewModel extends ChangeNotifier {
       final name = userData['name'] ?? 'User';
       final role = userData['role'] ?? 'student';
 
-      // Sessions'ı çekmeye çalış (hata olursa dummy data kullan)
+      debugPrint('👤 User: $name, Role: $role');
+
+      // Firestore'dan sınıfları çek ve güncelle
+      if (role == 'mentor') {
+        debugPrint('📚 Firestore\'dan mentör sınıfları çekiliyor...');
+        _classes = await _classroomService.getMentorClasses(uid);
+
+        // Firestore'dan gelen verileri local'e kaydet
+        final classesData = _classes.map((c) => c.toMap()).toList();
+        await _localStorage.saveClassesList(classesData);
+
+        debugPrint('✅ Firestore\'dan ${_classes.length} sınıf yüklendi ve local\'e kaydedildi');
+      } else {
+        debugPrint('📚 Firestore\'dan öğrenci sınıfları çekiliyor...');
+        _classes = await _classroomService.getStudentClasses(uid);
+
+        if (_classes.isNotEmpty) {
+          await _localStorage.saveStudentClass(_classes.first.toMap());
+          debugPrint('✅ Öğrenci sınıfı local\'e kaydedildi');
+        }
+      }
+
       final sessions = await _fetchUpcomingSessions(uid, role);
 
       _homeData = HomeModel(
@@ -82,7 +126,6 @@ class HomeViewModel extends ChangeNotifier {
         upcomingSessions: sessions,
       );
 
-      // Local storage'ı güncelle (Timestamp'leri String'e çevir)
       final userDataToSave = Map<String, dynamic>.from(userData);
       if (userDataToSave['createdAt'] is Timestamp) {
         userDataToSave['createdAt'] =
@@ -93,49 +136,13 @@ class HomeViewModel extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       _errorMessage = 'Veri yüklenirken hata oluştu';
-      debugPrint('Error loading from Firestore: $e');
+      debugPrint('❌ Error loading from Firestore: $e');
     }
   }
 
   Future<List<SessionModel>> _fetchUpcomingSessions(String uid, String role) async {
     try {
-      // Index hatası olacağını biliyoruz, direkt dummy data dön
-      // İleride index oluşturulunca bu kısım aktif edilecek
       return _getDummySessions();
-
-      /* Index oluşturulduktan sonra bu kodu kullan:
-      QuerySnapshot snapshot;
-
-      if (role == 'student') {
-        snapshot = await _firestore
-            .collection('sessions')
-            .where('studentId', isEqualTo: uid)
-            .where('status', isEqualTo: 'upcoming')
-            .orderBy('dateTime', descending: false)
-            .limit(5)
-            .get();
-      } else {
-        snapshot = await _firestore
-            .collection('sessions')
-            .where('mentorId', isEqualTo: uid)
-            .where('status', isEqualTo: 'upcoming')
-            .orderBy('dateTime', descending: false)
-            .limit(5)
-            .get();
-      }
-
-      return snapshot.docs.map((doc) {
-        final data = doc.data() as Map<String, dynamic>;
-        return SessionModel(
-          id: doc.id,
-          mentorName: data['mentorName'] ?? 'Unknown',
-          subject: data['subject'] ?? 'No subject',
-          dateTime: (data['dateTime'] as Timestamp).toDate(),
-          avatar: data['avatar'] ?? '',
-          status: data['status'] ?? 'upcoming',
-        );
-      }).toList();
-      */
     } catch (e) {
       debugPrint('Error fetching sessions: $e');
       return _getDummySessions();

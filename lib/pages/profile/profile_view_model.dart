@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:mykoc/pages/profile/profile_model.dart';
 import 'package:mykoc/services/storage/local_storage_service.dart';
+import 'package:mykoc/routers/appRouter.dart';
 
 class ProfileViewModel extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -37,11 +38,13 @@ class ProfileViewModel extends ChangeNotifier {
 
     final name = userData['name'] ?? 'User';
     final role = userData['role'] ?? 'student';
+    final email = userData['email'] ?? '';
 
     _profileData = ProfileModel(
       userName: name,
       userInitials: _getInitials(name),
       userRole: role,
+      email: email,
       profileImageUrl: userData['profileImage'],
       // Dummy data
       badges: role == 'student' ? 12 : null,
@@ -69,12 +72,14 @@ class ProfileViewModel extends ChangeNotifier {
       final userData = userDoc.data()!;
       final name = userData['name'] ?? 'User';
       final role = userData['role'] ?? 'student';
+      final email = userData['email'] ?? '';
 
       // TODO: Gerçek verileri Firestore'dan çek
       _profileData = ProfileModel(
         userName: name,
         userInitials: _getInitials(name),
         userRole: role,
+        email: email,
         profileImageUrl: userData['profileImage'],
         badges: role == 'student' ? 12 : null,
         completionPercentage: role == 'student' ? 87 : null,
@@ -97,14 +102,28 @@ class ProfileViewModel extends ChangeNotifier {
 
   Future<void> logout(BuildContext context) async {
     try {
+      // Firebase'den çıkış yap
       await _auth.signOut();
-      await _localStorage.clearAllUserData();
 
+      // Local storage'ı temizle
+      await _localStorage.clearAll();
+
+      debugPrint('✅ User logged out successfully');
+
+      // Login sayfasına yönlendir
       if (context.mounted) {
-        Navigator.of(context).pushNamedAndRemoveUntil('/signin', (route) => false);
+        navigateToSignIn(context);
       }
     } catch (e) {
-      debugPrint('Logout error: $e');
+      debugPrint('❌ Logout error: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to log out. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 

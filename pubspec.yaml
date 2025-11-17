@@ -45,6 +45,8 @@ dependencies:
   shared_preferences: ^2.2.2
   provider: ^6.1.1  # ← Bu satırı ekleyin
   table_calendar: ^3.1.2
+  file_picker: ^8.1.4
+
 
 
 

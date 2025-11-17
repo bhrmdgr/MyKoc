@@ -120,6 +120,100 @@ class LocalStorageService {
     return jsonDecode(jsonString) as Map<String, dynamic>;
   }
 
+  // ==================== CLASS VERİLERİ ====================
+
+  static const String _keyClassesList = 'classes_list';
+  static const String _keyClassPrefix = 'class_';
+
+  /// Tüm sınıfları kaydet (Mentör için)
+  Future<void> saveClassesList(List<Map<String, dynamic>> classes) async {
+    final jsonString = jsonEncode(classes);
+    await _prefs?.setString(_keyClassesList, jsonString);
+    await _updateLastSyncTime();
+    if (kDebugMode) print('✅ Classes list kaydedildi: ${classes.length} sınıf');
+  }
+
+  /// Tüm sınıfları oku (Mentör için)
+  List<Map<String, dynamic>>? getClassesList() {
+    final jsonString = _prefs?.getString(_keyClassesList);
+    if (jsonString == null) return null;
+    final List<dynamic> decoded = jsonDecode(jsonString);
+    return decoded.map((e) => e as Map<String, dynamic>).toList();
+  }
+
+  /// Tek bir sınıfı kaydet
+  Future<void> saveClass(String classId, Map<String, dynamic> classData) async {
+    final jsonString = jsonEncode(classData);
+    await _prefs?.setString('$_keyClassPrefix$classId', jsonString);
+    if (kDebugMode) print('✅ Class kaydedildi: $classId');
+  }
+
+  /// Tek bir sınıfı oku
+  Map<String, dynamic>? getClass(String classId) {
+    final jsonString = _prefs?.getString('$_keyClassPrefix$classId');
+    if (jsonString == null) return null;
+    return jsonDecode(jsonString) as Map<String, dynamic>;
+  }
+
+  /// Bir sınıfı sil
+  Future<void> removeClass(String classId) async {
+    await _prefs?.remove('$_keyClassPrefix$classId');
+    if (kDebugMode) print('🗑️ Class silindi: $classId');
+  }
+
+  /// Tüm sınıfları sil
+  Future<void> clearAllClasses() async {
+    await _prefs?.remove(_keyClassesList);
+    // Tüm class_ ile başlayan key'leri sil
+    final keys = _prefs?.getKeys() ?? {};
+    for (var key in keys) {
+      if (key.startsWith(_keyClassPrefix)) {
+        await _prefs?.remove(key);
+      }
+    }
+    if (kDebugMode) print('🗑️ Tüm classes temizlendi');
+  }
+
+  /// Öğrencinin sınıfını kaydet
+  Future<void> saveStudentClass(Map<String, dynamic> classData) async {
+    final jsonString = jsonEncode(classData);
+    await _prefs?.setString('student_class', jsonString);
+    if (kDebugMode) print('✅ Student class kaydedildi');
+  }
+
+  /// Öğrencinin sınıfını oku
+  Map<String, dynamic>? getStudentClass() {
+    final jsonString = _prefs?.getString('student_class');
+    if (jsonString == null) return null;
+    return jsonDecode(jsonString) as Map<String, dynamic>;
+  }
+
+
+  // ==================== CLASS STUDENTS ====================
+
+  static const String _keyClassStudentsPrefix = 'class_students_';
+
+  /// Sınıf öğrencilerini kaydet
+  Future<void> saveClassStudents(String classId, List<Map<String, dynamic>> students) async {
+    final jsonString = jsonEncode(students);
+    await _prefs?.setString('$_keyClassStudentsPrefix$classId', jsonString);
+    if (kDebugMode) print('✅ Class students kaydedildi: $classId (${students.length} öğrenci)');
+  }
+
+  /// Sınıf öğrencilerini oku
+  List<Map<String, dynamic>>? getClassStudents(String classId) {
+    final jsonString = _prefs?.getString('$_keyClassStudentsPrefix$classId');
+    if (jsonString == null) return null;
+    final List<dynamic> decoded = jsonDecode(jsonString);
+    return decoded.map((e) => e as Map<String, dynamic>).toList();
+  }
+
+  /// Bir sınıfın öğrencilerini sil
+  Future<void> removeClassStudents(String classId) async {
+    await _prefs?.remove('$_keyClassStudentsPrefix$classId');
+    if (kDebugMode) print('🗑️ Class students silindi: $classId');
+  }
+
   // ==================== UYGULAMA AYARLARI ====================
 
   /// Uygulama ayarlarını kaydet
@@ -237,10 +331,12 @@ class LocalStorageService {
 
   /// Tüm verileri temizle (Factory reset)
   Future<void> clearAll() async {
-    await _prefs?.clear();
-
-    if (kDebugMode) {
-      print('🗑️ Tüm veriler silindi: ${Platform.operatingSystem}');
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+      debugPrint('✅ Local storage cleared');
+    } catch (e) {
+      debugPrint('❌ Error clearing local storage: $e');
     }
   }
 

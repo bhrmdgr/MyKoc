@@ -106,6 +106,10 @@ class StudentHomeView extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
         ),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(30),
+          bottomRight: Radius.circular(30),
+        ),
       ),
       child: SafeArea(
         bottom: false,

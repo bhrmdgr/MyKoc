@@ -3,6 +3,7 @@ class ProfileModel {
   final String userInitials;
   final String userRole;
   final String? profileImageUrl;
+  final String email; // EKLENDİ
 
   // Student specific
   final int? badges;
@@ -24,6 +25,7 @@ class ProfileModel {
     required this.userInitials,
     required this.userRole,
     this.profileImageUrl,
+    required this.email, // EKLENDİ
     this.badges,
     this.completionPercentage,
     this.dayStreak,

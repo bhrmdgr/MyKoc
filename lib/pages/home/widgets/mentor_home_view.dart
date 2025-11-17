@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:mykoc/pages/home/homeModel.dart';
 import 'package:mykoc/pages/home/homeViewModel.dart';
+import 'package:mykoc/routers/appRouter.dart';
+import 'package:mykoc/pages/classroom/class_detail/class_detail_view.dart';
 
 class MentorHomeView extends StatelessWidget {
   final HomeModel homeData;
@@ -19,11 +21,7 @@ class MentorHomeView extends StatelessWidget {
         onRefresh: () => viewModel.refresh(),
         child: CustomScrollView(
           slivers: [
-            // Header
-            SliverToBoxAdapter(
-              child: _buildMentorHeader(),
-            ),
-            // My Classes Section
+            SliverToBoxAdapter(child: _buildMentorHeader()),
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.all(20),
@@ -44,8 +42,11 @@ class MentorHomeView extends StatelessWidget {
                         FloatingActionButton(
                           mini: true,
                           backgroundColor: const Color(0xFF6366F1),
-                          onPressed: () {
-                            // TODO: Navigate to create class
+                          onPressed: () async {
+                            final result = await navigateToCreateClass(context);
+                            if (result == true) {
+                              viewModel.refresh();
+                            }
                           },
                           child: const Icon(Icons.add, color: Colors.white),
                         ),
@@ -56,33 +57,183 @@ class MentorHomeView extends StatelessWidget {
                 ),
               ),
             ),
-            // Classes List
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                    return _buildClassCard(
-                      emoji: index == 0 ? '📚' : index == 1 ? '🎨' : '💻',
-                      title: index == 0
-                          ? 'English Literature'
-                          : index == 1
-                          ? 'Design Fundamentals'
-                          : 'Web Development',
-                      studentCount: index == 0 ? 24 : index == 1 ? 18 : 15,
-                      tasksDue: index == 0 ? 3 : index == 1 ? 5 : 2,
-                      color: index == 0
-                          ? const Color(0xFF3B82F6)
-                          : index == 1
-                          ? const Color(0xFF8B5CF6)
-                          : const Color(0xFF10B981),
-                    );
-                  },
-                  childCount: 3, // TODO: Dynamic olacak
+            // Loading durumu
+            if (viewModel.isLoading)
+              const SliverToBoxAdapter(
+                child: Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(40),
+                    child: CircularProgressIndicator(),
+                  ),
+                ),
+              )
+            // Empty state
+            else if (viewModel.classes.isEmpty)
+              SliverToBoxAdapter(
+                child: _buildEmptyState(),
+              )
+            // Classes list
+            else
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                      final classItem = viewModel.classes[index];
+                      return _buildClassCard(
+                        context: context,
+                        classItem: classItem,
+                      );
+                    },
+                    childCount: viewModel.classes.length,
+                  ),
+                ),
+              ),
+            const SliverToBoxAdapter(child: SizedBox(height: 20)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.all(40),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.school_outlined,
+            size: 80,
+            color: Colors.grey[300],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No Classes Yet',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[700],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Create your first class to get started',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[500],
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildClassCard({
+    required BuildContext context,
+    required classItem,
+  }) {
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ClassDetailView(classData: classItem),
+          ),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              height: 120,
+              decoration: BoxDecoration(
+                color: Color(classItem.getColorFromType()),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+              ),
+              child: Center(
+                child: Text(
+                  classItem.emoji ?? '📚',
+                  style: const TextStyle(fontSize: 48),
                 ),
               ),
             ),
-            const SliverToBoxAdapter(child: SizedBox(height: 20)),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${classItem.emoji ?? '📚'} ${classItem.className}',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1F2937),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.people_outline_rounded,
+                        size: 16,
+                        color: Colors.grey[600],
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${classItem.studentCount} students',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Icon(
+                        Icons.check_circle_outline_rounded,
+                        size: 16,
+                        color: Colors.grey[600],
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${classItem.taskCount} tasks',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -97,6 +248,10 @@ class MentorHomeView extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
         ),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(30),
+          bottomRight: Radius.circular(30),
+        ),
       ),
       child: SafeArea(
         bottom: false,
@@ -105,7 +260,6 @@ class MentorHomeView extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Welcome Text & Avatar
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -155,23 +309,22 @@ class MentorHomeView extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 24),
-              // Stats Cards
               Row(
                 children: [
                   Expanded(
                     child: _buildStatCard(
                       icon: Icons.people_outline_rounded,
                       label: 'Total Students',
-                      value: '89', // TODO: Dynamic
+                      value: '${viewModel.classes.fold(0, (sum, c) => sum + c.studentCount)}',
                       color: Colors.white.withOpacity(0.2),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: _buildStatCard(
-                      icon: Icons.access_time_rounded,
-                      label: 'Due Soon',
-                      value: '11 tasks', // TODO: Dynamic
+                      icon: Icons.school_outlined,
+                      label: 'Classes',
+                      value: '${viewModel.classes.length}',
                       color: Colors.white.withOpacity(0.2),
                     ),
                   ),
@@ -219,100 +372,6 @@ class MentorHomeView extends StatelessWidget {
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Colors.white,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildClassCard({
-    required String emoji,
-    required String title,
-    required int studentCount,
-    required int tasksDue,
-    required Color color,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Color Header with Emoji
-          Container(
-            height: 120,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(20),
-                topRight: Radius.circular(20),
-              ),
-            ),
-            child: Center(
-              child: Text(
-                emoji,
-                style: const TextStyle(fontSize: 48),
-              ),
-            ),
-          ),
-          // Class Info
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '$emoji $title',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1F2937),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.people_outline_rounded,
-                      size: 16,
-                      color: Colors.grey[600],
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '$studentCount students',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Icon(
-                      Icons.check_circle_outline_rounded,
-                      size: 16,
-                      color: Colors.grey[600],
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '$tasksDue tasks due',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
             ),
           ),
         ],
