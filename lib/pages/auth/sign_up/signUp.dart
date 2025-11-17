@@ -70,9 +70,9 @@ class _SignupState extends State<Signup> {
       );
 
       if (mounted) {
-        _showSuccess('Kayıt başarılı! E-posta doğrulama linki gönderildi.');
-        await Future.delayed(const Duration(seconds: 2));
-        navigateToSignIn(context);
+        _showSuccess('Kayıt başarılı! Giriş yapılıyor...');
+        await Future.delayed(const Duration(seconds: 1));
+        navigateToHome(context);
       }
     } catch (e) {
       if (mounted) {
@@ -90,6 +90,8 @@ class _SignupState extends State<Signup> {
       SnackBar(
         content: Text(message),
         backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3), // ← 3 saniye göster
+        behavior: SnackBarBehavior.floating, // ← Floating yaparak daha görünür
       ),
     );
   }
@@ -99,9 +101,13 @@ class _SignupState extends State<Signup> {
       SnackBar(
         content: Text(message),
         backgroundColor: Colors.green,
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
+
+
 
   @override
   Widget build(BuildContext context) {

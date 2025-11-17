@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mykoc/routers/appRouter.dart';
-
-
+import 'package:mykoc/firebase/auth/firebaseSignIn.dart';
 
 class Signin extends StatefulWidget {
   const Signin({super.key});
@@ -11,15 +10,60 @@ class Signin extends StatefulWidget {
 }
 
 class _SigninState extends State<Signin> {
+  final _firebaseSignIn = FirebaseSignIn();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isPasswordVisible = false;
+  bool _isLoading = false;
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleSignIn() async {
+    if (_emailController.text.trim().isEmpty) {
+      _showError('Lütfen e-posta adresinizi girin');
+      return;
+    }
+
+    if (_passwordController.text.isEmpty) {
+      _showError('Lütfen şifrenizi girin');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      await _firebaseSignIn.signInWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+
+      // Giriş başarılı - Home'a git
+      if (mounted) {
+        navigateToHome(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        _showError(e.toString());
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
 
   @override
@@ -132,11 +176,7 @@ class _SigninState extends State<Signin> {
 
   Widget _buildSignInButton() {
     return ElevatedButton(
-      onPressed: () {
-        // Giriş yapma işlemi
-        // TODO: Authentication kontrolü yapılacak
-        navigateToHome(context);
-      },
+      onPressed: _isLoading ? null : _handleSignIn,
       style: ElevatedButton.styleFrom(
         backgroundColor: const Color(0xFF6366F1),
         foregroundColor: Colors.white,
@@ -146,7 +186,16 @@ class _SigninState extends State<Signin> {
         ),
         elevation: 0,
       ),
-      child: const Text(
+      child: _isLoading
+          ? const SizedBox(
+        height: 20,
+        width: 20,
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+        ),
+      )
+          : const Text(
         'Giriş Yap',
         style: TextStyle(
           fontSize: 16,

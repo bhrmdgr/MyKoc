@@ -1,9 +1,8 @@
+// lib/routers/appRouter.dart
 import 'package:flutter/material.dart';
 import 'package:mykoc/pages/auth/sign_in/signIn.dart';
 import 'package:mykoc/pages/auth/sign_up/signUp.dart';
-import 'package:mykoc/pages/home/homeView.dart';
-
-// Navigation functions
+import 'package:mykoc/pages/main/main_screen.dart';
 
 void navigateToSignIn(BuildContext context) {
   Navigator.pushReplacement(
@@ -22,7 +21,7 @@ void navigateToSignUp(BuildContext context) {
 void navigateToHome(BuildContext context) {
   Navigator.pushReplacement(
     context,
-    MaterialPageRoute(builder: (context) => const HomeView()),
+    MaterialPageRoute(builder: (context) => const MainScreen()),
   );
 }
 
