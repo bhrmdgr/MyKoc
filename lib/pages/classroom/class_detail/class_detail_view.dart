@@ -4,7 +4,11 @@ import 'package:provider/provider.dart';
 import 'package:mykoc/pages/classroom/class_detail/class_detail_view_model.dart';
 import 'package:mykoc/pages/classroom/class_model.dart';
 import 'package:mykoc/pages/tasks/create_task_view.dart';
-import 'package:mykoc/pages/classroom/class_detail/widgets/task_card.dart';
+import 'package:mykoc/pages/classroom/class_detail/widgets/announcements_section.dart';
+import 'package:mykoc/pages/classroom/class_detail/widgets/announcement_dialog.dart';
+import 'package:mykoc/pages/classroom/class_detail/announcement_model.dart';
+import 'package:mykoc/pages/classroom/class_detail/widgets/expandable_tasks_section.dart';
+import 'package:mykoc/services/storage/local_storage_service.dart';
 
 
 class ClassDetailView extends StatefulWidget {
@@ -23,6 +27,7 @@ class _ClassDetailViewState extends State<ClassDetailView>
     with SingleTickerProviderStateMixin {
   late ClassDetailViewModel _viewModel;
   late TabController _tabController;
+  final LocalStorageService _localStorage = LocalStorageService();
 
   @override
   void initState() {
@@ -54,22 +59,35 @@ class _ClassDetailViewState extends State<ClassDetailView>
     return ChangeNotifierProvider.value(
       value: _viewModel,
       child: Scaffold(
-        body: SingleChildScrollView(
-          child: Column(
-            children: [
-              _buildHeader(),
-              _buildStatsCards(),
-              _buildTabBar(),
-              SizedBox(
-                height: MediaQuery.of(context).size.height * 0.6,
-                child: TabBarView(
-                  controller: _tabController,
+        body: NestedScrollView(
+          headerSliverBuilder: (context, innerBoxIsScrolled) {
+            return [
+              SliverToBoxAdapter(
+                child: Column(
                   children: [
-                    _buildTasksTab(),
-                    _buildStudentsTab(),
+                    _buildHeader(),
+                    _buildStatsCards(),
+                    // Announcements Section
+                    Consumer<ClassDetailViewModel>(
+                      builder: (context, viewModel, child) {
+                        return AnnouncementsSection(
+                          announcements: viewModel.announcements,
+                          onAddPressed: _showCreateAnnouncementDialog,
+                          onAnnouncementTap: _showEditAnnouncementDialog,
+                        );
+                      },
+                    ),
+                    _buildTabBar(),
                   ],
                 ),
               ),
+            ];
+          },
+          body: TabBarView(
+            controller: _tabController,
+            children: [
+              _buildTasksTab(),
+              _buildStudentsTab(),
             ],
           ),
         ),
@@ -104,6 +122,95 @@ class _ClassDetailViewState extends State<ClassDetailView>
           ),
         )
             : null,
+      ),
+    );
+  }
+
+  // ==================== ANNOUNCEMENT DIALOG METHODS ====================
+
+  void _showCreateAnnouncementDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AnnouncementDialog(
+        onSave: (title, description) async {
+          final mentorId = _localStorage.getUid();
+          if (mentorId == null) {
+            throw 'User not logged in';
+          }
+
+          final success = await _viewModel.createAnnouncement(
+            mentorId: mentorId,
+            title: title,
+            description: description,
+          );
+
+          if (success && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.white),
+                    SizedBox(width: 12),
+                    Text('Announcement created successfully'),
+                  ],
+                ),
+                backgroundColor: Color(0xFF10B981),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        },
+      ),
+    );
+  }
+
+  void _showEditAnnouncementDialog(AnnouncementModel announcement) {
+    showDialog(
+      context: context,
+      builder: (context) => AnnouncementDialog(
+        announcement: announcement,
+        onSave: (title, description) async {
+          final success = await _viewModel.updateAnnouncement(
+            announcementId: announcement.id,
+            title: title,
+            description: description,
+          );
+
+          if (success && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.white),
+                    SizedBox(width: 12),
+                    Text('Announcement updated successfully'),
+                  ],
+                ),
+                backgroundColor: Color(0xFF10B981),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        },
+        onDelete: () async {
+          final success = await _viewModel.deleteAnnouncement(announcement.id);
+
+          if (success && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.white),
+                    SizedBox(width: 12),
+                    Text('Announcement deleted successfully'),
+                  ],
+                ),
+                backgroundColor: Color(0xFFEF4444),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        },
       ),
     );
   }
@@ -332,154 +439,20 @@ class _ClassDetailViewState extends State<ClassDetailView>
           );
         }
 
-        if (viewModel.tasks.isEmpty) {
-          return _buildEmptyTasksState();
-        }
-
         return RefreshIndicator(
           onRefresh: () => viewModel.refresh(),
-          child: ListView.builder(
-            padding: const EdgeInsets.all(20),
-            itemCount: viewModel.tasks.length,
-            itemBuilder: (context, index) {
-              final task = viewModel.tasks[index];
-              return TaskCard(
-                task: task,
-                onTap: () {
-                  // TODO: Navigate to task detail
-                  debugPrint('Task tapped: ${task.title}');
-                },
-              );
-            },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: ExpandableTasksSection(
+              tasks: viewModel.tasks,
+              onTaskTap: (task) {
+                // TODO: Navigate to task detail
+                debugPrint('Task tapped: ${task.title}');
+              },
+            ),
           ),
         );
       },
-    );
-  }
-
-  Widget _buildEmptyTasksState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  const Color(0xFF6366F1).withOpacity(0.1),
-                  const Color(0xFF8B5CF6).withOpacity(0.1),
-                ],
-              ),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.assignment_outlined,
-              size: 60,
-              color: Color(0xFF6366F1),
-            ),
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'No Tasks Yet',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1F2937),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Create your first task to get started',
-            style: TextStyle(
-              fontSize: 15,
-              color: Colors.grey[600],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTaskCard({
-    required String title,
-    required String dueText,
-    required int completed,
-    required int total,
-    required int percentage,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1F2937),
-                  ),
-                ),
-              ),
-              Text(
-                '$completed/$total',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            dueText,
-            style: const TextStyle(
-              fontSize: 14,
-              color: Color(0xFF6B7280),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: LinearProgressIndicator(
-                    value: percentage / 100,
-                    minHeight: 8,
-                    backgroundColor: Colors.grey[200],
-                    valueColor: AlwaysStoppedAnimation<Color>(color),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                '$percentage%',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: color,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:mykoc/firebase/classroom/classroom_service.dart';
 import 'package:mykoc/firebase/tasks/task_service.dart';
+import 'package:mykoc/pages/classroom/class_detail/announcement_model.dart';
+import 'package:mykoc/firebase/announcement/announcement_service.dart';
 import 'package:mykoc/pages/classroom/class_model.dart';
 import 'package:mykoc/pages/tasks/task_model.dart';
 import 'package:mykoc/services/storage/local_storage_service.dart';
@@ -9,6 +11,7 @@ class ClassDetailViewModel extends ChangeNotifier {
   final String classId;
   final ClassroomService _classroomService = ClassroomService();
   final TaskService _taskService = TaskService();
+  final AnnouncementService _announcementService = AnnouncementService();
   final LocalStorageService _localStorage = LocalStorageService();
 
   ClassModel? _classData;
@@ -19,6 +22,9 @@ class ClassDetailViewModel extends ChangeNotifier {
 
   List<TaskModel> _tasks = [];
   List<TaskModel> get tasks => _tasks;
+
+  List<AnnouncementModel> _announcements = [];
+  List<AnnouncementModel> get announcements => _announcements;
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -67,6 +73,15 @@ class ClassDetailViewModel extends ChangeNotifier {
         debugPrint('⚠️ Local\'de öğrenci bulunamadı');
       }
 
+      // Duyuruları local'den yükle
+      final localAnnouncements = _localStorage.getClassAnnouncements(classId);
+      if (localAnnouncements != null && localAnnouncements.isNotEmpty) {
+        _announcements = localAnnouncements
+            .map((a) => AnnouncementModel.fromLocalMap(a))
+            .toList();
+        debugPrint('📦 ${_announcements.length} duyuru local\'den yüklendi');
+      }
+
       // TODO: Tasks'ı local'den yükle (implement later)
     } catch (e) {
       debugPrint('❌ Error loading from local: $e');
@@ -101,6 +116,11 @@ class ClassDetailViewModel extends ChangeNotifier {
       _tasks = await _taskService.getClassTasks(classId);
       debugPrint('✅ Firestore\'dan ${_tasks.length} görev yüklendi');
 
+      // Duyuruları Firestore'dan yükle
+      debugPrint('🔥 Firestore\'dan duyurular çekiliyor...');
+      _announcements = await _announcementService.getClassAnnouncements(classId);
+      debugPrint('✅ Firestore\'dan ${_announcements.length} duyuru yüklendi');
+
       notifyListeners();
     } catch (e) {
       debugPrint('❌ Error loading from Firestore: $e');
@@ -109,6 +129,80 @@ class ClassDetailViewModel extends ChangeNotifier {
 
   Future<void> refresh() async {
     await _loadFromFirestore();
+  }
+
+  // ==================== ANNOUNCEMENT İŞLEMLERİ ====================
+
+  /// Yeni duyuru oluştur
+  Future<bool> createAnnouncement({
+    required String mentorId,
+    required String title,
+    required String description,
+  }) async {
+    try {
+      final announcementId = await _announcementService.createAnnouncement(
+        classId: classId,
+        mentorId: mentorId,
+        title: title,
+        description: description,
+      );
+
+      if (announcementId != null) {
+        // Listeyi güncelle
+        await refresh();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('❌ Error creating announcement: $e');
+      return false;
+    }
+  }
+
+  /// Duyuru güncelle
+  Future<bool> updateAnnouncement({
+    required String announcementId,
+    required String title,
+    required String description,
+  }) async {
+    try {
+      final success = await _announcementService.updateAnnouncement(
+        announcementId: announcementId,
+        classId: classId,
+        title: title,
+        description: description,
+      );
+
+      if (success) {
+        // Listeyi güncelle
+        await refresh();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('❌ Error updating announcement: $e');
+      return false;
+    }
+  }
+
+  /// Duyuru sil
+  Future<bool> deleteAnnouncement(String announcementId) async {
+    try {
+      final success = await _announcementService.deleteAnnouncement(
+        announcementId,
+        classId,
+      );
+
+      if (success) {
+        // Listeyi güncelle
+        await refresh();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('❌ Error deleting announcement: $e');
+      return false;
+    }
   }
 
   @override

@@ -214,6 +214,31 @@ class LocalStorageService {
     if (kDebugMode) print('🗑️ Class students silindi: $classId');
   }
 
+  // ==================== CLASS ANNOUNCEMENTS ====================
+
+  static const String _keyClassAnnouncementsPrefix = 'class_announcements_';
+
+  /// Sınıf duyurularını kaydet
+  Future<void> saveClassAnnouncements(String classId, List<Map<String, dynamic>> announcements) async {
+    final jsonString = jsonEncode(announcements);
+    await _prefs?.setString('$_keyClassAnnouncementsPrefix$classId', jsonString);
+    if (kDebugMode) print('✅ Class announcements kaydedildi: $classId (${announcements.length} duyuru)');
+  }
+
+  /// Sınıf duyurularını oku
+  List<Map<String, dynamic>>? getClassAnnouncements(String classId) {
+    final jsonString = _prefs?.getString('$_keyClassAnnouncementsPrefix$classId');
+    if (jsonString == null) return null;
+    final List<dynamic> decoded = jsonDecode(jsonString);
+    return decoded.map((e) => e as Map<String, dynamic>).toList();
+  }
+
+  /// Bir sınıfın duyurularını sil
+  Future<void> removeClassAnnouncements(String classId) async {
+    await _prefs?.remove('$_keyClassAnnouncementsPrefix$classId');
+    if (kDebugMode) print('🗑️ Class announcements silindi: $classId');
+  }
+
   // ==================== UYGULAMA AYARLARI ====================
 
   /// Uygulama ayarlarını kaydet
