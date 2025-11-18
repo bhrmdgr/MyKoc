@@ -2,12 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mykoc/pages/home/homeModel.dart';
 import 'package:mykoc/pages/classroom/class_model.dart';
+import 'package:mykoc/pages/tasks/task_model.dart';
+import 'package:mykoc/pages/classroom/class_detail/announcement_model.dart';
 import 'package:mykoc/firebase/classroom/classroom_service.dart';
+import 'package:mykoc/firebase/tasks/task_service.dart';
+import 'package:mykoc/firebase/announcement/announcement_service.dart';
 import 'package:mykoc/services/storage/local_storage_service.dart';
 
 class HomeViewModel extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final ClassroomService _classroomService = ClassroomService();
+  final TaskService _taskService = TaskService();
+  final AnnouncementService _announcementService = AnnouncementService();
   final LocalStorageService _localStorage = LocalStorageService();
 
   HomeModel? _homeData;
@@ -15,6 +21,13 @@ class HomeViewModel extends ChangeNotifier {
 
   List<ClassModel> _classes = [];
   List<ClassModel> get classes => _classes;
+
+  // Öğrenci için task'lar ve duyurular
+  List<TaskModel> _studentTasks = [];
+  List<TaskModel> get studentTasks => _studentTasks;
+
+  List<AnnouncementModel> _studentAnnouncements = [];
+  List<AnnouncementModel> get studentAnnouncements => _studentAnnouncements;
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -111,6 +124,9 @@ class HomeViewModel extends ChangeNotifier {
         if (_classes.isNotEmpty) {
           await _localStorage.saveStudentClass(_classes.first.toMap());
           debugPrint('✅ Öğrenci sınıfı local\'e kaydedildi');
+
+          // Öğrenci için task'ları ve duyuruları çek
+          await _loadStudentTasksAndAnnouncements(uid, _classes.first.id);
         }
       }
 
@@ -122,7 +138,7 @@ class HomeViewModel extends ChangeNotifier {
         userRole: role,
         profileImageUrl: userData['profileImage'],
         completedTasks: 1,
-        totalTasks: 5,
+        totalTasks: _studentTasks.length > 0 ? _studentTasks.length : 5,
         upcomingSessions: sessions,
       );
 
@@ -137,6 +153,33 @@ class HomeViewModel extends ChangeNotifier {
     } catch (e) {
       _errorMessage = 'Veri yüklenirken hata oluştu';
       debugPrint('❌ Error loading from Firestore: $e');
+    }
+  }
+
+  Future<void> _loadStudentTasksAndAnnouncements(String studentId, String classId) async {
+    try {
+      debugPrint('📋 Öğrenci task\'ları çekiliyor...');
+
+      // Task'ları çek
+      _studentTasks = await _taskService.getStudentTasks(studentId);
+      debugPrint('✅ ${_studentTasks.length} task yüklendi');
+
+      // Task'ları due date'e göre sırala (yakından uzağa)
+      _studentTasks.sort((a, b) => a.dueDate.compareTo(b.dueDate));
+
+      // Duyuruları çek
+      debugPrint('📢 Sınıf duyuruları çekiliyor...');
+      _studentAnnouncements = await _announcementService.getClassAnnouncements(classId);
+      debugPrint('✅ ${_studentAnnouncements.length} duyuru yüklendi');
+
+      // En son 5 duyuruyu göster
+      if (_studentAnnouncements.length > 5) {
+        _studentAnnouncements = _studentAnnouncements.take(5).toList();
+      }
+
+      notifyListeners();
+    } catch (e) {
+      debugPrint('❌ Error loading student tasks and announcements: $e');
     }
   }
 

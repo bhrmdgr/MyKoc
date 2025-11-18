@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:mykoc/pages/home/homeModel.dart';
 import 'package:mykoc/pages/home/homeViewModel.dart';
+import 'package:mykoc/pages/classroom/class_detail/announcement_model.dart';
+import 'package:mykoc/pages/tasks/task_model.dart';
+import 'package:mykoc/pages/home/widgets/announcement_detail_dialog.dart';
+import 'package:intl/intl.dart';
 
 class StudentHomeView extends StatelessWidget {
   final HomeModel homeData;
@@ -15,6 +19,7 @@ class StudentHomeView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF9FAFB),
       body: RefreshIndicator(
         onRefresh: () => viewModel.refresh(),
         child: CustomScrollView(
@@ -23,10 +28,17 @@ class StudentHomeView extends StatelessWidget {
             SliverToBoxAdapter(
               child: _buildStudentHeader(),
             ),
-            // My Tasks Section
+
+            // Announcements Section
+            if (viewModel.studentAnnouncements.isNotEmpty)
+              SliverToBoxAdapter(
+                child: _buildAnnouncementsSection(context),
+              ),
+
+            // My Tasks Section Header
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -38,60 +50,60 @@ class StudentHomeView extends StatelessWidget {
                         color: Color(0xFF1F2937),
                       ),
                     ),
-                    OutlinedButton.icon(
-                      onPressed: () {
-                        // TODO: Filter tasks
-                      },
-                      icon: const Icon(Icons.filter_list_rounded, size: 18),
-                      label: const Text('Filter'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF6B7280),
-                        side: BorderSide(color: Colors.grey[300]!),
-                        shape: RoundedRectangleBorder(
+                    if (viewModel.studentTasks.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF6366F1).withOpacity(0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
+                        child: Text(
+                          '${viewModel.studentTasks.length} tasks',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF6366F1),
+                          ),
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),
             ),
-            // Task Filters
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                child: Row(
-                  children: [
-                    _buildFilterChip('All', true),
-                    const SizedBox(width: 8),
-                    _buildFilterChip('Pending', false),
-                    const SizedBox(width: 8),
-                    _buildFilterChip('Completed', false),
-                  ],
+
+            // Loading State
+            if (viewModel.isLoading && viewModel.studentTasks.isEmpty)
+              const SliverToBoxAdapter(
+                child: Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(40),
+                    child: CircularProgressIndicator(),
+                  ),
                 ),
-              ),
-            ),
+              )
+            // Empty State
+            else if (viewModel.studentTasks.isEmpty)
+              SliverToBoxAdapter(
+                child: _buildEmptyTasksState(),
+              )
             // Tasks List
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                    return _buildTaskCard(
-                      title: index == 0
-                          ? 'Read Chapter 5: Shakespearean Sonnets'
-                          : 'Design a Logo Concept',
-                      className: index == 0 ? '📚 English Literature' : '🎨 Design Fundamentals',
-                      dueText: index == 0 ? 'Due in about 24 hours' : 'Due in 2 days',
-                      priority: index == 0 ? 'High Priority' : 'Medium Priority',
-                      isHighPriority: index == 0,
-                    );
-                  },
-                  childCount: 2, // TODO: Dynamic olacak
+            else
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                      final task = viewModel.studentTasks[index];
+                      return _buildTaskCard(task);
+                    },
+                    childCount: viewModel.studentTasks.length,
+                  ),
                 ),
               ),
-            ),
-            const SliverToBoxAdapter(child: SizedBox(height: 20)),
+            const SliverToBoxAdapter(child: SizedBox(height: 100)),
           ],
         ),
       ),
@@ -204,7 +216,7 @@ class StudentHomeView extends StatelessWidget {
                           ],
                         ),
                         Text(
-                          '${homeData.progressPercentage.toInt()}%',
+                          '${_calculateProgress().toInt()}%',
                           style: const TextStyle(
                             fontSize: 24,
                             color: Colors.white,
@@ -227,7 +239,7 @@ class StudentHomeView extends StatelessWidget {
                             ),
                           ),
                           FractionallySizedBox(
-                            widthFactor: homeData.progressPercentage / 100,
+                            widthFactor: _calculateProgress() / 100,
                             child: Container(
                               height: 10,
                               decoration: BoxDecoration(
@@ -241,7 +253,7 @@ class StudentHomeView extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      '${homeData.completedTasks} of ${homeData.totalTasks} tasks completed',
+                      '${_getCompletedTasksCount()} of ${viewModel.studentTasks.length} tasks completed',
                       style: TextStyle(
                         fontSize: 13,
                         color: Colors.white.withOpacity(0.8),
@@ -257,34 +269,164 @@ class StudentHomeView extends StatelessWidget {
     );
   }
 
-  Widget _buildFilterChip(String label, bool isSelected) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      decoration: BoxDecoration(
-        color: isSelected ? const Color(0xFF6366F1) : Colors.transparent,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isSelected ? const Color(0xFF6366F1) : Colors.grey[300]!,
+  Widget _buildAnnouncementsSection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(20, 20, 20, 12),
+          child: Text(
+            'Announcements',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1F2937),
+            ),
+          ),
         ),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-          color: isSelected ? Colors.white : const Color(0xFF6B7280),
+        SizedBox(
+          height: 140,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            itemCount: viewModel.studentAnnouncements.length,
+            itemBuilder: (context, index) {
+              final announcement = viewModel.studentAnnouncements[index];
+              return Padding(
+                padding: EdgeInsets.only(
+                  right: index < viewModel.studentAnnouncements.length - 1 ? 12 : 0,
+                ),
+                child: _buildAnnouncementCard(context, announcement),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAnnouncementCard(BuildContext context, AnnouncementModel announcement) {
+    final formattedDate = DateFormat('MMM dd, HH:mm').format(announcement.createdAt);
+
+    return GestureDetector(
+      onTap: () {
+        showDialog(
+          context: context,
+          builder: (context) => AnnouncementDetailDialog(
+            announcement: announcement,
+          ),
+        );
+      },
+      child: Container(
+        width: 280,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [
+              Color(0xFF6366F1),
+              Color(0xFF8B5CF6),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF6366F1).withOpacity(0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.campaign,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  formattedDate,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white.withOpacity(0.9),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              announcement.title,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: Text(
+                announcement.description,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.white.withOpacity(0.9),
+                  height: 1.4,
+                ),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildTaskCard({
-    required String title,
-    required String className,
-    required String dueText,
-    required String priority,
-    required bool isHighPriority,
-  }) {
+  Widget _buildTaskCard(TaskModel task) {
+    final isOverdue = task.dueDate.isBefore(DateTime.now());
+    final daysUntilDue = task.dueDate.difference(DateTime.now()).inDays;
+    final isUrgent = daysUntilDue <= 1 && !isOverdue;
+
+    String dueText;
+    if (isOverdue) {
+      dueText = 'Overdue';
+    } else if (daysUntilDue == 0) {
+      dueText = 'Due today';
+    } else if (daysUntilDue == 1) {
+      dueText = 'Due tomorrow';
+    } else {
+      dueText = 'Due in $daysUntilDue days';
+    }
+
+    Color priorityColor;
+    Color borderColor;
+    switch (task.priority.toLowerCase()) {
+      case 'high':
+        priorityColor = const Color(0xFFEF4444);
+        borderColor = const Color(0xFFFEE2E2);
+        break;
+      case 'medium':
+        priorityColor = const Color(0xFFF59E0B);
+        borderColor = const Color(0xFFFEF3C7);
+        break;
+      default:
+        priorityColor = const Color(0xFF3B82F6);
+        borderColor = const Color(0xFFDCEEFB);
+    }
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -292,9 +434,7 @@ class StudentHomeView extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isHighPriority
-              ? const Color(0xFFFEF3C7)
-              : const Color(0xFFE5E7EB),
+          color: isUrgent || isOverdue ? borderColor : const Color(0xFFE5E7EB),
           width: 2,
         ),
         boxShadow: [
@@ -305,86 +445,163 @@ class StudentHomeView extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Checkbox
-          Container(
-            width: 24,
-            height: 24,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.grey[400]!, width: 2),
-            ),
-          ),
-          const SizedBox(width: 12),
-          // Task Info
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  task.title,
                   style: const TextStyle(
-                    fontSize: 15,
+                    fontSize: 16,
                     fontWeight: FontWeight.w600,
                     color: Color(0xFF1F2937),
                   ),
                 ),
-                const SizedBox(height: 8),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: priorityColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  task.priority.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: priorityColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            task.description,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Icon(
+                Icons.calendar_today_outlined,
+                size: 14,
+                color: isOverdue
+                    ? const Color(0xFFEF4444)
+                    : isUrgent
+                    ? const Color(0xFFF59E0B)
+                    : Colors.grey[600],
+              ),
+              const SizedBox(width: 4),
+              Text(
+                dueText,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: isOverdue
+                      ? const Color(0xFFEF4444)
+                      : isUrgent
+                      ? const Color(0xFFF59E0B)
+                      : Colors.grey[600],
+                ),
+              ),
+              if (task.assignedStudents.isNotEmpty) ...[
+                const SizedBox(width: 16),
+                Icon(
+                  Icons.people_outline,
+                  size: 14,
+                  color: Colors.grey[600],
+                ),
+                const SizedBox(width: 4),
                 Text(
-                  className,
+                  '${task.assignedStudents.length} students',
                   style: TextStyle(
                     fontSize: 13,
                     color: Colors.grey[600],
                   ),
                 ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.calendar_today_outlined,
-                      size: 14,
-                      color: isHighPriority
-                          ? const Color(0xFFEA580C)
-                          : Colors.grey[600],
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      dueText,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: isHighPriority
-                            ? const Color(0xFFEA580C)
-                            : Colors.grey[600],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: isHighPriority
-                        ? const Color(0xFFFEF3C7)
-                        : const Color(0xFFDCEEFB),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    priority,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: isHighPriority
-                          ? const Color(0xFFEA580C)
-                          : const Color(0xFF3B82F6),
-                    ),
-                  ),
-                ),
               ],
-            ),
+            ],
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildEmptyTasksState() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.all(40),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  const Color(0xFF6366F1).withOpacity(0.1),
+                  const Color(0xFF8B5CF6).withOpacity(0.1),
+                ],
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.assignment_outlined,
+              size: 40,
+              color: Color(0xFF6366F1),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No Tasks Yet',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[700],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Your mentor hasn\'t assigned any tasks yet',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[500],
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  double _calculateProgress() {
+    if (viewModel.studentTasks.isEmpty) return 0;
+    // TODO: Task'larda completion status eklendiğinde burası güncellenecek
+    // Şimdilik dummy değer
+    return (homeData.completedTasks / viewModel.studentTasks.length) * 100;
+  }
+
+  int _getCompletedTasksCount() {
+    // TODO: Task'larda completion status eklendiğinde burası güncellenecek
+    return homeData.completedTasks;
   }
 }
