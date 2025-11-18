@@ -11,6 +11,7 @@ import 'package:mykoc/pages/classroom/class_detail/widgets/expandable_tasks_sect
 import 'package:mykoc/services/storage/local_storage_service.dart';
 
 
+
 class ClassDetailView extends StatefulWidget {
   final ClassModel classData;
 
@@ -59,35 +60,36 @@ class _ClassDetailViewState extends State<ClassDetailView>
     return ChangeNotifierProvider.value(
       value: _viewModel,
       child: Scaffold(
-        body: NestedScrollView(
-          headerSliverBuilder: (context, innerBoxIsScrolled) {
-            return [
-              SliverToBoxAdapter(
-                child: Column(
-                  children: [
-                    _buildHeader(),
-                    _buildStatsCards(),
-                    // Announcements Section
-                    Consumer<ClassDetailViewModel>(
-                      builder: (context, viewModel, child) {
-                        return AnnouncementsSection(
-                          announcements: viewModel.announcements,
-                          onAddPressed: _showCreateAnnouncementDialog,
-                          onAnnouncementTap: _showEditAnnouncementDialog,
-                        );
-                      },
-                    ),
-                    _buildTabBar(),
-                  ],
-                ),
-              ),
-            ];
-          },
-          body: TabBarView(
-            controller: _tabController,
+        backgroundColor: const Color(0xFFF9FAFB),
+        body: SingleChildScrollView(
+          child: Column(
             children: [
-              _buildTasksTab(),
-              _buildStudentsTab(),
+              _buildHeader(),
+              _buildStatsCards(),
+              // Announcements Section
+              Consumer<ClassDetailViewModel>(
+                builder: (context, viewModel, child) {
+                  return AnnouncementsSection(
+                    announcements: viewModel.announcements,
+                    onAddPressed: _showCreateAnnouncementDialog,
+                    onAnnouncementTap: _showEditAnnouncementDialog,
+                  );
+                },
+              ),
+              _buildTabBar(),
+              // Tab Content - burası key nokta
+              Consumer<ClassDetailViewModel>(
+                builder: (context, viewModel, child) {
+                  return AnimatedSize(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                    child: _tabController.index == 0
+                        ? _buildTasksContent(viewModel)
+                        : _buildStudentsContent(viewModel),
+                  );
+                },
+              ),
+              const SizedBox(height: 100), // FAB için boşluk
             ],
           ),
         ),
@@ -404,6 +406,9 @@ class _ClassDetailViewState extends State<ClassDetailView>
           fontWeight: FontWeight.w600,
         ),
         dividerColor: Colors.transparent,
+        onTap: (index) {
+          setState(() {}); // Tab değişince içeriği güncelle
+        },
         tabs: [
           Tab(
             child: Row(
@@ -430,135 +435,127 @@ class _ClassDetailViewState extends State<ClassDetailView>
     );
   }
 
-  Widget _buildTasksTab() {
-    return Consumer<ClassDetailViewModel>(
-      builder: (context, viewModel, child) {
-        if (viewModel.isLoading && viewModel.tasks.isEmpty) {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
-        }
+  Widget _buildTasksContent(ClassDetailViewModel viewModel) {
+    if (viewModel.isLoading && viewModel.tasks.isEmpty) {
+      return Container(
+        height: 200,
+        color: const Color(0xFFF9FAFB),
+        child: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
 
-        return RefreshIndicator(
-          onRefresh: () => viewModel.refresh(),
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            child: ExpandableTasksSection(
-              tasks: viewModel.tasks,
-              onTaskTap: (task) {
-                // TODO: Navigate to task detail
-                debugPrint('Task tapped: ${task.title}');
-              },
-            ),
-          ),
-        );
+    return ExpandableTasksSection(
+      tasks: viewModel.tasks,
+      onTaskTap: (task) {
+        // TODO: Navigate to task detail
+        debugPrint('Task tapped: ${task.title}');
       },
     );
   }
 
-  Widget _buildStudentsTab() {
-    return Consumer<ClassDetailViewModel>(
-      builder: (context, viewModel, child) {
-        // Eğer yükleniyor ve hiç öğrenci yoksa loading göster
-        if (viewModel.isLoading && viewModel.students.isEmpty) {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
-        }
+  Widget _buildStudentsContent(ClassDetailViewModel viewModel) {
+    if (viewModel.isLoading && viewModel.students.isEmpty) {
+      return Container(
+        height: 200,
+        color: const Color(0xFFF9FAFB),
+        child: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Students',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1F2937),
-                    ),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: () => _showInviteCodeDialog(),
-                    icon: const Icon(Icons.person_add_outlined, size: 18),
-                    label: const Text('Add Student'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF6366F1),
-                      side: const BorderSide(color: Color(0xFF6366F1)),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                    ),
-                  ),
-                ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Students',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1F2937),
+                ),
               ),
-            ),
-            Expanded(
-              child: viewModel.students.isEmpty
-                  ? _buildEmptyStudentsState()
-                  : ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                itemCount: viewModel.students.length,
-                itemBuilder: (context, index) {
-                  final student = viewModel.students[index];
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _buildStudentCard(
-                      name: student['name'] ?? 'Unknown',
-                      email: student['email'] ?? '',
-                      initials: _getInitials(student['name'] ?? 'U'),
-                      color: _getColorForIndex(index),
-                    ),
-                  );
-                },
+              OutlinedButton.icon(
+                onPressed: () => _showInviteCodeDialog(),
+                icon: const Icon(Icons.person_add_outlined, size: 18),
+                label: const Text('Add Student'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF6366F1),
+                  side: const BorderSide(color: Color(0xFF6366F1)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                ),
               ),
-            ),
-          ],
-        );
-      },
+            ],
+          ),
+        ),
+        viewModel.students.isEmpty
+            ? _buildEmptyStudentsState()
+            : Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: viewModel.students.map((student) {
+              final index = viewModel.students.indexOf(student);
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _buildStudentCard(
+                  name: student['name'] ?? 'Unknown',
+                  email: student['email'] ?? '',
+                  initials: _getInitials(student['name'] ?? 'U'),
+                  color: _getColorForIndex(index),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildEmptyStudentsState() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(40),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.people_outline_rounded,
-              size: 80,
-              color: Colors.grey[300],
+    return Padding(
+      padding: const EdgeInsets.all(40),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.people_outline_rounded,
+            size: 80,
+            color: Colors.grey[300],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No Students Yet',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[700],
             ),
-            const SizedBox(height: 16),
-            Text(
-              'No Students Yet',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[700],
-              ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Share your class code to invite students',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[500],
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Share your class code to invite students',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[500],
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }
