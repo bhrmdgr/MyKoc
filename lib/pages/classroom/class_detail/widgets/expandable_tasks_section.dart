@@ -1,146 +1,176 @@
 import 'package:flutter/material.dart';
 import 'package:mykoc/pages/tasks/task_model.dart';
 import 'package:mykoc/pages/classroom/class_detail/widgets/task_card.dart';
+import 'package:mykoc/pages/classroom/class_detail/class_detail_view.dart'; // Enum için import
 
-class ExpandableTasksSection extends StatefulWidget {
+class ExpandableTasksSection extends StatelessWidget {
   final List<TaskModel> tasks;
+  final Map<String, Map<String, int>>? taskStats;
+  final List<Map<String, dynamic>> students;
   final Function(TaskModel) onTaskTap;
+  // YENİ: Sıralama için gerekli parametreler
+  final TaskSortOption currentSort;
+  final Function(TaskSortOption) onSortChanged;
 
   const ExpandableTasksSection({
     super.key,
     required this.tasks,
+    this.taskStats,
+    required this.students,
     required this.onTaskTap,
+    required this.currentSort, // Zorunlu
+    required this.onSortChanged, // Zorunlu
   });
 
   @override
-  State<ExpandableTasksSection> createState() => _ExpandableTasksSectionState();
-}
-
-class _ExpandableTasksSectionState extends State<ExpandableTasksSection> {
-  bool _isExpanded = false;
-
-  @override
   Widget build(BuildContext context) {
-    if (widget.tasks.isEmpty) {
+    if (tasks.isEmpty) {
       return _buildEmptyState();
     }
 
-    // Task'ları due date'e göre sırala
-    final sortedTasks = List<TaskModel>.from(widget.tasks)
-      ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
-
-    // Gösterilecek task'ları belirle
-    final tasksToShow = _isExpanded
-        ? sortedTasks
-        : sortedTasks.take(2).toList();
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
+        // --- BAŞLIK VE SIRALAMA ---
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                _isExpanded ? 'All Tasks' : 'Upcoming Tasks',
-                style: const TextStyle(
-                  fontSize: 18,
+              const Text(
+                'Tasks',
+                style: TextStyle(
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: Color(0xFF1F2937),
                 ),
               ),
-              if (widget.tasks.length > 2)
-                TextButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      _isExpanded = !_isExpanded;
-                    });
-                  },
-                  icon: Icon(
-                    _isExpanded ? Icons.expand_less : Icons.expand_more,
-                    size: 20,
+              // Sıralama Butonu
+              PopupMenuButton<TaskSortOption>(
+                onSelected: onSortChanged,
+                initialValue: currentSort,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade300),
                   ),
-                  label: Text(_isExpanded ? 'Show Less' : 'View All'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFF6366F1),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.sort_rounded, size: 18, color: Colors.grey[700]),
+                      const SizedBox(width: 4),
+                      Text(
+                        _getSortText(currentSort),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+                itemBuilder: (context) => [
+                  _buildPopupItem(TaskSortOption.upcoming, 'Upcoming', Icons.calendar_today_rounded),
+                  _buildPopupItem(TaskSortOption.newest, 'Newest First', Icons.access_time_rounded),
+                  _buildPopupItem(TaskSortOption.oldest, 'Oldest First', Icons.history_rounded),
+                  _buildPopupItem(TaskSortOption.priority, 'Priority (High)', Icons.flag_rounded),
+                ],
+              ),
             ],
           ),
         ),
+
+        // --- GÖREV LİSTESİ ---
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Column(
-            children: tasksToShow.map((task) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: TaskCard(
-                  task: task,
-                  onTap: () => widget.onTaskTap(task),
-                ),
+            mainAxisSize: MainAxisSize.min,
+            children: tasks.map<Widget>((task) {
+
+              // 1. İstatistikleri çek
+              final stats = taskStats?[task.id];
+
+              // 2. Öğrenci etiketini hesapla
+              String assigneeLabel = 'Unknown';
+              if (task.assignedStudents.isEmpty) {
+                assigneeLabel = 'No Students';
+              } else if (task.assignedStudents.length == 1) {
+                final studentId = task.assignedStudents.first;
+                final studentMap = students.firstWhere(
+                      (s) => (s['uid'] == studentId) || (s['id'] == studentId),
+                  orElse: () => {'name': 'Unknown Student'},
+                );
+                assigneeLabel = studentMap['name'] ?? 'Unknown';
+              } else {
+                assigneeLabel = '${task.assignedStudents.length} Students';
+              }
+
+              // 3. TaskCard'ı döndür
+              return TaskCard(
+                task: task,
+                onTap: () => onTaskTap(task),
+                notStartedCount: stats?['notStarted'],
+                inProgressCount: stats?['inProgress'],
+                completedCount: stats?['completed'],
+                assigneeLabel: assigneeLabel,
               );
             }).toList(),
           ),
         ),
-        const SizedBox(height: 16),
       ],
     );
+  }
+
+  PopupMenuItem<TaskSortOption> _buildPopupItem(TaskSortOption value, String text, IconData icon) {
+    final isSelected = currentSort == value;
+    return PopupMenuItem(
+      value: value,
+      child: Row(
+        children: [
+          Icon(
+              icon,
+              size: 18,
+              color: isSelected ? const Color(0xFF6366F1) : Colors.grey[600]
+          ),
+          const SizedBox(width: 12),
+          Text(
+            text,
+            style: TextStyle(
+              color: isSelected ? const Color(0xFF6366F1) : Colors.black87,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getSortText(TaskSortOption option) {
+    switch (option) {
+      case TaskSortOption.upcoming: return 'Upcoming';
+      case TaskSortOption.newest: return 'Newest';
+      case TaskSortOption.oldest: return 'Oldest';
+      case TaskSortOption.priority: return 'Priority';
+    }
   }
 
   Widget _buildEmptyState() {
     return Padding(
       padding: const EdgeInsets.all(40),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(32),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF9FAFB),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: const Color(0xFFE5E7EB),
-          ),
-        ),
-        child: Column(
-          children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    const Color(0xFF6366F1).withOpacity(0.1),
-                    const Color(0xFF8B5CF6).withOpacity(0.1),
-                  ],
-                ),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.assignment_outlined,
-                size: 40,
-                color: Color(0xFF6366F1),
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'No Tasks Yet',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1F2937),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Create your first task to get started',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.assignment_outlined, size: 80, color: Colors.grey[300]),
+          const SizedBox(height: 16),
+          Text('No Tasks Yet', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.grey[700])),
+          const SizedBox(height: 8),
+          Text('Create your first task to get started', style: TextStyle(fontSize: 14, color: Colors.grey[500]), textAlign: TextAlign.center),
+        ],
       ),
     );
   }

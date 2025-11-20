@@ -8,9 +8,13 @@ import 'package:mykoc/pages/classroom/class_detail/widgets/announcements_section
 import 'package:mykoc/pages/classroom/class_detail/widgets/announcement_dialog.dart';
 import 'package:mykoc/pages/classroom/class_detail/announcement_model.dart';
 import 'package:mykoc/pages/classroom/class_detail/widgets/expandable_tasks_section.dart';
+import 'package:mykoc/pages/tasks/mentor_task_detail_view.dart';
+import 'package:mykoc/pages/tasks/task_model.dart'; // TaskModel erişimi için
 import 'package:mykoc/services/storage/local_storage_service.dart';
+import 'package:mykoc/firebase/tasks/task_service.dart';
 
-
+// Sıralama Seçenekleri
+enum TaskSortOption { upcoming, newest, oldest, priority }
 
 class ClassDetailView extends StatefulWidget {
   final ClassModel classData;
@@ -29,6 +33,13 @@ class _ClassDetailViewState extends State<ClassDetailView>
   late ClassDetailViewModel _viewModel;
   late TabController _tabController;
   final LocalStorageService _localStorage = LocalStorageService();
+  final TaskService _taskService = TaskService();
+
+  // Her görevin istatistiklerini (Done/Working/Todo) tutan harita
+  Map<String, Map<String, int>> _taskStats = {};
+
+  // Seçili sıralama yöntemi (Varsayılan: Yaklaşan)
+  TaskSortOption _selectedSort = TaskSortOption.upcoming;
 
   @override
   void initState() {
@@ -36,20 +47,132 @@ class _ClassDetailViewState extends State<ClassDetailView>
     _tabController = TabController(length: 2, vsync: this);
     _viewModel = ClassDetailViewModel(classId: widget.classData.id);
 
-    // Tab değişikliklerini dinle ve UI'ı güncelle
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {
-        setState(() {}); // FAB görünürlüğünü güncelle
+        setState(() {});
       }
     });
 
+    // ViewModel güncellemelerini dinle (Yeni task geldiğinde stats çekmek için)
+    _viewModel.addListener(_onViewModelUpdated);
+
+    // Sayfa açıldığında verileri başlat
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _viewModel.initialize();
+      _viewModel.initialize().then((_) {
+        if (mounted) {
+          _loadTaskStats();
+        }
+      });
     });
+  }
+
+  // ViewModel değiştiğinde tetiklenir
+  void _onViewModelUpdated() {
+    if (mounted && !_viewModel.isLoading && _viewModel.tasks.isNotEmpty) {
+      // Eğer task sayısı ile çekilen istatistik sayısı uyuşmuyorsa eksikleri çek
+      if (_viewModel.tasks.length > _taskStats.length) {
+        _loadTaskStats();
+      }
+    }
+  }
+
+  // Görevlerin istatistiklerini (Kaç kişi tamamladı vs.) çeker
+  Future<void> _loadTaskStats() async {
+    final tasks = _viewModel.tasks;
+    if (tasks.isEmpty) return;
+
+    // Mevcut map'in kopyası üzerinde işlem yapıyoruz
+    final currentStats = Map<String, Map<String, int>>.from(_taskStats);
+
+    for (var task in tasks) {
+      // Zaten bu task için veri varsa tekrar çekme (Optimizasyon)
+      if (currentStats.containsKey(task.id)) continue;
+
+      try {
+        final detail = await _taskService.getTaskDetailWithStudents(
+          taskId: task.id,
+        );
+
+        if (detail != null) {
+          currentStats[task.id] = {
+            'notStarted': detail.notStartedCount,
+            'inProgress': detail.inProgressCount,
+            'completed': detail.completedCount,
+          };
+
+          // Her veri geldiğinde arayüzü güncelle (Kullanıcıyı bekletmemek için)
+          if (mounted) {
+            setState(() {
+              _taskStats = Map.from(currentStats);
+            });
+          }
+        }
+      } catch (e) {
+        debugPrint('Error loading stats for task ${task.id}: $e');
+      }
+    }
+  }
+
+  // Görevleri seçilen opsiyona göre sıralar
+  List<TaskModel> _getSortedTasks() {
+    List<TaskModel> sortedList = List.from(_viewModel.tasks);
+
+    switch (_selectedSort) {
+      case TaskSortOption.upcoming:
+      // Tarihi en yakın olan (DueDate)
+        sortedList.sort((a, b) => a.dueDate.compareTo(b.dueDate));
+        break;
+      case TaskSortOption.newest:
+      // Eklenme tarihi en yeni olan (CreatedAt Desc)
+        sortedList.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        break;
+      case TaskSortOption.oldest:
+      // Eklenme tarihi en eski olan (CreatedAt Asc)
+        sortedList.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        break;
+      case TaskSortOption.priority:
+      // Öncelik sırası (High > Medium > Low)
+        sortedList.sort((a, b) {
+          final pA = _getPriorityValue(a.priority);
+          final pB = _getPriorityValue(b.priority);
+          return pB.compareTo(pA);
+        });
+        break;
+    }
+    return sortedList;
+  }
+
+  int _getPriorityValue(String priority) {
+    switch (priority.toLowerCase()) {
+      case 'high': return 3;
+      case 'medium': return 2;
+      default: return 1;
+    }
+  }
+
+  // Sınıfın genel başarı oranını hesaplar
+  double _calculateOverallProgress() {
+    if (_taskStats.isEmpty) return 0.0;
+
+    int totalAssignments = 0;
+    int totalCompleted = 0;
+
+    _taskStats.forEach((_, stats) {
+      int taskStudentCount = (stats['completed'] ?? 0) +
+          (stats['inProgress'] ?? 0) +
+          (stats['notStarted'] ?? 0);
+
+      totalAssignments += taskStudentCount;
+      totalCompleted += (stats['completed'] ?? 0);
+    });
+
+    if (totalAssignments == 0) return 0.0;
+    return (totalCompleted / totalAssignments);
   }
 
   @override
   void dispose() {
+    _viewModel.removeListener(_onViewModelUpdated);
     _tabController.dispose();
     _viewModel.dispose();
     super.dispose();
@@ -65,8 +188,7 @@ class _ClassDetailViewState extends State<ClassDetailView>
           child: Column(
             children: [
               _buildHeader(),
-              _buildStatsCards(),
-              // Announcements Section
+              _buildStatsCards(), // Güncellenen 3'lü istatistik alanı
               Consumer<ClassDetailViewModel>(
                 builder: (context, viewModel, child) {
                   return AnnouncementsSection(
@@ -77,7 +199,6 @@ class _ClassDetailViewState extends State<ClassDetailView>
                 },
               ),
               _buildTabBar(),
-              // Tab Content - burası key nokta
               Consumer<ClassDetailViewModel>(
                 builder: (context, viewModel, child) {
                   return AnimatedSize(
@@ -89,7 +210,7 @@ class _ClassDetailViewState extends State<ClassDetailView>
                   );
                 },
               ),
-              const SizedBox(height: 100), // FAB için boşluk
+              const SizedBox(height: 100),
             ],
           ),
         ),
@@ -110,7 +231,9 @@ class _ClassDetailViewState extends State<ClassDetailView>
             );
 
             if (result == true && mounted) {
-              _viewModel.refresh();
+              // Yeni görev eklendi, listeyi yenile
+              await _viewModel.refresh();
+              // Listener sayesinde _loadTaskStats otomatik çalışacak
             }
           },
           backgroundColor: const Color(0xFF6366F1),
@@ -128,200 +251,47 @@ class _ClassDetailViewState extends State<ClassDetailView>
     );
   }
 
-  // ==================== ANNOUNCEMENT DIALOG METHODS ====================
-
-  void _showCreateAnnouncementDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AnnouncementDialog(
-        onSave: (title, description) async {
-          final mentorId = _localStorage.getUid();
-          if (mentorId == null) {
-            throw 'User not logged in';
-          }
-
-          final success = await _viewModel.createAnnouncement(
-            mentorId: mentorId,
-            title: title,
-            description: description,
-          );
-
-          if (success && mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Row(
-                  children: [
-                    Icon(Icons.check_circle, color: Colors.white),
-                    SizedBox(width: 12),
-                    Text('Announcement created successfully'),
-                  ],
-                ),
-                backgroundColor: Color(0xFF10B981),
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-          }
-        },
-      ),
-    );
-  }
-
-  void _showEditAnnouncementDialog(AnnouncementModel announcement) {
-    showDialog(
-      context: context,
-      builder: (context) => AnnouncementDialog(
-        announcement: announcement,
-        onSave: (title, description) async {
-          final success = await _viewModel.updateAnnouncement(
-            announcementId: announcement.id,
-            title: title,
-            description: description,
-          );
-
-          if (success && mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Row(
-                  children: [
-                    Icon(Icons.check_circle, color: Colors.white),
-                    SizedBox(width: 12),
-                    Text('Announcement updated successfully'),
-                  ],
-                ),
-                backgroundColor: Color(0xFF10B981),
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-          }
-        },
-        onDelete: () async {
-          final success = await _viewModel.deleteAnnouncement(announcement.id);
-
-          if (success && mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Row(
-                  children: [
-                    Icon(Icons.check_circle, color: Colors.white),
-                    SizedBox(width: 12),
-                    Text('Announcement deleted successfully'),
-                  ],
-                ),
-                backgroundColor: Color(0xFFEF4444),
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-          }
-        },
-      ),
-    );
-  }
-
-
-  Widget _buildHeader() {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Color(widget.classData.getColorFromType()),
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.more_vert, color: Colors.white),
-                    onPressed: () {
-                      // TODO: Show menu (edit, delete, etc.)
-                    },
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
-              child: Column(
-                children: [
-                  Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Center(
-                      child: Text(
-                        widget.classData.emoji ?? '📚',
-                        style: const TextStyle(fontSize: 48),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    widget.classData.className,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
+  // --- GÜNCELLENEN 3'LÜ İSTATİSTİK KARTLARI ---
   Widget _buildStatsCards() {
+    final studentCount = widget.classData.studentCount.toString();
+    final totalTasks = _viewModel.tasks.length.toString();
+    final progressValue = _calculateOverallProgress();
+    final progressPercent = (progressValue * 100).toInt().toString();
+
     return Container(
       transform: Matrix4.translationValues(0, -30, 0),
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: [
+          // 1. Student Count
           Expanded(
             child: _buildStatCard(
-              icon: Icons.check_circle_outline_rounded,
-              iconColor: const Color(0xFF10B981),
-              value: '1',
-              label: 'Done',
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _buildStatCard(
-              icon: Icons.access_time_rounded,
-              iconColor: const Color(0xFFF59E0B),
-              value: '2',
-              label: 'Pending',
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _buildStatCard(
-              icon: Icons.cancel_outlined,
-              iconColor: const Color(0xFF6B7280),
-              value: '0',
-              label: 'Not Started',
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _buildStatCard(
-              icon: Icons.people_outline_rounded,
-              iconColor: const Color(0xFF6366F1),
-              value: '${widget.classData.studentCount}',
+              icon: Icons.groups_rounded,
+              iconColor: const Color(0xFF6366F1), // Mor
+              value: studentCount,
               label: 'Students',
+            ),
+          ),
+          const SizedBox(width: 12),
+
+          // 2. Total Tasks
+          Expanded(
+            child: _buildStatCard(
+              icon: Icons.assignment_rounded,
+              iconColor: const Color(0xFFF59E0B), // Turuncu
+              value: totalTasks,
+              label: 'Total Tasks',
+            ),
+          ),
+          const SizedBox(width: 12),
+
+          // 3. Completion Rate
+          Expanded(
+            child: _buildStatCard(
+              icon: Icons.pie_chart_rounded,
+              iconColor: const Color(0xFF10B981), // Yeşil
+              value: '%$progressPercent',
+              label: 'Completion',
             ),
           ),
         ],
@@ -336,14 +306,14 @@ class _ClassDetailViewState extends State<ClassDetailView>
     required String label,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
+            color: const Color(0xFF1F2937).withOpacity(0.06),
+            blurRadius: 16,
             offset: const Offset(0, 4),
           ),
         ],
@@ -351,29 +321,30 @@ class _ClassDetailViewState extends State<ClassDetailView>
       child: Column(
         children: [
           Container(
-            width: 36,
-            height: 36,
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: iconColor.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: iconColor, size: 18),
+            child: Icon(icon, color: iconColor, size: 24),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 12),
           Text(
             value,
             style: TextStyle(
-              fontSize: 20,
+              fontSize: 22,
               fontWeight: FontWeight.bold,
-              color: iconColor,
+              color: const Color(0xFF1F2937),
+              letterSpacing: -0.5,
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 4),
           Text(
             label,
-            style: const TextStyle(
-              fontSize: 10,
-              color: Color(0xFF6B7280),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey[500],
             ),
             textAlign: TextAlign.center,
             maxLines: 1,
@@ -384,57 +355,7 @@ class _ClassDetailViewState extends State<ClassDetailView>
     );
   }
 
-  Widget _buildTabBar() {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-      height: 48,
-      decoration: BoxDecoration(
-        color: const Color(0xFFF3F4F6),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: TabBar(
-        controller: _tabController,
-        indicator: BoxDecoration(
-          color: const Color(0xFF6366F1),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        indicatorPadding: const EdgeInsets.all(4),
-        labelColor: Colors.white,
-        unselectedLabelColor: const Color(0xFF6B7280),
-        labelStyle: const TextStyle(
-          fontSize: 15,
-          fontWeight: FontWeight.w600,
-        ),
-        dividerColor: Colors.transparent,
-        onTap: (index) {
-          setState(() {}); // Tab değişince içeriği güncelle
-        },
-        tabs: [
-          Tab(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                Icon(Icons.assignment_outlined, size: 20),
-                SizedBox(width: 8),
-                Text('Tasks'),
-              ],
-            ),
-          ),
-          Tab(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                Icon(Icons.people_outline_rounded, size: 20),
-                SizedBox(width: 8),
-                Text('Students'),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
+  // --- GÜNCELLENEN GÖREV LİSTESİ İÇERİĞİ ---
   Widget _buildTasksContent(ClassDetailViewModel viewModel) {
     if (viewModel.isLoading && viewModel.tasks.isEmpty) {
       return Container(
@@ -446,15 +367,40 @@ class _ClassDetailViewState extends State<ClassDetailView>
       );
     }
 
+    // Sıralanmış listeyi al
+    final sortedTasks = _getSortedTasks();
+
     return ExpandableTasksSection(
-      tasks: viewModel.tasks,
-      onTaskTap: (task) {
-        // TODO: Navigate to task detail
-        debugPrint('Task tapped: ${task.title}');
+      tasks: sortedTasks, // Sıralı listeyi gönder
+      taskStats: _taskStats, // İstatistikleri gönder
+      students: viewModel.students, // Öğrenci listesini gönder (İsim bulmak için)
+      currentSort: _selectedSort, // Mevcut sıralama seçeneği
+      onSortChanged: (newSort) { // Sıralama değiştiğinde tetiklenir
+        setState(() {
+          _selectedSort = newSort;
+        });
+      },
+      onTaskTap: (task) async {
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => MentorTaskDetailView(taskId: task.id),
+          ),
+        );
+
+        if (result == true && mounted) {
+          await _viewModel.refresh();
+          // Detaydan dönünce o task'ın verisini sil ki yeniden güncelini çeksin
+          setState(() {
+            _taskStats.remove(task.id);
+          });
+          _loadTaskStats();
+        }
       },
     );
   }
 
+  // --- ÖĞRENCİ LİSTESİ İÇERİĞİ (Değişmedi) ---
   Widget _buildStudentsContent(ClassDetailViewModel viewModel) {
     if (viewModel.isLoading && viewModel.students.isEmpty) {
       return Container(
@@ -525,6 +471,126 @@ class _ClassDetailViewState extends State<ClassDetailView>
       ],
     );
   }
+
+  // --- HEADER ---
+  Widget _buildHeader() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Color(widget.classData.getColorFromType()),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.more_vert, color: Colors.white),
+                    onPressed: () {
+                      // TODO: Show menu
+                    },
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
+              child: Column(
+                children: [
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Center(
+                      child: Text(
+                        widget.classData.emoji ?? '📚',
+                        style: const TextStyle(fontSize: 48),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    widget.classData.className,
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- TAB BAR ---
+  Widget _buildTabBar() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+      height: 48,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF3F4F6),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: TabBar(
+        controller: _tabController,
+        indicator: BoxDecoration(
+          color: const Color(0xFF6366F1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        indicatorPadding: const EdgeInsets.all(4),
+        labelColor: Colors.white,
+        unselectedLabelColor: const Color(0xFF6B7280),
+        labelStyle: const TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
+        ),
+        dividerColor: Colors.transparent,
+        onTap: (index) {
+          setState(() {});
+        },
+        tabs: [
+          Tab(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: const [
+                Icon(Icons.assignment_outlined, size: 20),
+                SizedBox(width: 8),
+                Text('Tasks'),
+              ],
+            ),
+          ),
+          Tab(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: const [
+                Icon(Icons.people_outline_rounded, size: 20),
+                SizedBox(width: 8),
+                Text('Students'),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- HELPER WIDGETS & DIALOGS ---
 
   Widget _buildEmptyStudentsState() {
     return Padding(
@@ -619,11 +685,96 @@ class _ClassDetailViewState extends State<ClassDetailView>
           ),
           IconButton(
             icon: const Icon(Icons.more_vert, color: Color(0xFF6B7280)),
-            onPressed: () {
-              // TODO: Show options (remove student, etc.)
-            },
+            onPressed: () {},
           ),
         ],
+      ),
+    );
+  }
+
+  void _showCreateAnnouncementDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AnnouncementDialog(
+        onSave: (title, description) async {
+          final mentorId = _localStorage.getUid();
+          if (mentorId == null) {
+            throw 'User not logged in';
+          }
+
+          final success = await _viewModel.createAnnouncement(
+            mentorId: mentorId,
+            title: title,
+            description: description,
+          );
+
+          if (success && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.white),
+                    SizedBox(width: 12),
+                    Text('Announcement created successfully'),
+                  ],
+                ),
+                backgroundColor: Color(0xFF10B981),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        },
+      ),
+    );
+  }
+
+  void _showEditAnnouncementDialog(AnnouncementModel announcement) {
+    showDialog(
+      context: context,
+      builder: (context) => AnnouncementDialog(
+        announcement: announcement,
+        onSave: (title, description) async {
+          final success = await _viewModel.updateAnnouncement(
+            announcementId: announcement.id,
+            title: title,
+            description: description,
+          );
+
+          if (success && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.white),
+                    SizedBox(width: 12),
+                    Text('Announcement updated successfully'),
+                  ],
+                ),
+                backgroundColor: Color(0xFF10B981),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        },
+        onDelete: () async {
+          final success = await _viewModel.deleteAnnouncement(announcement.id);
+
+          if (success && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.white),
+                    SizedBox(width: 12),
+                    Text('Announcement deleted successfully'),
+                  ],
+                ),
+                backgroundColor: Color(0xFFEF4444),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        },
       ),
     );
   }

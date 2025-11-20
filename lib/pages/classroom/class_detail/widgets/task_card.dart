@@ -8,6 +8,7 @@ class TaskCard extends StatelessWidget {
   final int? notStartedCount;
   final int? inProgressCount;
   final int? completedCount;
+  final String assigneeLabel; // YENİ: "Ahmet Yılmaz" veya "3 Students" yazısı buraya gelecek
 
   const TaskCard({
     super.key,
@@ -16,16 +17,14 @@ class TaskCard extends StatelessWidget {
     this.notStartedCount,
     this.inProgressCount,
     this.completedCount,
+    required this.assigneeLabel, // Zorunlu alan
   });
 
   @override
   Widget build(BuildContext context) {
-    final bool showStats = notStartedCount != null &&
-        inProgressCount != null &&
-        completedCount != null;
-
     return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
         padding: const EdgeInsets.all(16),
@@ -33,13 +32,13 @@ class TaskCard extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: _getPriorityColor().withOpacity(0.3),
-            width: 2,
+            color: Colors.grey.withOpacity(0.2),
+            width: 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: _getPriorityColor().withOpacity(0.1),
-              blurRadius: 10,
+              color: const Color(0xFF1F2937).withOpacity(0.03),
+              blurRadius: 12,
               offset: const Offset(0, 4),
             ),
           ],
@@ -47,28 +46,19 @@ class TaskCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // --- HEADER (Priority & Date) ---
             Row(
               children: [
-                // Priority Badge
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        _getPriorityColor(),
-                        _getPriorityColor().withOpacity(0.7),
-                      ],
-                    ),
+                    color: _getPriorityColor(),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
                     children: [
-                      Icon(
-                        _getPriorityIcon(),
-                        color: Colors.white,
-                        size: 14,
-                      ),
-                      const SizedBox(width: 4),
+                      const Icon(Icons.flag_rounded, color: Colors.white, size: 14),
+                      const SizedBox(width: 6),
                       Text(
                         task.priority.toUpperCase(),
                         style: const TextStyle(
@@ -81,30 +71,23 @@ class TaskCard extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                // Due Date
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: _getDueDateColor().withOpacity(0.1),
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: _getDueDateColor().withOpacity(0.3),
-                    ),
+                    border: Border.all(color: Colors.grey.withOpacity(0.3)),
                   ),
                   child: Row(
                     children: [
-                      Icon(
-                        Icons.calendar_today,
-                        size: 12,
-                        color: _getDueDateColor(),
-                      ),
-                      const SizedBox(width: 4),
+                      Icon(Icons.calendar_today_rounded, size: 14, color: Colors.grey[600]),
+                      const SizedBox(width: 6),
                       Text(
                         _formatDueDate(),
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: _getDueDateColor(),
+                          color: Colors.grey[700],
                         ),
                       ),
                     ],
@@ -113,163 +96,90 @@ class TaskCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            // Title
+
+            // --- TITLE ---
             Text(
               task.title,
               style: const TextStyle(
-                fontSize: 17,
+                fontSize: 18,
                 fontWeight: FontWeight.bold,
                 color: Color(0xFF1F2937),
               ),
-              maxLines: 2,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
             if (task.description.isNotEmpty) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Text(
                 task.description,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                  height: 1.4,
-                ),
+                style: TextStyle(fontSize: 14, color: Colors.grey[500], height: 1.4),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
             ],
 
-            // Stats Section (Mentor view)
-            if (showStats) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      const Color(0xFF6366F1).withOpacity(0.05),
-                      const Color(0xFF8B5CF6).withOpacity(0.05),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: const Color(0xFF6366F1).withOpacity(0.2),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _buildStatItem(
-                        icon: Icons.check_circle,
-                        iconColor: const Color(0xFF10B981),
-                        label: 'Done',
-                        count: completedCount!,
-                      ),
-                    ),
-                    Container(
-                      width: 1,
-                      height: 30,
-                      color: Colors.grey[300],
-                    ),
-                    Expanded(
-                      child: _buildStatItem(
-                        icon: Icons.pending_outlined,
-                        iconColor: const Color(0xFFF59E0B),
-                        label: 'Working',
-                        count: inProgressCount!,
-                      ),
-                    ),
-                    Container(
-                      width: 1,
-                      height: 30,
-                      color: Colors.grey[300],
-                    ),
-                    Expanded(
-                      child: _buildStatItem(
-                        icon: Icons.radio_button_unchecked,
-                        iconColor: const Color(0xFF6B7280),
-                        label: 'Not Started',
-                        count: notStartedCount!,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+            const SizedBox(height: 16),
 
-            const SizedBox(height: 12),
-            // Footer
+            // --- STATS SECTION (HER ZAMAN GÖRÜNÜR - ZIPLAMAYI ENGELLER) ---
             Row(
               children: [
-                // Students Count
+                Expanded(
+                  child: _buildCompactStat(
+                    label: 'Done',
+                    count: completedCount,
+                    color: const Color(0xFF10B981),
+                    icon: Icons.check_circle_rounded,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildCompactStat(
+                    label: 'Working',
+                    count: inProgressCount,
+                    color: const Color(0xFFF59E0B),
+                    icon: Icons.access_time_filled_rounded,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildCompactStat(
+                    label: 'Todo',
+                    count: notStartedCount,
+                    color: const Color(0xFF6B7280),
+                    icon: Icons.radio_button_unchecked,
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            // --- FOOTER (ÖĞRENCİ İSMİ / SAYISI) ---
+            Row(
+              children: [
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        const Color(0xFF6366F1).withOpacity(0.1),
-                        const Color(0xFF8B5CF6).withOpacity(0.1),
-                      ],
-                    ),
+                    color: const Color(0xFF6366F1).withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
                     children: [
-                      const Icon(
-                        Icons.people_outline,
-                        size: 14,
-                        color: Color(0xFF6366F1),
-                      ),
-                      const SizedBox(width: 4),
+                      const Icon(Icons.person_outline_rounded, size: 16, color: Color(0xFF6366F1)),
+                      const SizedBox(width: 6),
                       Text(
-                        '${task.assignedStudents.length} students',
+                        assigneeLabel, // Hesaplanan isim veya sayı burada
                         style: const TextStyle(
                           fontSize: 12,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.bold,
                           color: Color(0xFF6366F1),
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
-                // Attachments
-                if (task.attachments != null && task.attachments!.isNotEmpty)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          const Color(0xFFF59E0B).withOpacity(0.1),
-                          const Color(0xFFEF4444).withOpacity(0.1),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.attach_file,
-                          size: 14,
-                          color: Color(0xFFF59E0B),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${task.attachments!.length}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFFF59E0B),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                 const Spacer(),
-                Icon(
-                  Icons.arrow_forward_ios,
-                  size: 14,
-                  color: Colors.grey[400],
-                ),
+                Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey[400]),
               ],
             ),
           ],
@@ -278,84 +188,55 @@ class TaskCard extends StatelessWidget {
     );
   }
 
-  Widget _buildStatItem({
-    required IconData icon,
-    required Color iconColor,
+  Widget _buildCompactStat({
     required String label,
-    required int count,
+    required int? count,
+    required Color color,
+    required IconData icon,
   }) {
-    return Column(
-      children: [
-        Icon(icon, color: iconColor, size: 18),
-        const SizedBox(height: 4),
-        Text(
-          count.toString(),
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: iconColor,
+    // Veri yoksa '-' göstererek yer tutuyoruz
+    final displayValue = count != null ? count.toString() : '-';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.2), width: 1),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              "$label: $displayValue",
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
-        ),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 10,
-            color: Colors.grey[600],
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   Color _getPriorityColor() {
     switch (task.priority) {
-      case 'high':
-        return const Color(0xFFEF4444);
-      case 'medium':
-        return const Color(0xFFF59E0B);
-      default:
-        return const Color(0xFF10B981);
-    }
-  }
-
-  IconData _getPriorityIcon() {
-    switch (task.priority) {
-      case 'high':
-        return Icons.priority_high;
-      case 'medium':
-        return Icons.flag;
-      default:
-        return Icons.flag_outlined;
-    }
-  }
-
-  Color _getDueDateColor() {
-    final now = DateTime.now();
-    final difference = task.dueDate.difference(now).inDays;
-
-    if (difference < 0) {
-      return const Color(0xFFEF4444); // Overdue
-    } else if (difference <= 2) {
-      return const Color(0xFFF59E0B); // Due soon
-    } else {
-      return const Color(0xFF6B7280); // Normal
+      case 'high': return const Color(0xFFEF4444);
+      case 'medium': return const Color(0xFFF59E0B);
+      default: return const Color(0xFF10B981);
     }
   }
 
   String _formatDueDate() {
     final now = DateTime.now();
     final difference = task.dueDate.difference(now).inDays;
-
-    if (difference < 0) {
-      return 'Overdue';
-    } else if (difference == 0) {
-      return 'Today';
-    } else if (difference == 1) {
-      return 'Tomorrow';
-    } else if (difference <= 7) {
-      return '$difference days';
-    } else {
-      return DateFormat('MMM d').format(task.dueDate);
-    }
+    if (difference < 0) return 'Overdue';
+    if (difference == 0) return 'Today';
+    if (difference == 1) return 'Tomorrow';
+    if (difference <= 7) return '$difference days';
+    return DateFormat('MMM dd').format(task.dueDate);
   }
 }

@@ -46,7 +46,10 @@ dependencies:
   provider: ^6.1.1  # ← Bu satırı ekleyin
   table_calendar: ^3.1.2
   file_picker: ^8.1.4
-
+  url_launcher: ^6.2.5
+  dio: ^5.4.0          # Dosya indirmek için
+  path_provider: ^2.1.2 # Dosya yolunu bulmak için
+  open_filex: ^4.3.2
 
 
 
