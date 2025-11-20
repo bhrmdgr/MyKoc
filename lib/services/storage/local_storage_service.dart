@@ -325,6 +325,24 @@ class LocalStorageService {
     return mentorData?['maxStudentsPerClass'];
   }
 
+  //================TAKVİM İŞLEMLERİ===================
+
+  static const String _keyCalendarNotes = 'calendar_notes_cache';
+
+  /// Takvim notlarını kaydet (Map olarak tüm listeyi tutar)
+  Future<void> saveCalendarNotes(Map<String, dynamic> notesMap) async {
+    final jsonString = jsonEncode(notesMap);
+    await _prefs?.setString(_keyCalendarNotes, jsonString);
+    if (kDebugMode) print('✅ Calendar notes cached locally');
+  }
+
+  /// Takvim notlarını oku
+  Map<String, dynamic> getCalendarNotes() {
+    final jsonString = _prefs?.getString(_keyCalendarNotes);
+    if (jsonString == null) return {};
+    return jsonDecode(jsonString) as Map<String, dynamic>;
+  }
+
   // ==================== TEMİZLEME İŞLEMLERİ ====================
 
   /// Tüm kullanıcı verilerini temizle (Logout)
