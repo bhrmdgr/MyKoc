@@ -31,7 +31,7 @@ class TaskService {
 
       final docRef = await _firestore.collection('tasks').add(taskData);
 
-      // Her öğrenci için görev kaydı oluştur (notification için)
+      // Her öğrenci için görev kaydı oluştur (notification ve status tracking için)
       final batch = _firestore.batch();
       for (var studentId in assignedStudents) {
         final studentTaskRef = _firestore
@@ -46,7 +46,7 @@ class TaskService {
           'title': title,
           'dueDate': Timestamp.fromDate(dueDate),
           'priority': priority,
-          'status': 'pending',
+          'status': 'not_started', // Varsayılan durum
           'assignedAt': FieldValue.serverTimestamp(),
         });
       }
@@ -85,21 +85,264 @@ class TaskService {
     }
   }
 
-  // Öğrencinin görevlerini çek
+  // Öğrencinin görevlerini çek (status bilgisi ile)
   Future<List<TaskModel>> getStudentTasks(String studentId) async {
     try {
-      final snapshot = await _firestore
+      // Ana task verilerini çek
+      final tasksSnapshot = await _firestore
           .collection('tasks')
           .where('assignedStudents', arrayContains: studentId)
           .orderBy('dueDate', descending: false)
           .get();
 
-      return snapshot.docs
-          .map((doc) => TaskModel.fromFirestore(doc))
-          .toList();
+      // Her task için öğrencinin status bilgisini çek
+      final tasks = <TaskModel>[];
+      for (var taskDoc in tasksSnapshot.docs) {
+        final task = TaskModel.fromFirestore(taskDoc);
+
+        // Öğrencinin bu task için status bilgisini al
+        final studentTaskDoc = await _firestore
+            .collection('students')
+            .doc(studentId)
+            .collection('tasks')
+            .doc(task.id)
+            .get();
+
+        debugPrint('📋 Task: ${task.title}');
+        debugPrint('   Student task doc exists: ${studentTaskDoc.exists}');
+
+        if (studentTaskDoc.exists) {
+          final statusData = studentTaskDoc.data()!;
+          debugPrint('   Status from Firestore: "${statusData['status']}"');
+          final taskWithStatus = task.copyWith(
+            status: statusData['status'] ?? 'not_started',
+            startedAt: statusData['startedAt'] != null
+                ? (statusData['startedAt'] as Timestamp).toDate()
+                : null,
+            completedAt: statusData['completedAt'] != null
+                ? (statusData['completedAt'] as Timestamp).toDate()
+                : null,
+            completionNote: statusData['completionNote'],
+            completionAttachments: statusData['completionAttachments'] != null
+                ? List<String>.from(statusData['completionAttachments'])
+                : null,
+          );
+          debugPrint('   Final status in model: "${taskWithStatus.status}"');
+          tasks.add(taskWithStatus);
+        } else {
+          // Status bilgisi yoksa varsayılan değerle ekle
+          debugPrint('   ⚠️  No student task doc found, defaulting to not_started');
+          tasks.add(task.copyWith(status: 'not_started'));
+        }
+      }
+
+      return tasks;
     } catch (e) {
       debugPrint('❌ Error fetching student tasks: $e');
       return [];
+    }
+  }
+
+  // Task'ı başlat
+  Future<bool> startTask({
+    required String taskId,
+    required String studentId,
+  }) async {
+    try {
+      await _firestore
+          .collection('students')
+          .doc(studentId)
+          .collection('tasks')
+          .doc(taskId)
+          .update({
+        'status': 'in_progress',
+        'startedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      debugPrint('✅ Task started');
+      return true;
+    } catch (e) {
+      debugPrint('❌ Error starting task: $e');
+      return false;
+    }
+  }
+
+  // Task'ı tamamla
+  Future<bool> completeTask({
+    required String taskId,
+    required String studentId,
+    String? completionNote,
+    List<String>? completionAttachments,
+  }) async {
+    try {
+      final updateData = {
+        'status': 'completed',
+        'completedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      if (completionNote != null) {
+        updateData['completionNote'] = completionNote;
+      }
+
+      if (completionAttachments != null && completionAttachments.isNotEmpty) {
+        updateData['completionAttachments'] = completionAttachments;
+      }
+
+      await _firestore
+          .collection('students')
+          .doc(studentId)
+          .collection('tasks')
+          .doc(taskId)
+          .update(updateData);
+
+      debugPrint('✅ Task completed');
+      return true;
+    } catch (e) {
+      debugPrint('❌ Error completing task: $e');
+      return false;
+    }
+  }
+
+  // Tek bir task'ın detayını çek (öğrenci için - status bilgisi ile)
+  Future<TaskModel?> getTaskDetail({
+    required String taskId,
+    required String studentId,
+  }) async {
+    try {
+      // Ana task verisini çek
+      final taskDoc = await _firestore.collection('tasks').doc(taskId).get();
+
+      if (!taskDoc.exists) {
+        debugPrint('❌ Task not found');
+        return null;
+      }
+
+      final task = TaskModel.fromFirestore(taskDoc);
+
+      // Öğrencinin status bilgisini çek
+      final studentTaskDoc = await _firestore
+          .collection('students')
+          .doc(studentId)
+          .collection('tasks')
+          .doc(taskId)
+          .get();
+
+      if (studentTaskDoc.exists) {
+        final statusData = studentTaskDoc.data()!;
+        return task.copyWith(
+          status: statusData['status'] ?? 'not_started',
+          startedAt: statusData['startedAt'] != null
+              ? (statusData['startedAt'] as Timestamp).toDate()
+              : null,
+          completedAt: statusData['completedAt'] != null
+              ? (statusData['completedAt'] as Timestamp).toDate()
+              : null,
+          completionNote: statusData['completionNote'],
+          completionAttachments: statusData['completionAttachments'] != null
+              ? List<String>.from(statusData['completionAttachments'])
+              : null,
+        );
+      }
+
+      return task.copyWith(status: 'not_started');
+    } catch (e) {
+      debugPrint('❌ Error fetching task detail: $e');
+      return null;
+    }
+  }
+
+  // Mentor için: Task detayını tüm öğrenci durumları ile çek
+  Future<TaskDetailWithStudents?> getTaskDetailWithStudents({
+    required String taskId,
+  }) async {
+    try {
+      debugPrint('📋 Fetching task detail with students: $taskId');
+
+      // Ana task verisini çek
+      final taskDoc = await _firestore.collection('tasks').doc(taskId).get();
+
+      if (!taskDoc.exists) {
+        debugPrint('❌ Task not found');
+        return null;
+      }
+
+      final task = TaskModel.fromFirestore(taskDoc);
+
+      // Her öğrenci için status bilgisini çek
+      final studentStatuses = <StudentTaskStatus>[];
+
+      for (var studentId in task.assignedStudents) {
+        try {
+          // Öğrenci bilgisini çek
+          final studentDoc = await _firestore
+              .collection('students')
+              .doc(studentId)
+              .get();
+
+          if (!studentDoc.exists) continue;
+
+          final studentData = studentDoc.data()!;
+          final studentName = studentData['name'] ?? 'Unknown';
+          final studentEmail = studentData['email'] ?? '';
+
+          // Öğrencinin task status'ünü çek
+          final studentTaskDoc = await _firestore
+              .collection('students')
+              .doc(studentId)
+              .collection('tasks')
+              .doc(taskId)
+              .get();
+
+          String status = 'not_started';
+          DateTime? startedAt;
+          DateTime? completedAt;
+          String? completionNote;
+          List<String>? completionAttachments;
+
+          if (studentTaskDoc.exists) {
+            final statusData = studentTaskDoc.data()!;
+            status = statusData['status'] ?? 'not_started';
+            startedAt = statusData['startedAt'] != null
+                ? (statusData['startedAt'] as Timestamp).toDate()
+                : null;
+            completedAt = statusData['completedAt'] != null
+                ? (statusData['completedAt'] as Timestamp).toDate()
+                : null;
+            completionNote = statusData['completionNote'];
+            completionAttachments = statusData['completionAttachments'] != null
+                ? List<String>.from(statusData['completionAttachments'])
+                : null;
+          }
+
+          studentStatuses.add(StudentTaskStatus(
+            studentId: studentId,
+            studentName: studentName,
+            studentEmail: studentEmail,
+            status: status,
+            startedAt: startedAt,
+            completedAt: completedAt,
+            completionNote: completionNote,
+            completionAttachments: completionAttachments,
+          ));
+
+        } catch (e) {
+          debugPrint('❌ Error fetching student $studentId status: $e');
+          continue;
+        }
+      }
+
+      debugPrint('✅ Fetched task with ${studentStatuses.length} student statuses');
+
+      return TaskDetailWithStudents(
+        task: task,
+        studentStatuses: studentStatuses,
+      );
+
+    } catch (e) {
+      debugPrint('❌ Error fetching task detail with students: $e');
+      return null;
     }
   }
 
@@ -168,11 +411,11 @@ class TaskService {
     }
   }
 
-  // Görev durumunu güncelle (öğrenci için)
+  // Görev durumunu güncelle (genel - eski metod, yeni metodlar kullanılmalı)
   Future<bool> updateTaskStatus({
     required String taskId,
     required String studentId,
-    required String status, // 'pending', 'in_progress', 'completed'
+    required String status, // 'not_started', 'in_progress', 'completed'
   }) async {
     try {
       await _firestore
@@ -192,4 +435,46 @@ class TaskService {
       return false;
     }
   }
+}
+
+// ==================== HELPER MODELS ====================
+
+/// Öğrencinin task durumu
+class StudentTaskStatus {
+  final String studentId;
+  final String studentName;
+  final String studentEmail;
+  final String status; // 'not_started', 'in_progress', 'completed'
+  final DateTime? startedAt;
+  final DateTime? completedAt;
+  final String? completionNote;
+  final List<String>? completionAttachments;
+
+  StudentTaskStatus({
+    required this.studentId,
+    required this.studentName,
+    required this.studentEmail,
+    required this.status,
+    this.startedAt,
+    this.completedAt,
+    this.completionNote,
+    this.completionAttachments,
+  });
+}
+
+/// Task detayı + öğrenci durumları
+class TaskDetailWithStudents {
+  final TaskModel task;
+  final List<StudentTaskStatus> studentStatuses;
+
+  TaskDetailWithStudents({
+    required this.task,
+    required this.studentStatuses,
+  });
+
+  // İstatistikler
+  int get notStartedCount => studentStatuses.where((s) => s.status == 'not_started' || s.status == null).length;
+  int get inProgressCount => studentStatuses.where((s) => s.status == 'in_progress').length;
+  int get completedCount => studentStatuses.where((s) => s.status == 'completed').length;
+  int get totalStudents => studentStatuses.length;
 }

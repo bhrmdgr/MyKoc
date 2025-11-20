@@ -63,7 +63,7 @@ class HomeViewModel extends ChangeNotifier {
       userInitials: _getInitials(name),
       userRole: role,
       profileImageUrl: userData['profileImage'],
-      completedTasks: 1,
+      completedTasks: 0,
       totalTasks: 5,
       upcomingSessions: _getDummySessions(),
     );
@@ -132,12 +132,17 @@ class HomeViewModel extends ChangeNotifier {
 
       final sessions = await _fetchUpcomingSessions(uid, role);
 
+      // Completed tasks sayısını hesapla (null kontrolü ile)
+      final completedTasksCount = _studentTasks
+          .where((task) => (task.status ?? 'not_started') == 'completed')
+          .length;
+
       _homeData = HomeModel(
         userName: name,
         userInitials: _getInitials(name),
         userRole: role,
         profileImageUrl: userData['profileImage'],
-        completedTasks: 1,
+        completedTasks: completedTasksCount,
         totalTasks: _studentTasks.length > 0 ? _studentTasks.length : 5,
         upcomingSessions: sessions,
       );
@@ -160,7 +165,7 @@ class HomeViewModel extends ChangeNotifier {
     try {
       debugPrint('📋 Öğrenci task\'ları çekiliyor...');
 
-      // Task'ları çek
+      // Task'ları çek (status bilgisi ile)
       _studentTasks = await _taskService.getStudentTasks(studentId);
       debugPrint('✅ ${_studentTasks.length} task yüklendi');
 

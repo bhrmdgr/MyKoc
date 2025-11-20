@@ -5,15 +5,25 @@ import 'package:intl/intl.dart';
 class TaskCard extends StatelessWidget {
   final TaskModel task;
   final VoidCallback onTap;
+  final int? notStartedCount;
+  final int? inProgressCount;
+  final int? completedCount;
 
   const TaskCard({
     super.key,
     required this.task,
     required this.onTap,
+    this.notStartedCount,
+    this.inProgressCount,
+    this.completedCount,
   });
 
   @override
   Widget build(BuildContext context) {
+    final bool showStats = notStartedCount != null &&
+        inProgressCount != null &&
+        completedCount != null;
+
     return InkWell(
       onTap: onTap,
       child: Container(
@@ -127,6 +137,65 @@ class TaskCard extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ],
+
+            // Stats Section (Mentor view)
+            if (showStats) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      const Color(0xFF6366F1).withOpacity(0.05),
+                      const Color(0xFF8B5CF6).withOpacity(0.05),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: const Color(0xFF6366F1).withOpacity(0.2),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _buildStatItem(
+                        icon: Icons.check_circle,
+                        iconColor: const Color(0xFF10B981),
+                        label: 'Done',
+                        count: completedCount!,
+                      ),
+                    ),
+                    Container(
+                      width: 1,
+                      height: 30,
+                      color: Colors.grey[300],
+                    ),
+                    Expanded(
+                      child: _buildStatItem(
+                        icon: Icons.pending_outlined,
+                        iconColor: const Color(0xFFF59E0B),
+                        label: 'Working',
+                        count: inProgressCount!,
+                      ),
+                    ),
+                    Container(
+                      width: 1,
+                      height: 30,
+                      color: Colors.grey[300],
+                    ),
+                    Expanded(
+                      child: _buildStatItem(
+                        icon: Icons.radio_button_unchecked,
+                        iconColor: const Color(0xFF6B7280),
+                        label: 'Not Started',
+                        count: notStartedCount!,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
             const SizedBox(height: 12),
             // Footer
             Row(
@@ -206,6 +275,35 @@ class TaskCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildStatItem({
+    required IconData icon,
+    required Color iconColor,
+    required String label,
+    required int count,
+  }) {
+    return Column(
+      children: [
+        Icon(icon, color: iconColor, size: 18),
+        const SizedBox(height: 4),
+        Text(
+          count.toString(),
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: iconColor,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            color: Colors.grey[600],
+          ),
+        ),
+      ],
     );
   }
 

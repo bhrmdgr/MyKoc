@@ -4,6 +4,7 @@ import 'package:mykoc/pages/home/homeViewModel.dart';
 import 'package:mykoc/pages/classroom/class_detail/announcement_model.dart';
 import 'package:mykoc/pages/tasks/task_model.dart';
 import 'package:mykoc/pages/home/widgets/announcement_detail_dialog.dart';
+import 'package:mykoc/pages/home/widgets/task_detail_dialog.dart';
 import 'package:intl/intl.dart';
 
 class StudentHomeView extends StatelessWidget {
@@ -97,7 +98,7 @@ class StudentHomeView extends StatelessWidget {
                   delegate: SliverChildBuilderDelegate(
                         (context, index) {
                       final task = viewModel.studentTasks[index];
-                      return _buildTaskCard(task);
+                      return _buildTaskCard(context, task);
                     },
                     childCount: viewModel.studentTasks.length,
                   ),
@@ -395,13 +396,16 @@ class StudentHomeView extends StatelessWidget {
     );
   }
 
-  Widget _buildTaskCard(TaskModel task) {
-    final isOverdue = task.dueDate.isBefore(DateTime.now());
+  Widget _buildTaskCard(BuildContext context, TaskModel task) {
+    final taskStatus = task.status ?? 'not_started';
+    final isOverdue = task.dueDate.isBefore(DateTime.now()) && taskStatus != 'completed';
     final daysUntilDue = task.dueDate.difference(DateTime.now()).inDays;
-    final isUrgent = daysUntilDue <= 1 && !isOverdue;
+    final isUrgent = daysUntilDue <= 1 && !isOverdue && taskStatus != 'completed';
 
     String dueText;
-    if (isOverdue) {
+    if (taskStatus == 'completed') {
+      dueText = 'Completed';
+    } else if (isOverdue) {
       dueText = 'Overdue';
     } else if (daysUntilDue == 0) {
       dueText = 'Due today';
@@ -427,110 +431,159 @@ class StudentHomeView extends StatelessWidget {
         borderColor = const Color(0xFFDCEEFB);
     }
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isUrgent || isOverdue ? borderColor : const Color(0xFFE5E7EB),
-          width: 2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+    // Status badge
+    String statusText;
+    Color statusColor;
+    IconData statusIcon;
+
+    switch (taskStatus) {
+      case 'in_progress':
+        statusText = 'In Progress';
+        statusColor = const Color(0xFFF59E0B);
+        statusIcon = Icons.pending_outlined;
+        break;
+      case 'completed':
+        statusText = 'Completed';
+        statusColor = const Color(0xFF10B981);
+        statusIcon = Icons.check_circle;
+        break;
+      default: // 'not_started', null, veya boş string
+        statusText = 'Not Started';
+        statusColor = const Color(0xFF6B7280);
+        statusIcon = Icons.radio_button_unchecked;
+    }
+
+    return GestureDetector(
+      onTap: () {
+        showDialog(
+          context: context,
+          builder: (context) => TaskDetailDialog(
+            task: task,
+            onTaskUpdated: () {
+              // Refresh tasks
+              viewModel.refresh();
+            },
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  task.title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1F2937),
-                  ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: priorityColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  task.priority.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: priorityColor,
-                  ),
-                ),
-              ),
-            ],
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isUrgent || isOverdue ? borderColor : const Color(0xFFE5E7EB),
+            width: 2,
           ),
-          const SizedBox(height: 8),
-          Text(
-            task.description,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Icon(
-                Icons.calendar_today_outlined,
-                size: 14,
-                color: isOverdue
-                    ? const Color(0xFFEF4444)
-                    : isUrgent
-                    ? const Color(0xFFF59E0B)
-                    : Colors.grey[600],
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    task.title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1F2937),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: priorityColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    task.priority.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: priorityColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              task.description,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
               ),
-              const SizedBox(width: 4),
-              Text(
-                dueText,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: isOverdue
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                // Status Badge
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(statusIcon, size: 14, color: statusColor),
+                      const SizedBox(width: 4),
+                      Text(
+                        statusText,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: statusColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Spacer(),
+                Icon(
+                  Icons.calendar_today_outlined,
+                  size: 14,
+                  color: taskStatus == 'completed'
+                      ? const Color(0xFF10B981)
+                      : isOverdue
                       ? const Color(0xFFEF4444)
                       : isUrgent
                       ? const Color(0xFFF59E0B)
                       : Colors.grey[600],
                 ),
-              ),
-              if (task.assignedStudents.isNotEmpty) ...[
-                const SizedBox(width: 16),
-                Icon(
-                  Icons.people_outline,
-                  size: 14,
-                  color: Colors.grey[600],
-                ),
                 const SizedBox(width: 4),
                 Text(
-                  '${task.assignedStudents.length} students',
+                  dueText,
                   style: TextStyle(
                     fontSize: 13,
-                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
+                    color: taskStatus == 'completed'
+                        ? const Color(0xFF10B981)
+                        : isOverdue
+                        ? const Color(0xFFEF4444)
+                        : isUrgent
+                        ? const Color(0xFFF59E0B)
+                        : Colors.grey[600],
                   ),
                 ),
               ],
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -595,13 +648,13 @@ class StudentHomeView extends StatelessWidget {
 
   double _calculateProgress() {
     if (viewModel.studentTasks.isEmpty) return 0;
-    // TODO: Task'larda completion status eklendiğinde burası güncellenecek
-    // Şimdilik dummy değer
-    return (homeData.completedTasks / viewModel.studentTasks.length) * 100;
+    final completedCount = _getCompletedTasksCount();
+    return (completedCount / viewModel.studentTasks.length) * 100;
   }
 
   int _getCompletedTasksCount() {
-    // TODO: Task'larda completion status eklendiğinde burası güncellenecek
-    return homeData.completedTasks;
+    return viewModel.studentTasks
+        .where((task) => (task.status ?? 'not_started') == 'completed')
+        .length;
   }
 }
