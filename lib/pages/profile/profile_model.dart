@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 class ProfileModel {
   final String userName;
   final String userInitials;
@@ -5,7 +7,7 @@ class ProfileModel {
   final String? profileImageUrl;
   final String email;
 
-  // Student specific - UPDATED
+  // Student specific
   final int? totalClasses; // Toplam sınıf sayısı
   final int? totalTasks; // Toplam task sayısı
   final int? completedTasks; // Tamamlanan task sayısı
@@ -56,5 +58,50 @@ class ProfileModel {
     if (totalTasks == null || totalTasks == 0) return 0;
     if (completedTasks == null) return 0;
     return ((completedTasks! / totalTasks!) * 100).round();
+  }
+
+  // copyWith metodu buraya eklendi
+  ProfileModel copyWith({
+    String? userName,
+    String? userInitials,
+    String? userRole,
+    String? profileImageUrl,
+    String? email,
+    int? totalClasses,
+    int? totalTasks,
+    int? completedTasks,
+    int? completionPercentage,
+    int? badges,
+    int? dayStreak,
+    int? currentLevel,
+    int? currentXP,
+    int? xpToNextLevel,
+    List<String>? recentBadges,
+    int? classCount,
+    int? studentCount,
+    int? activeTasks,
+    int? avgCompletion,
+  }) {
+    return ProfileModel(
+      userName: userName ?? this.userName,
+      userInitials: userInitials ?? this.userInitials,
+      userRole: userRole ?? this.userRole,
+      profileImageUrl: profileImageUrl ?? this.profileImageUrl,
+      email: email ?? this.email,
+      totalClasses: totalClasses ?? this.totalClasses,
+      totalTasks: totalTasks ?? this.totalTasks,
+      completedTasks: completedTasks ?? this.completedTasks,
+      completionPercentage: completionPercentage ?? this.completionPercentage,
+      badges: badges ?? this.badges,
+      dayStreak: dayStreak ?? this.dayStreak,
+      currentLevel: currentLevel ?? this.currentLevel,
+      currentXP: currentXP ?? this.currentXP,
+      xpToNextLevel: xpToNextLevel ?? this.xpToNextLevel,
+      recentBadges: recentBadges ?? this.recentBadges,
+      classCount: classCount ?? this.classCount,
+      studentCount: studentCount ?? this.studentCount,
+      activeTasks: activeTasks ?? this.activeTasks,
+      avgCompletion: avgCompletion ?? this.avgCompletion,
+    );
   }
 }

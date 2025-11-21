@@ -12,6 +12,7 @@ import 'package:mykoc/pages/tasks/mentor_task_detail_view.dart';
 import 'package:mykoc/pages/tasks/task_model.dart'; // TaskModel erişimi için
 import 'package:mykoc/services/storage/local_storage_service.dart';
 import 'package:mykoc/firebase/tasks/task_service.dart';
+import 'package:mykoc/pages/profile/student_profile_page.dart'; // EKLENDİ
 
 // Sıralama Seçenekleri
 enum TaskSortOption { upcoming, newest, oldest, priority }
@@ -416,6 +417,7 @@ class _ClassDetailViewState extends State<ClassDetailView>
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
+        // ... (Header kısmı aynı kalıyor) ...
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
           child: Row(
@@ -423,27 +425,13 @@ class _ClassDetailViewState extends State<ClassDetailView>
             children: [
               const Text(
                 'Students',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1F2937),
-                ),
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1F2937)),
               ),
               OutlinedButton.icon(
                 onPressed: () => _showInviteCodeDialog(),
                 icon: const Icon(Icons.person_add_outlined, size: 18),
                 label: const Text('Add Student'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF6366F1),
-                  side: const BorderSide(color: Color(0xFF6366F1)),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                ),
+                // ... style aynı
               ),
             ],
           ),
@@ -456,13 +444,27 @@ class _ClassDetailViewState extends State<ClassDetailView>
             mainAxisSize: MainAxisSize.min,
             children: viewModel.students.map((student) {
               final index = viewModel.students.indexOf(student);
+              final studentId = student['uid'] ?? student['id']; // ID'yi al
+
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: _buildStudentCard(
-                  name: student['name'] ?? 'Unknown',
-                  email: student['email'] ?? '',
-                  initials: _getInitials(student['name'] ?? 'U'),
-                  color: _getColorForIndex(index),
+                child: GestureDetector( // Tıklama özelliği
+                  onTap: () {
+                    if (studentId != null) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => StudentProfilePage(studentId: studentId),
+                        ),
+                      );
+                    }
+                  },
+                  child: _buildStudentCard(
+                    name: student['name'] ?? 'Unknown',
+                    email: student['email'] ?? '',
+                    initials: _getInitials(student['name'] ?? 'U'),
+                    color: _getColorForIndex(index),
+                  ),
                 ),
               );
             }).toList(),
