@@ -174,20 +174,50 @@ class LocalStorageService {
     if (kDebugMode) print('🗑️ Tüm classes temizlendi');
   }
 
-  /// Öğrencinin sınıfını kaydet
-  Future<void> saveStudentClass(Map<String, dynamic> classData) async {
-    final jsonString = jsonEncode(classData);
-    await _prefs?.setString('student_class', jsonString);
-    if (kDebugMode) print('✅ Student class kaydedildi');
+  /// Öğrencinin sınıflarını kaydet (Artık birden fazla sınıf olabilir)
+  Future<void> saveStudentClasses(List<Map<String, dynamic>> classes) async {
+    final jsonString = jsonEncode(classes);
+    await _prefs?.setString('student_classes', jsonString);
+    if (kDebugMode) print('✅ Student classes kaydedildi: ${classes.length} sınıf');
   }
 
-  /// Öğrencinin sınıfını oku
-  Map<String, dynamic>? getStudentClass() {
-    final jsonString = _prefs?.getString('student_class');
+  /// Öğrencinin sınıflarını oku
+  List<Map<String, dynamic>>? getStudentClasses() {
+    final jsonString = _prefs?.getString('student_classes');
     if (jsonString == null) return null;
-    return jsonDecode(jsonString) as Map<String, dynamic>;
+    final List<dynamic> decoded = jsonDecode(jsonString);
+    return decoded.map((e) => e as Map<String, dynamic>).toList();
   }
 
+  /// Aktif sınıf ID'sini kaydet
+  Future<void> saveActiveClassId(String classId) async {
+    await _prefs?.setString('active_class_id', classId);
+    if (kDebugMode) print('✅ Active class ID kaydedildi: $classId');
+  }
+
+  /// Aktif sınıf ID'sini oku
+  String? getActiveClassId() {
+    return _prefs?.getString('active_class_id');
+  }
+
+  /// Öğrencinin sınıfını kaydet (Backward compatibility için)
+  Future<void> saveStudentClass(Map<String, dynamic> classData) async {
+    // Tek sınıf kaydedildiğinde liste olarak kaydet
+    final existingClasses = getStudentClasses() ?? [];
+    // Eğer bu sınıf listede yoksa ekle
+    if (!existingClasses.any((c) => c['id'] == classData['id'])) {
+      existingClasses.add(classData);
+      await saveStudentClasses(existingClasses);
+    }
+    await saveActiveClassId(classData['id']);
+  }
+
+  /// Öğrencinin sınıfını oku (Backward compatibility için)
+  Map<String, dynamic>? getStudentClass() {
+    final classes = getStudentClasses();
+    if (classes == null || classes.isEmpty) return null;
+    return classes.first;
+  }
 
   // ==================== CLASS STUDENTS ====================
 

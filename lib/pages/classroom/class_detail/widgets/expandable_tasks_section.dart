@@ -95,19 +95,21 @@ class ExpandableTasksSection extends StatelessWidget {
               // 1. İstatistikleri çek
               final stats = taskStats?[task.id];
 
-              // 2. Öğrenci etiketini hesapla
+              // 2. Öğrenci etiketini hesapla (NULL SAFETY ile)
               String assigneeLabel = 'Unknown';
-              if (task.assignedStudents.isEmpty) {
+              final assignedStudents = task.assignedStudents ?? []; // Null ise boş liste
+
+              if (assignedStudents.isEmpty) {
                 assigneeLabel = 'No Students';
-              } else if (task.assignedStudents.length == 1) {
-                final studentId = task.assignedStudents.first;
+              } else if (assignedStudents.length == 1) {
+                final studentId = assignedStudents.first;
                 final studentMap = students.firstWhere(
                       (s) => (s['uid'] == studentId) || (s['id'] == studentId),
                   orElse: () => {'name': 'Unknown Student'},
                 );
                 assigneeLabel = studentMap['name'] ?? 'Unknown';
               } else {
-                assigneeLabel = '${task.assignedStudents.length} Students';
+                assigneeLabel = '${assignedStudents.length} Students';
               }
 
               // 3. TaskCard'ı döndür

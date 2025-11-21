@@ -5,16 +5,16 @@ import 'package:mykoc/pages/tasks/task_model.dart';
 class TaskService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Görev oluştur
+  /// Task oluştur
   Future<String?> createTask({
     required String classId,
     required String mentorId,
     required String title,
     required String description,
-    required DateTime dueDate,
     required String priority,
-    required List<String> assignedStudents,
+    required DateTime dueDate,
     List<String>? attachments,
+    List<String>? assignedStudents, // Boş ise tüm sınıfa atanır
   }) async {
     try {
       final taskData = {
@@ -22,52 +22,127 @@ class TaskService {
         'mentorId': mentorId,
         'title': title,
         'description': description,
-        'dueDate': Timestamp.fromDate(dueDate),
         'priority': priority,
-        'assignedStudents': assignedStudents,
-        'attachments': attachments ?? [],
+        'dueDate': Timestamp.fromDate(dueDate),
         'createdAt': FieldValue.serverTimestamp(),
+        'attachments': attachments,
+        'assignedStudents': assignedStudents ?? [],
       };
 
-      final docRef = await _firestore.collection('tasks').add(taskData);
+      // Task'ı oluştur
+      final taskRef = await _firestore.collection('tasks').add(taskData);
 
-      // Her öğrenci için görev kaydı oluştur (notification ve status tracking için)
-      final batch = _firestore.batch();
-      for (var studentId in assignedStudents) {
-        final studentTaskRef = _firestore
+      // Öğrencilere task ata
+      if (assignedStudents != null && assignedStudents.isNotEmpty) {
+        // Belirli öğrencilere ata
+        for (var studentId in assignedStudents) {
+          await _firestore
+              .collection('students')
+              .doc(studentId)
+              .collection('tasks')
+              .doc(taskRef.id)
+              .set({
+            'status': 'not_started',
+            'assignedAt': FieldValue.serverTimestamp(),
+          });
+        }
+      } else {
+        // Tüm sınıfa ata - sınıftaki tüm öğrencileri çek
+        final classStudents = await _firestore
+            .collection('classes')
+            .doc(classId)
             .collection('students')
-            .doc(studentId)
-            .collection('tasks')
-            .doc(docRef.id);
+            .get();
 
-        batch.set(studentTaskRef, {
-          'taskId': docRef.id,
-          'classId': classId,
-          'title': title,
-          'dueDate': Timestamp.fromDate(dueDate),
-          'priority': priority,
-          'status': 'not_started', // Varsayılan durum
-          'assignedAt': FieldValue.serverTimestamp(),
+        final studentIds = <String>[];
+        for (var studentDoc in classStudents.docs) {
+          studentIds.add(studentDoc.id);
+          await _firestore
+              .collection('students')
+              .doc(studentDoc.id)
+              .collection('tasks')
+              .doc(taskRef.id)
+              .set({
+            'status': 'not_started',
+            'assignedAt': FieldValue.serverTimestamp(),
+          });
+        }
+
+        // assignedStudents listesini güncelle
+        await _firestore.collection('tasks').doc(taskRef.id).update({
+          'assignedStudents': studentIds,
         });
       }
 
-      // Class'ın task count'unu artır
-      final classRef = _firestore.collection('classes').doc(classId);
-      batch.update(classRef, {
+      // Sınıfın task sayısını artır
+      await _firestore.collection('classes').doc(classId).update({
         'taskCount': FieldValue.increment(1),
       });
 
-      await batch.commit();
-
-      debugPrint('✅ Task created successfully: ${docRef.id}');
-      return docRef.id;
+      debugPrint('✅ Task created: ${taskRef.id}');
+      return taskRef.id;
     } catch (e) {
       debugPrint('❌ Error creating task: $e');
       return null;
     }
   }
 
-  // Sınıfın görevlerini çek
+  /// Öğrencinin görevlerini çek (status bilgisi ile)
+  Future<List<TaskModel>> getStudentTasks(String studentId) async {
+    try {
+      debugPrint('🔍 Fetching tasks for student: $studentId');
+
+      // Öğrencinin tasks sub-collection'ındaki tüm task ID'lerini al
+      final studentTasksSnapshot = await _firestore
+          .collection('students')
+          .doc(studentId)
+          .collection('tasks')
+          .get();
+
+      final tasks = <TaskModel>[];
+
+      for (var studentTaskDoc in studentTasksSnapshot.docs) {
+        final taskId = studentTaskDoc.id;
+
+        // Ana task verisini çek
+        final taskDoc = await _firestore.collection('tasks').doc(taskId).get();
+
+        if (!taskDoc.exists) continue;
+
+        final task = TaskModel.fromFirestore(taskDoc);
+        final statusData = studentTaskDoc.data();
+
+        debugPrint('📋 Task: ${task.title}');
+        debugPrint('   Status from Firestore: "${statusData['status']}"');
+
+        // Status bilgisini ekle
+        final taskWithStatus = task.copyWith(
+          status: statusData['status'] ?? 'not_started',
+          completedAt: statusData['completedAt'] != null
+              ? (statusData['completedAt'] as Timestamp).toDate()
+              : null,
+          completionNote: statusData['completionNote'],
+          completionAttachments: statusData['completionAttachments'] != null
+              ? List<String>.from(statusData['completionAttachments'])
+              : null,
+        );
+
+        debugPrint('   Final status in model: "${taskWithStatus.status}"');
+        tasks.add(taskWithStatus);
+      }
+
+      // Due date'e göre sırala
+      tasks.sort((a, b) => a.dueDate.compareTo(b.dueDate));
+
+      debugPrint('✅ Found ${tasks.length} tasks for student');
+      return tasks;
+    } catch (e) {
+      debugPrint('❌ Error fetching student tasks: $e');
+      return [];
+    }
+  }
+
+  /// Sınıfın görevlerini çek
   Future<List<TaskModel>> getClassTasks(String classId) async {
     try {
       final snapshot = await _firestore
@@ -85,65 +160,7 @@ class TaskService {
     }
   }
 
-  // Öğrencinin görevlerini çek (status bilgisi ile)
-  Future<List<TaskModel>> getStudentTasks(String studentId) async {
-    try {
-      // Ana task verilerini çek
-      final tasksSnapshot = await _firestore
-          .collection('tasks')
-          .where('assignedStudents', arrayContains: studentId)
-          .orderBy('dueDate', descending: false)
-          .get();
-
-      // Her task için öğrencinin status bilgisini çek
-      final tasks = <TaskModel>[];
-      for (var taskDoc in tasksSnapshot.docs) {
-        final task = TaskModel.fromFirestore(taskDoc);
-
-        // Öğrencinin bu task için status bilgisini al
-        final studentTaskDoc = await _firestore
-            .collection('students')
-            .doc(studentId)
-            .collection('tasks')
-            .doc(task.id)
-            .get();
-
-        debugPrint('📋 Task: ${task.title}');
-        debugPrint('   Student task doc exists: ${studentTaskDoc.exists}');
-
-        if (studentTaskDoc.exists) {
-          final statusData = studentTaskDoc.data()!;
-          debugPrint('   Status from Firestore: "${statusData['status']}"');
-          final taskWithStatus = task.copyWith(
-            status: statusData['status'] ?? 'not_started',
-            startedAt: statusData['startedAt'] != null
-                ? (statusData['startedAt'] as Timestamp).toDate()
-                : null,
-            completedAt: statusData['completedAt'] != null
-                ? (statusData['completedAt'] as Timestamp).toDate()
-                : null,
-            completionNote: statusData['completionNote'],
-            completionAttachments: statusData['completionAttachments'] != null
-                ? List<String>.from(statusData['completionAttachments'])
-                : null,
-          );
-          debugPrint('   Final status in model: "${taskWithStatus.status}"');
-          tasks.add(taskWithStatus);
-        } else {
-          // Status bilgisi yoksa varsayılan değerle ekle
-          debugPrint('   ⚠️  No student task doc found, defaulting to not_started');
-          tasks.add(task.copyWith(status: 'not_started'));
-        }
-      }
-
-      return tasks;
-    } catch (e) {
-      debugPrint('❌ Error fetching student tasks: $e');
-      return [];
-    }
-  }
-
-  // Task'ı başlat
+  /// Task'ı başlat
   Future<bool> startTask({
     required String taskId,
     required String studentId,
@@ -156,7 +173,6 @@ class TaskService {
           .doc(taskId)
           .update({
         'status': 'in_progress',
-        'startedAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
@@ -168,7 +184,7 @@ class TaskService {
     }
   }
 
-  // Task'ı tamamla
+  /// Task'ı tamamla
   Future<bool> completeTask({
     required String taskId,
     required String studentId,
@@ -205,7 +221,7 @@ class TaskService {
     }
   }
 
-  // Tek bir task'ın detayını çek (öğrenci için - status bilgisi ile)
+  /// Tek bir task'ın detayını çek (öğrenci için - status bilgisi ile)
   Future<TaskModel?> getTaskDetail({
     required String taskId,
     required String studentId,
@@ -233,9 +249,6 @@ class TaskService {
         final statusData = studentTaskDoc.data()!;
         return task.copyWith(
           status: statusData['status'] ?? 'not_started',
-          startedAt: statusData['startedAt'] != null
-              ? (statusData['startedAt'] as Timestamp).toDate()
-              : null,
           completedAt: statusData['completedAt'] != null
               ? (statusData['completedAt'] as Timestamp).toDate()
               : null,
@@ -253,7 +266,7 @@ class TaskService {
     }
   }
 
-  // Mentor için: Task detayını tüm öğrenci durumları ile çek
+  /// Mentor için: Task detayını tüm öğrenci durumları ile çek
   Future<TaskDetailWithStudents?> getTaskDetailWithStudents({
     required String taskId,
   }) async {
@@ -269,11 +282,12 @@ class TaskService {
       }
 
       final task = TaskModel.fromFirestore(taskDoc);
+      final assignedStudents = List<String>.from(task.assignedStudents ?? []);
 
       // Her öğrenci için status bilgisini çek
       final studentStatuses = <StudentTaskStatus>[];
 
-      for (var studentId in task.assignedStudents) {
+      for (var studentId in assignedStudents) {
         try {
           // Öğrenci bilgisini çek
           final studentDoc = await _firestore
@@ -296,7 +310,6 @@ class TaskService {
               .get();
 
           String status = 'not_started';
-          DateTime? startedAt;
           DateTime? completedAt;
           String? completionNote;
           List<String>? completionAttachments;
@@ -304,9 +317,6 @@ class TaskService {
           if (studentTaskDoc.exists) {
             final statusData = studentTaskDoc.data()!;
             status = statusData['status'] ?? 'not_started';
-            startedAt = statusData['startedAt'] != null
-                ? (statusData['startedAt'] as Timestamp).toDate()
-                : null;
             completedAt = statusData['completedAt'] != null
                 ? (statusData['completedAt'] as Timestamp).toDate()
                 : null;
@@ -321,7 +331,6 @@ class TaskService {
             studentName: studentName,
             studentEmail: studentEmail,
             status: status,
-            startedAt: startedAt,
             completedAt: completedAt,
             completionNote: completionNote,
             completionAttachments: completionAttachments,
@@ -346,7 +355,7 @@ class TaskService {
     }
   }
 
-  // Görevi güncelle
+  /// Görevi güncelle
   Future<bool> updateTask({
     required String taskId,
     String? title,
@@ -374,10 +383,10 @@ class TaskService {
     }
   }
 
-  // Görevi sil
+  /// Görevi sil
   Future<bool> deleteTask(String taskId, String classId) async {
     try {
-      // Öğrencilerin task kayıtlarını sil
+      // Task verisini al
       final task = await _firestore.collection('tasks').doc(taskId).get();
       final assignedStudents = List<String>.from(task.data()?['assignedStudents'] ?? []);
 
@@ -411,11 +420,11 @@ class TaskService {
     }
   }
 
-  // Görev durumunu güncelle (genel - eski metod, yeni metodlar kullanılmalı)
+  /// Görev durumunu güncelle (genel)
   Future<bool> updateTaskStatus({
     required String taskId,
     required String studentId,
-    required String status, // 'not_started', 'in_progress', 'completed'
+    required String status,
   }) async {
     try {
       await _firestore
@@ -444,8 +453,7 @@ class StudentTaskStatus {
   final String studentId;
   final String studentName;
   final String studentEmail;
-  final String status; // 'not_started', 'in_progress', 'completed'
-  final DateTime? startedAt;
+  final String status;
   final DateTime? completedAt;
   final String? completionNote;
   final List<String>? completionAttachments;
@@ -455,7 +463,6 @@ class StudentTaskStatus {
     required this.studentName,
     required this.studentEmail,
     required this.status,
-    this.startedAt,
     this.completedAt,
     this.completionNote,
     this.completionAttachments,

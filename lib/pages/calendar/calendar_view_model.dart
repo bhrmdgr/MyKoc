@@ -12,6 +12,9 @@ class CalendarViewModel extends ChangeNotifier {
   final CalendarService _calendarService = CalendarService();
   final LocalStorageService _localStorage = LocalStorageService();
 
+  // Disposed kontrolü için flag
+  bool _isDisposed = false;
+
   // Calendar State
   CalendarFormat _calendarFormat = CalendarFormat.month;
   CalendarFormat get calendarFormat => _calendarFormat;
@@ -41,16 +44,23 @@ class CalendarViewModel extends ChangeNotifier {
     return _notes[normalizedDate]?.content ?? '';
   }
 
+  // --- SAFE NOTIFY LISTENERS ---
+  void _safeNotifyListeners() {
+    if (!_isDisposed) {
+      notifyListeners();
+    }
+  }
+
   // --- INIT ---
   Future<void> initialize() async {
     _isLoading = true;
     _selectedDay = _focusedDay;
-    notifyListeners();
+    _safeNotifyListeners();
 
     final uid = _localStorage.getUid();
     if (uid == null) {
       _isLoading = false;
-      notifyListeners();
+      _safeNotifyListeners();
       return;
     }
 
@@ -75,6 +85,9 @@ class CalendarViewModel extends ChangeNotifier {
       debugPrint('Error fetching tasks: $e');
     }
 
+    // Disposed kontrolü - eğer dispose edildiyse devam etme
+    if (_isDisposed) return;
+
     // 2. Notları Localden Yükle
     _loadNotesFromLocal();
 
@@ -82,10 +95,10 @@ class CalendarViewModel extends ChangeNotifier {
     _updateSelectedDayTasks();
 
     _isLoading = false;
-    notifyListeners();
+    _safeNotifyListeners();
 
-    // 4. Firebase Not Senkronizasyonu
-    await _syncNotesFromFirebase(uid);
+    // 4. Firebase Not Senkronizasyonu (arka planda)
+    _syncNotesFromFirebase(uid);
   }
 
   // --- EVENT LOADER (TAKVİM İŞARETÇİLERİ İÇİN) ---
@@ -114,23 +127,23 @@ class CalendarViewModel extends ChangeNotifier {
       _focusedDay = focusedDay;
       _isEditingNote = false;
       _updateSelectedDayTasks();
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
   void onFormatChanged(CalendarFormat format) {
     _calendarFormat = format;
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   void onPageChanged(DateTime focusedDay) {
     _focusedDay = focusedDay;
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   void toggleEditingNote() {
     _isEditingNote = !_isEditingNote;
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   // --- TASK LOGIC ---
@@ -161,6 +174,10 @@ class CalendarViewModel extends ChangeNotifier {
   Future<void> _syncNotesFromFirebase(String uid) async {
     try {
       final cloudNotes = await _calendarService.getUserNotes(uid);
+
+      // Disposed kontrolü - Firebase'den veri geldiğinde widget dispose olmuş olabilir
+      if (_isDisposed) return;
+
       final Map<String, dynamic> mapForStorage = {};
       final Map<DateTime, CalendarNoteModel> updatedNotesMap = {};
 
@@ -171,10 +188,16 @@ class CalendarViewModel extends ChangeNotifier {
       }
 
       await _localStorage.saveCalendarNotes(mapForStorage);
+
+      // Bir kez daha disposed kontrolü
+      if (_isDisposed) return;
+
       _notes = updatedNotesMap;
-      notifyListeners();
+      _safeNotifyListeners();
+
+      debugPrint('✅ Calendar notes synced from Firebase: ${cloudNotes.length} notes');
     } catch (e) {
-      debugPrint('Error syncing notes: $e');
+      debugPrint('❌ Error syncing notes: $e');
     }
   }
 
@@ -186,13 +209,17 @@ class CalendarViewModel extends ChangeNotifier {
     final trimmedContent = content.trim();
 
     if (trimmedContent.isEmpty) {
+      // Not silinecek
       if (_notes.containsKey(normalizedDate)) {
         _notes.remove(normalizedDate);
         _updateLocalCache();
-        notifyListeners();
-        await _calendarService.deleteNote(uid, normalizedDate);
+        _safeNotifyListeners();
+
+        // Firebase'den sil (arka planda)
+        _calendarService.deleteNote(uid, normalizedDate);
       }
     } else {
+      // Not kaydedilecek
       final newNote = CalendarNoteModel(
         id: '${uid}_${normalizedDate.millisecondsSinceEpoch}',
         userId: uid,
@@ -203,12 +230,18 @@ class CalendarViewModel extends ChangeNotifier {
 
       _notes[normalizedDate] = newNote;
       _updateLocalCache();
-      notifyListeners();
-      await _calendarService.saveNote(userId: uid, date: normalizedDate, content: trimmedContent);
+      _safeNotifyListeners();
+
+      // Firebase'e kaydet (arka planda)
+      _calendarService.saveNote(
+        userId: uid,
+        date: normalizedDate,
+        content: trimmedContent,
+      );
     }
 
     _isEditingNote = false;
-    notifyListeners();
+    _safeNotifyListeners();
     return true;
   }
 
@@ -218,5 +251,11 @@ class CalendarViewModel extends ChangeNotifier {
       mapForStorage[key.toIso8601String()] = value.toMap();
     });
     _localStorage.saveCalendarNotes(mapForStorage);
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    super.dispose();
   }
 }

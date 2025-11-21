@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:mykoc/pages/profile/profile_model.dart';
+import 'package:mykoc/firebase/classroom/classroom_service.dart';
+import 'package:mykoc/firebase/tasks/task_service.dart';
 import 'package:mykoc/services/storage/local_storage_service.dart';
 import 'package:mykoc/routers/appRouter.dart';
 
@@ -9,6 +11,8 @@ class ProfileViewModel extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final LocalStorageService _localStorage = LocalStorageService();
+  final ClassroomService _classroomService = ClassroomService();
+  final TaskService _taskService = TaskService();
 
   ProfileModel? _profileData;
   ProfileModel? get profileData => _profileData;
@@ -40,25 +44,40 @@ class ProfileViewModel extends ChangeNotifier {
     final role = userData['role'] ?? 'student';
     final email = userData['email'] ?? '';
 
-    _profileData = ProfileModel(
-      userName: name,
-      userInitials: _getInitials(name),
-      userRole: role,
-      email: email,
-      profileImageUrl: userData['profileImage'],
-      // Dummy data
-      badges: role == 'student' ? 12 : null,
-      completionPercentage: role == 'student' ? 87 : null,
-      dayStreak: role == 'student' ? 15 : null,
-      currentLevel: role == 'student' ? 8 : null,
-      currentXP: role == 'student' ? 650 : null,
-      xpToNextLevel: role == 'student' ? 1000 : null,
-      recentBadges: role == 'student' ? ['🏆', '⭐', '🎯', '🔥'] : null,
-      classCount: role == 'mentor' ? 4 : null,
-      studentCount: role == 'mentor' ? 89 : null,
-      activeTasks: role == 'mentor' ? 11 : null,
-      avgCompletion: role == 'mentor' ? 92 : null,
-    );
+    if (role == 'student') {
+      // Local'den sınıf ve task sayılarını al
+      final classes = _localStorage.getStudentClasses() ?? [];
+
+      _profileData = ProfileModel(
+        userName: name,
+        userInitials: _getInitials(name),
+        userRole: role,
+        email: email,
+        profileImageUrl: userData['profileImage'],
+        totalClasses: classes.length,
+        totalTasks: 0, // Firestore'dan güncellenecek
+        completedTasks: 0, // Firestore'dan güncellenecek
+        completionPercentage: 0,
+        badges: 12,
+        dayStreak: 15,
+        currentLevel: 8,
+        currentXP: 650,
+        xpToNextLevel: 1000,
+        recentBadges: ['🏆', '⭐', '🎯', '🔥'],
+      );
+    } else {
+      _profileData = ProfileModel(
+        userName: name,
+        userInitials: _getInitials(name),
+        userRole: role,
+        email: email,
+        profileImageUrl: userData['profileImage'],
+        classCount: 4,
+        studentCount: 89,
+        activeTasks: 11,
+        avgCompletion: 92,
+      );
+    }
   }
 
   Future<void> _loadFromFirestore() async {
@@ -74,29 +93,96 @@ class ProfileViewModel extends ChangeNotifier {
       final role = userData['role'] ?? 'student';
       final email = userData['email'] ?? '';
 
-      // TODO: Gerçek verileri Firestore'dan çek
-      _profileData = ProfileModel(
-        userName: name,
-        userInitials: _getInitials(name),
-        userRole: role,
-        email: email,
-        profileImageUrl: userData['profileImage'],
-        badges: role == 'student' ? 12 : null,
-        completionPercentage: role == 'student' ? 87 : null,
-        dayStreak: role == 'student' ? 15 : null,
-        currentLevel: role == 'student' ? 8 : null,
-        currentXP: role == 'student' ? 650 : null,
-        xpToNextLevel: role == 'student' ? 1000 : null,
-        recentBadges: role == 'student' ? ['🏆', '⭐', '🎯', '🔥'] : null,
-        classCount: role == 'mentor' ? 4 : null,
-        studentCount: role == 'mentor' ? 89 : null,
-        activeTasks: role == 'mentor' ? 11 : null,
-        avgCompletion: role == 'mentor' ? 92 : null,
-      );
+      if (role == 'student') {
+        // Öğrencinin gerçek verilerini çek
+        final classes = await _classroomService.getStudentClasses(uid);
+        final tasks = await _taskService.getStudentTasks(uid);
+        final completedTasks = tasks.where((t) => t.status == 'completed').length;
+
+        _profileData = ProfileModel(
+          userName: name,
+          userInitials: _getInitials(name),
+          userRole: role,
+          email: email,
+          profileImageUrl: userData['profileImage'],
+          totalClasses: classes.length,
+          totalTasks: tasks.length,
+          completedTasks: completedTasks,
+          completionPercentage: tasks.isEmpty ? 0 : ((completedTasks / tasks.length) * 100).round(),
+          badges: 12,
+          dayStreak: 15,
+          currentLevel: 8,
+          currentXP: 650,
+          xpToNextLevel: 1000,
+          recentBadges: ['🏆', '⭐', '🎯', '🔥'],
+        );
+      } else {
+        // Mentor verileri
+        _profileData = ProfileModel(
+          userName: name,
+          userInitials: _getInitials(name),
+          userRole: role,
+          email: email,
+          profileImageUrl: userData['profileImage'],
+          classCount: 4,
+          studentCount: 89,
+          activeTasks: 11,
+          avgCompletion: 92,
+        );
+      }
 
       notifyListeners();
     } catch (e) {
       debugPrint('Error loading profile: $e');
+    }
+  }
+
+  /// Sınıfa katıl
+  Future<bool> joinClass(String classCode) async {
+    try {
+      final uid = _localStorage.getUid();
+      final userData = _localStorage.getUserData();
+
+      if (uid == null || userData == null) {
+        debugPrint('❌ User not found');
+        return false;
+      }
+
+      final name = userData['name'] ?? 'Student';
+      final email = userData['email'] ?? '';
+
+      // Sınıf koduna göre sınıfı bul
+      debugPrint('🔍 Searching for class with code: $classCode');
+      final classModel = await _classroomService.getClassByCode(classCode);
+
+      if (classModel == null) {
+        debugPrint('❌ Class not found');
+        return false;
+      }
+
+      debugPrint('✅ Class found: ${classModel.className}');
+
+      // Öğrenciyi sınıfa ekle
+      final success = await _classroomService.addStudentToClass(
+        classId: classModel.id,
+        studentId: uid,
+        studentName: name,
+        studentEmail: email,
+      );
+
+      if (success) {
+        debugPrint('✅ Student added to class successfully');
+
+        // Profil verilerini yeniden yükle
+        await _loadFromFirestore();
+
+        return true;
+      }
+
+      return false;
+    } catch (e) {
+      debugPrint('❌ Error joining class: $e');
+      return false;
     }
   }
 

@@ -23,90 +23,165 @@ class StudentHomeView extends StatelessWidget {
       backgroundColor: const Color(0xFFF9FAFB),
       body: RefreshIndicator(
         onRefresh: () => viewModel.refresh(),
-        child: CustomScrollView(
-          slivers: [
-            // Header
-            SliverToBoxAdapter(
-              child: _buildStudentHeader(),
-            ),
+        child: Stack(
+          children: [
+            // Ana içerik
+            CustomScrollView(
+              slivers: [
+                // Header
+                SliverToBoxAdapter(
+                  child: _buildStudentHeader(),
+                ),
 
-            // Announcements Section
-            if (viewModel.studentAnnouncements.isNotEmpty)
-              SliverToBoxAdapter(
-                child: _buildAnnouncementsSection(context),
-              ),
+                // Class Selector (eğer birden fazla sınıf varsa)
+                if (viewModel.classes.length > 1)
+                  SliverToBoxAdapter(
+                    child: _buildClassSelector(context),
+                  ),
 
-            // My Tasks Section Header
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'My Tasks',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1F2937),
-                      ),
-                    ),
-                    if (viewModel.studentTasks.isNotEmpty)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF6366F1).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          '${viewModel.studentTasks.length} tasks',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF6366F1),
+                // Announcements Section
+                if (viewModel.studentAnnouncements.isNotEmpty)
+                  SliverToBoxAdapter(
+                    child: _buildAnnouncementsSection(context),
+                  ),
+
+                // My Tasks Section Header
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'My Tasks',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1F2937),
                           ),
                         ),
-                      ),
-                  ],
+                        if (viewModel.studentTasks.isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF6366F1).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '${viewModel.studentTasks.length} tasks',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF6366F1),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
+
+                // Loading State (Only Initial Load)
+                if (viewModel.isLoading && viewModel.studentTasks.isEmpty && !viewModel.isSwitchingClass)
+                  SliverToBoxAdapter(
+                    child: _buildLoadingState(),
+                  )
+                // Empty State
+                else if (viewModel.studentTasks.isEmpty && !viewModel.isSwitchingClass)
+                  SliverToBoxAdapter(
+                    child: _buildEmptyTasksState(),
+                  )
+                // Tasks List
+                else if (viewModel.studentTasks.isNotEmpty)
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                              (context, index) {
+                            final task = viewModel.studentTasks[index];
+                            return _buildTaskCard(context, task);
+                          },
+                          childCount: viewModel.studentTasks.length,
+                        ),
+                      ),
+                    ),
+
+                // Bottom Padding
+                const SliverToBoxAdapter(child: SizedBox(height: 24)),
+              ],
             ),
 
-            // Loading State
-            if (viewModel.isLoading && viewModel.studentTasks.isEmpty)
-              const SliverToBoxAdapter(
-                child: Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(40),
-                    child: CircularProgressIndicator(),
-                  ),
-                ),
-              )
-            // Empty State
-            else if (viewModel.studentTasks.isEmpty)
-              SliverToBoxAdapter(
-                child: _buildEmptyTasksState(),
-              )
-            // Tasks List
-            else
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                      final task = viewModel.studentTasks[index];
-                      return _buildTaskCard(context, task);
-                    },
-                    childCount: viewModel.studentTasks.length,
+            // Loading Overlay - Sadece sınıf değiştirirken göster
+            if (viewModel.isSwitchingClass)
+              Positioned.fill(
+                child: Container(
+                  color: Colors.black.withOpacity(0.3),
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const SizedBox(
+                            width: 40,
+                            height: 40,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 3,
+                              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Loading ${viewModel.activeClass?.className}...',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF1F2937),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
-            const SliverToBoxAdapter(child: SizedBox(height: 100)),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingState() {
+    return Container(
+      padding: const EdgeInsets.all(60),
+      child: Column(
+        children: [
+          const CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'Loading tasks...',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -266,6 +341,146 @@ class StudentHomeView extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildClassSelector(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'My Classes',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1F2937),
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 110,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              physics: viewModel.isSwitchingClass
+                  ? const NeverScrollableScrollPhysics()
+                  : const ScrollPhysics(),
+              itemCount: viewModel.classes.length,
+              itemBuilder: (context, index) {
+                final classItem = viewModel.classes[index];
+                final isActive = viewModel.activeClass?.id == classItem.id;
+
+                return GestureDetector(
+                  onTap: viewModel.isSwitchingClass
+                      ? null
+                      : () {
+                    if (!isActive) {
+                      viewModel.switchActiveClass(classItem.id);
+                    }
+                  },
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 200),
+                    opacity: viewModel.isSwitchingClass && !isActive ? 0.5 : 1.0,
+                    child: Container(
+                      width: 200,
+                      margin: EdgeInsets.only(
+                        right: index < viewModel.classes.length - 1 ? 12 : 0,
+                      ),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        gradient: isActive
+                            ? LinearGradient(
+                          colors: [
+                            Color(classItem.getColorFromType()),
+                            Color(classItem.getColorFromType()).withOpacity(0.7),
+                          ],
+                        )
+                            : null,
+                        color: isActive ? null : Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isActive
+                              ? Colors.transparent
+                              : const Color(0xFFE5E7EB),
+                          width: 2,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: isActive
+                                ? Color(classItem.getColorFromType()).withOpacity(0.3)
+                                : Colors.black.withOpacity(0.03),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                classItem.emoji ?? '📚',
+                                style: const TextStyle(fontSize: 22),
+                              ),
+                              const Spacer(),
+                              if (isActive)
+                                Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.3),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.check,
+                                    color: Colors.white,
+                                    size: 14,
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const Spacer(),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                classItem.className,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  color: isActive ? Colors.white : const Color(0xFF1F2937),
+                                  height: 1.2,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                classItem.mentorName,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isActive
+                                      ? Colors.white.withOpacity(0.9)
+                                      : Colors.grey[600],
+                                  height: 1.2,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -431,7 +646,6 @@ class StudentHomeView extends StatelessWidget {
         borderColor = const Color(0xFFDCEEFB);
     }
 
-    // Status badge
     String statusText;
     Color statusColor;
     IconData statusIcon;
@@ -447,7 +661,7 @@ class StudentHomeView extends StatelessWidget {
         statusColor = const Color(0xFF10B981);
         statusIcon = Icons.check_circle;
         break;
-      default: // 'not_started', null, veya boş string
+      default:
         statusText = 'Not Started';
         statusColor = const Color(0xFF6B7280);
         statusIcon = Icons.radio_button_unchecked;
@@ -460,8 +674,10 @@ class StudentHomeView extends StatelessWidget {
           builder: (context) => TaskDetailDialog(
             task: task,
             onTaskUpdated: () {
-              // Refresh tasks
-              viewModel.refresh();
+              // Cache'i temizle ve yeniden yükle
+              if (viewModel.activeClass != null) {
+                viewModel.refreshClass(viewModel.activeClass!.id);
+              }
             },
           ),
         );
@@ -530,7 +746,6 @@ class StudentHomeView extends StatelessWidget {
             const SizedBox(height: 12),
             Row(
               children: [
-                // Status Badge
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
@@ -634,7 +849,9 @@ class StudentHomeView extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Your mentor hasn\'t assigned any tasks yet',
+            viewModel.activeClass != null
+                ? 'No tasks assigned in ${viewModel.activeClass!.className} yet'
+                : 'Your mentor hasn\'t assigned any tasks yet',
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey[500],

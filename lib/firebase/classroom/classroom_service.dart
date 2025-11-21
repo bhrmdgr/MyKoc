@@ -1,14 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:mykoc/pages/classroom/class_model.dart';
-import 'package:mykoc/services/storage/local_storage_service.dart'; // BU EKLENDİ
-
+import 'package:mykoc/services/storage/local_storage_service.dart';
 
 class ClassroomService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final LocalStorageService _localStorage = LocalStorageService(); // BU EKLENDİ
-
-
+  final LocalStorageService _localStorage = LocalStorageService();
 
   // Sınıf oluştur
   Future<String?> createClass({
@@ -67,28 +64,57 @@ class ClassroomService {
     }
   }
 
-  // Öğrenci'nin sınıflarını çek
+  // Öğrenci'nin sınıflarını çek (GÜNCELLEND İ - birden fazla sınıf)
   Future<List<ClassModel>> getStudentClasses(String studentId) async {
     try {
+      debugPrint('🔍 Fetching student classes for: $studentId');
+
       // Öğrencinin kayıtlı olduğu sınıfları bul
-      final studentDoc = await _firestore
+      final studentSnapshot = await _firestore
           .collection('students')
-          .doc(studentId)
+          .where('uid', isEqualTo: studentId)
           .get();
 
-      if (!studentDoc.exists) return [];
+      if (studentSnapshot.docs.isEmpty) {
+        debugPrint('📭 No student records found');
+        return [];
+      }
 
-      final classId = studentDoc.data()?['classId'];
-      if (classId == null) return [];
+      // Tüm sınıf ID'lerini topla
+      final classIds = studentSnapshot.docs
+          .map((doc) => doc.data()['classId'] as String?)
+          .where((id) => id != null)
+          .toSet()
+          .toList();
 
-      final classDoc = await _firestore
-          .collection('classes')
-          .doc(classId)
-          .get();
+      debugPrint('📚 Found ${classIds.length} class IDs');
 
-      if (!classDoc.exists) return [];
+      if (classIds.isEmpty) return [];
 
-      return [ClassModel.fromFirestore(classDoc)];
+      // Sınıfları çek
+      final classes = <ClassModel>[];
+      for (var classId in classIds) {
+        try {
+          final classDoc = await _firestore
+              .collection('classes')
+              .doc(classId)
+              .get();
+
+          if (classDoc.exists) {
+            classes.add(ClassModel.fromFirestore(classDoc));
+          }
+        } catch (e) {
+          debugPrint('❌ Error fetching class $classId: $e');
+        }
+      }
+
+      // Cache'e kaydet
+      await _localStorage.saveStudentClasses(
+        classes.map((c) => c.toMap()).toList(),
+      );
+
+      debugPrint('✅ Fetched ${classes.length} classes for student');
+      return classes;
     } catch (e) {
       debugPrint('❌ Error fetching student classes: $e');
       return [];
@@ -141,6 +167,7 @@ class ClassroomService {
       }
 
       final mentorId = classDoc.data()?['mentorId'];
+      final classCode = classDoc.data()?['classCode'];
 
       // Student sub-collection'a ekle
       await _firestore
@@ -155,14 +182,16 @@ class ClassroomService {
         'enrolledAt': FieldValue.serverTimestamp(),
       });
 
-      // Students collection'ı güncelle
-      await _firestore.collection('students').doc(studentId).set({
+      // Students collection'a yeni kayıt ekle (her sınıf için ayrı kayıt)
+      await _firestore
+          .collection('students')
+          .add({
         'uid': studentId,
         'name': studentName,
         'email': studentEmail,
         'mentorId': mentorId,
         'classId': classId,
-        'classCode': classDoc.data()?['classCode'],
+        'classCode': classCode,
         'enrolledAt': FieldValue.serverTimestamp(),
       });
 
@@ -191,6 +220,14 @@ class ClassroomService {
       if (localClass != null) {
         localClass['studentCount'] = (localClass['studentCount'] ?? 0) + 1;
         await _localStorage.saveClass(classId, localClass);
+      }
+
+      // Öğrencinin sınıf listesine ekle
+      final studentClasses = _localStorage.getStudentClasses() ?? [];
+      final classModel = ClassModel.fromFirestore(classDoc);
+      if (!studentClasses.any((c) => c['id'] == classId)) {
+        studentClasses.add(classModel.toMap());
+        await _localStorage.saveStudentClasses(studentClasses);
       }
 
       debugPrint('✅ Student added to class successfully + local cache updated');
@@ -222,8 +259,16 @@ class ClassroomService {
           .doc(studentId)
           .delete();
 
-      // Students collection'dan sil
-      await _firestore.collection('students').doc(studentId).delete();
+      // Students collection'dan bu sınıfa ait kaydı sil
+      final studentRecords = await _firestore
+          .collection('students')
+          .where('uid', isEqualTo: studentId)
+          .where('classId', isEqualTo: classId)
+          .get();
+
+      for (var doc in studentRecords.docs) {
+        await doc.reference.delete();
+      }
 
       // Sınıfın öğrenci sayısını azalt
       await _firestore.collection('classes').doc(classId).update({
@@ -234,6 +279,11 @@ class ClassroomService {
       await _firestore.collection('mentors').doc(mentorId).update({
         'studentCount': FieldValue.increment(-1),
       });
+
+      // Local cache'den çıkar
+      final studentClasses = _localStorage.getStudentClasses() ?? [];
+      studentClasses.removeWhere((c) => c['id'] == classId);
+      await _localStorage.saveStudentClasses(studentClasses);
 
       debugPrint('✅ Student removed from class successfully');
       return true;
@@ -271,7 +321,6 @@ class ClassroomService {
     }
   }
 
-  // Sınıftaki öğrencileri çek
   // Sınıftaki öğrencileri çek
   Future<List<Map<String, dynamic>>> getClassStudents(String classId) async {
     try {
@@ -324,9 +373,14 @@ class ClassroomService {
 
       final batch = _firestore.batch();
 
-      // Her öğrenciyi students collection'dan sil
-      for (var doc in studentsSnapshot.docs) {
-        batch.delete(_firestore.collection('students').doc(doc.id));
+      // Students collection'dan bu sınıfa ait kayıtları sil
+      final studentRecords = await _firestore
+          .collection('students')
+          .where('classId', isEqualTo: classId)
+          .get();
+
+      for (var doc in studentRecords.docs) {
+        batch.delete(doc.reference);
       }
 
       // Sub-collection'daki öğrencileri sil

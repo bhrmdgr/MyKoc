@@ -22,7 +22,11 @@ class HomeViewModel extends ChangeNotifier {
   List<ClassModel> _classes = [];
   List<ClassModel> get classes => _classes;
 
-  // Öğrenci için task'lar ve duyurular
+  // Aktif sınıf (öğrenci için)
+  ClassModel? _activeClass;
+  ClassModel? get activeClass => _activeClass;
+
+  // Öğrenci için task'lar ve duyurular (aktif sınıfa göre)
   List<TaskModel> _studentTasks = [];
   List<TaskModel> get studentTasks => _studentTasks;
 
@@ -32,8 +36,16 @@ class HomeViewModel extends ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
+  // YENİ: Sınıf değiştirme loading state'i
+  bool _isSwitchingClass = false;
+  bool get isSwitchingClass => _isSwitchingClass;
+
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
+
+  // YENİ: Her sınıf için task ve announcement cache'i
+  final Map<String, List<TaskModel>> _tasksCache = {};
+  final Map<String, List<AnnouncementModel>> _announcementsCache = {};
 
   Future<void> initialize() async {
     _setLoading(true);
@@ -68,7 +80,7 @@ class HomeViewModel extends ChangeNotifier {
       upcomingSessions: _getDummySessions(),
     );
 
-    // Local'den sınıfları da yükle
+    // Local'den sınıfları yükle
     if (role == 'mentor') {
       final localClasses = _localStorage.getClassesList();
       if (localClasses != null && localClasses.isNotEmpty) {
@@ -78,10 +90,23 @@ class HomeViewModel extends ChangeNotifier {
         debugPrint('📦 Local\'den ${_classes.length} sınıf yüklendi');
       }
     } else {
-      final localClass = _localStorage.getStudentClass();
-      if (localClass != null) {
-        _classes = [ClassModel.fromMap(localClass)];
-        debugPrint('📦 Local\'den öğrenci sınıfı yüklendi');
+      // Öğrenci için birden fazla sınıf
+      final localClasses = _localStorage.getStudentClasses();
+      if (localClasses != null && localClasses.isNotEmpty) {
+        _classes = localClasses.map((data) => ClassModel.fromMap(data)).toList();
+        debugPrint('📦 Local\'den ${_classes.length} öğrenci sınıfı yüklendi');
+
+        // Aktif sınıfı belirle
+        final activeClassId = _localStorage.getActiveClassId();
+        if (activeClassId != null) {
+          _activeClass = _classes.firstWhere(
+                (c) => c.id == activeClassId,
+            orElse: () => _classes.first,
+          );
+        } else {
+          _activeClass = _classes.first;
+        }
+        debugPrint('🎯 Aktif sınıf: ${_activeClass?.className}');
       }
     }
   }
@@ -107,32 +132,47 @@ class HomeViewModel extends ChangeNotifier {
 
       debugPrint('👤 User: $name, Role: $role');
 
-      // Firestore'dan sınıfları çek ve güncelle
       if (role == 'mentor') {
         debugPrint('📚 Firestore\'dan mentör sınıfları çekiliyor...');
         _classes = await _classroomService.getMentorClasses(uid);
 
-        // Firestore'dan gelen verileri local'e kaydet
         final classesData = _classes.map((c) => c.toMap()).toList();
         await _localStorage.saveClassesList(classesData);
 
-        debugPrint('✅ Firestore\'dan ${_classes.length} sınıf yüklendi ve local\'e kaydedildi');
+        debugPrint('✅ Firestore\'dan ${_classes.length} sınıf yüklendi');
       } else {
         debugPrint('📚 Firestore\'dan öğrenci sınıfları çekiliyor...');
         _classes = await _classroomService.getStudentClasses(uid);
 
         if (_classes.isNotEmpty) {
-          await _localStorage.saveStudentClass(_classes.first.toMap());
-          debugPrint('✅ Öğrenci sınıfı local\'e kaydedildi');
+          // Sınıfları local'e kaydet
+          await _localStorage.saveStudentClasses(
+            _classes.map((c) => c.toMap()).toList(),
+          );
 
-          // Öğrenci için task'ları ve duyuruları çek
-          await _loadStudentTasksAndAnnouncements(uid, _classes.first.id);
+          // Aktif sınıfı belirle
+          final activeClassId = _localStorage.getActiveClassId();
+          if (activeClassId != null) {
+            _activeClass = _classes.firstWhere(
+                  (c) => c.id == activeClassId,
+              orElse: () => _classes.first,
+            );
+          } else {
+            _activeClass = _classes.first;
+            await _localStorage.saveActiveClassId(_activeClass!.id);
+          }
+
+          debugPrint('✅ ${_classes.length} sınıf yüklendi');
+          debugPrint('🎯 Aktif sınıf: ${_activeClass?.className}');
+
+          // Aktif sınıf için task ve duyuruları çek
+          await _loadStudentTasksAndAnnouncements(uid, _activeClass!.id);
         }
       }
 
       final sessions = await _fetchUpcomingSessions(uid, role);
 
-      // Completed tasks sayısını hesapla (null kontrolü ile)
+      // Completed tasks sayısını hesapla
       final completedTasksCount = _studentTasks
           .where((task) => (task.status ?? 'not_started') == 'completed')
           .length;
@@ -161,16 +201,71 @@ class HomeViewModel extends ChangeNotifier {
     }
   }
 
+  /// Aktif sınıfı değiştir - OPTIMIZE EDİLDİ
+  Future<void> switchActiveClass(String classId) async {
+    // Aynı sınıfa geçiş yapılıyorsa işlem yapma
+    if (_activeClass?.id == classId) {
+      debugPrint('⚠️ Zaten aktif sınıf: $classId');
+      return;
+    }
+
+    final targetClass = _classes.firstWhere(
+          (c) => c.id == classId,
+      orElse: () => _classes.first,
+    );
+
+    _activeClass = targetClass;
+    await _localStorage.saveActiveClassId(classId);
+
+    debugPrint('🔄 Sınıf değiştirildi: ${_activeClass?.className}');
+
+    // Loading animasyonunu başlat
+    _isSwitchingClass = true;
+    notifyListeners();
+
+    try {
+      // CACHE KONTROLÜ: Eğer bu sınıfın verileri cache'de varsa, hemen kullan
+      if (_tasksCache.containsKey(classId) && _announcementsCache.containsKey(classId)) {
+        debugPrint('💨 Cache\'den yükleniyor: $classId');
+
+        _studentTasks = _tasksCache[classId]!;
+        _studentAnnouncements = _announcementsCache[classId]!;
+
+        // Hızlı geçiş için kısa bir delay
+        await Future.delayed(const Duration(milliseconds: 300));
+
+        debugPrint('✅ Cache\'den ${_studentTasks.length} task ve ${_studentAnnouncements.length} duyuru yüklendi');
+      } else {
+        // Cache'de yoksa Firestore'dan çek
+        debugPrint('🔥 Firestore\'dan yükleniyor: $classId');
+        final uid = _localStorage.getUid();
+        if (uid != null) {
+          await _loadStudentTasksAndAnnouncements(uid, classId);
+        }
+      }
+    } finally {
+      _isSwitchingClass = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> _loadStudentTasksAndAnnouncements(String studentId, String classId) async {
     try {
       debugPrint('📋 Öğrenci task\'ları çekiliyor...');
 
-      // Task'ları çek (status bilgisi ile)
-      _studentTasks = await _taskService.getStudentTasks(studentId);
-      debugPrint('✅ ${_studentTasks.length} task yüklendi');
+      // Task'ları çek
+      final allTasks = await _taskService.getStudentTasks(studentId);
 
-      // Task'ları due date'e göre sırala (yakından uzağa)
+      // Sadece aktif sınıfa ait task'ları filtrele
+      _studentTasks = allTasks.where((task) => task.classId == classId).toList();
+
+      debugPrint('✅ ${_studentTasks.length} task yüklendi (classId: $classId)');
+
+      // Task'ları due date'e göre sırala
       _studentTasks.sort((a, b) => a.dueDate.compareTo(b.dueDate));
+
+      // Cache'e kaydet
+      _tasksCache[classId] = List.from(_studentTasks);
 
       // Duyuruları çek
       debugPrint('📢 Sınıf duyuruları çekiliyor...');
@@ -182,9 +277,49 @@ class HomeViewModel extends ChangeNotifier {
         _studentAnnouncements = _studentAnnouncements.take(5).toList();
       }
 
+      // Cache'e kaydet
+      _announcementsCache[classId] = List.from(_studentAnnouncements);
+
       notifyListeners();
     } catch (e) {
       debugPrint('❌ Error loading student tasks and announcements: $e');
+    }
+  }
+
+  /// Cache'i temizle - Yeni task eklendiğinde veya güncelleme yapıldığında kullanılır
+  void clearCache({String? classId}) {
+    if (classId != null) {
+      _tasksCache.remove(classId);
+      _announcementsCache.remove(classId);
+      debugPrint('🗑️ Cache temizlendi: $classId');
+    } else {
+      _tasksCache.clear();
+      _announcementsCache.clear();
+      debugPrint('🗑️ Tüm cache temizlendi');
+    }
+  }
+
+  /// Yenileme - Cache'i temizler ve yeniden yükler
+  Future<void> refresh() async {
+    clearCache();
+    await _loadFromFirestore();
+  }
+
+  /// Spesifik sınıf için yenileme
+  Future<void> refreshClass(String classId) async {
+    clearCache(classId: classId);
+
+    final uid = _localStorage.getUid();
+    if (uid != null) {
+      _isSwitchingClass = true;
+      notifyListeners();
+
+      try {
+        await _loadStudentTasksAndAnnouncements(uid, classId);
+      } finally {
+        _isSwitchingClass = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -195,10 +330,6 @@ class HomeViewModel extends ChangeNotifier {
       debugPrint('Error fetching sessions: $e');
       return _getDummySessions();
     }
-  }
-
-  Future<void> refresh() async {
-    await _loadFromFirestore();
   }
 
   String _getInitials(String name) {
@@ -234,6 +365,9 @@ class HomeViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
+    // Cache'i temizle
+    _tasksCache.clear();
+    _announcementsCache.clear();
     super.dispose();
   }
 }

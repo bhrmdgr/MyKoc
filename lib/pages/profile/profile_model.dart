@@ -3,11 +3,15 @@ class ProfileModel {
   final String userInitials;
   final String userRole;
   final String? profileImageUrl;
-  final String email; // EKLENDİ
+  final String email;
 
-  // Student specific
+  // Student specific - UPDATED
+  final int? totalClasses; // Toplam sınıf sayısı
+  final int? totalTasks; // Toplam task sayısı
+  final int? completedTasks; // Tamamlanan task sayısı
+  final int? completionPercentage; // Tamamlama yüzdesi
+
   final int? badges;
-  final int? completionPercentage;
   final int? dayStreak;
   final int? currentLevel;
   final int? currentXP;
@@ -25,14 +29,19 @@ class ProfileModel {
     required this.userInitials,
     required this.userRole,
     this.profileImageUrl,
-    required this.email, // EKLENDİ
-    this.badges,
+    required this.email,
+    // Student fields
+    this.totalClasses,
+    this.totalTasks,
+    this.completedTasks,
     this.completionPercentage,
+    this.badges,
     this.dayStreak,
     this.currentLevel,
     this.currentXP,
     this.xpToNextLevel,
     this.recentBadges,
+    // Mentor fields
     this.classCount,
     this.studentCount,
     this.activeTasks,
@@ -41,4 +50,11 @@ class ProfileModel {
 
   bool get isMentor => userRole == 'mentor';
   bool get isStudent => userRole == 'student';
+
+  // Completion percentage hesaplama helper
+  int get calculatedCompletionPercentage {
+    if (totalTasks == null || totalTasks == 0) return 0;
+    if (completedTasks == null) return 0;
+    return ((completedTasks! / totalTasks!) * 100).round();
+  }
 }
