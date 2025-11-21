@@ -3,11 +3,9 @@ import 'package:mykoc/pages/profile/profile_model.dart';
 import 'package:mykoc/pages/profile/profile_view_model.dart';
 import 'package:mykoc/pages/classroom/class_model.dart';
 import 'package:mykoc/pages/tasks/task_model.dart';
-import 'package:mykoc/pages/home/homeView.dart'; // HomeView importunu ekleyin
-import 'package:mykoc/pages/main/main_screen.dart'; // ⚠️ BU
+import 'package:mykoc/pages/main/main_screen.dart';
 import 'package:mykoc/services/storage/local_storage_service.dart';
 import 'package:mykoc/pages/classroom/class_detail/class_detail_view.dart';
-import 'package:mykoc/services/storage/local_storage_service.dart'; // EKLENDİ: ID'yi kaydetmek için
 import 'package:intl/intl.dart';
 
 class StudentProfileView extends StatelessWidget {
@@ -27,23 +25,21 @@ class StudentProfileView extends StatelessWidget {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            _buildHeader(),
+            _buildHeader(context),
             const SizedBox(height: 16),
             _buildStatsCards(),
             const SizedBox(height: 16),
 
-            // Join Class Button - Sadece kendi profilinde göster
+            // Join Class Button - Sadece öğrenci kendi profilinde görür
             if (!viewModel.isMentorViewing)
               _buildJoinClassButton(context),
 
             if (!viewModel.isMentorViewing)
               const SizedBox(height: 16),
 
-            // Tab Selector
             _buildTabSelector(),
             const SizedBox(height: 16),
 
-            // Content based on selected tab
             if (viewModel.selectedTab == 'classes')
               _buildClassesList(context)
             else
@@ -51,7 +47,7 @@ class StudentProfileView extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            // Menu Options - Sadece kendi profilinde göster
+            // Menu Options - Sadece öğrenci kendi profilinde görür
             if (!viewModel.isMentorViewing)
               _buildMenuOptions(context),
 
@@ -62,7 +58,7 @@ class StudentProfileView extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
     return Container(
       width: double.infinity,
       decoration: const BoxDecoration(
@@ -79,7 +75,7 @@ class StudentProfileView extends StatelessWidget {
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 20, 24, 100),
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
           child: Column(
             children: [
               // Avatar
@@ -125,6 +121,40 @@ class StudentProfileView extends StatelessWidget {
                   color: Colors.white.withOpacity(0.8),
                 ),
               ),
+
+              // --- MESSAGE BUTTON (SADECE MENTÖR GÖRÜR) ---
+              if (viewModel.isMentorViewing) ...[
+                const SizedBox(height: 20),
+                SizedBox(
+                  height: 45,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("Chat feature coming soon!"),
+                          backgroundColor: Color(0xFF6366F1),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.chat_bubble_outline_rounded, size: 20),
+                    label: const Text(
+                      "Send Message",
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: const Color(0xFF6366F1),
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
             ],
           ),
         ),
@@ -133,16 +163,16 @@ class StudentProfileView extends StatelessWidget {
   }
 
   Widget _buildStatsCards() {
+    final double offsetY = viewModel.isMentorViewing ? -40 : -80;
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
-      transform: Matrix4.translationValues(0, -80, 0),
+      transform: Matrix4.translationValues(0, offsetY, 0),
       child: Row(
         children: [
           Expanded(
             child: GestureDetector(
-              onTap: () {
-                viewModel.switchTab('classes');
-              },
+              onTap: () => viewModel.switchTab('classes'),
               child: _buildStatCard(
                 icon: Icons.school_outlined,
                 label: 'Classes',
@@ -154,9 +184,7 @@ class StudentProfileView extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: GestureDetector(
-              onTap: () {
-                viewModel.switchTab('tasks');
-              },
+              onTap: () => viewModel.switchTab('tasks'),
               child: _buildStatCard(
                 icon: Icons.assignment_outlined,
                 label: 'Tasks',
@@ -235,6 +263,7 @@ class StudentProfileView extends StatelessWidget {
   Widget _buildJoinClassButton(BuildContext context) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
+      transform: Matrix4.translationValues(0, -60, 0),
       child: Container(
         decoration: BoxDecoration(
           gradient: const LinearGradient(
@@ -279,9 +308,12 @@ class StudentProfileView extends StatelessWidget {
   }
 
   Widget _buildTabSelector() {
+    final double offsetY = viewModel.isMentorViewing ? -20 : -60;
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(4),
+      transform: Matrix4.translationValues(0, offsetY, 0),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -359,18 +391,24 @@ class StudentProfileView extends StatelessWidget {
   }
 
   Widget _buildClassesList(BuildContext context) {
+    final double offsetY = viewModel.isMentorViewing ? -20 : -60;
+
     if (viewModel.classes.isEmpty) {
-      return _buildEmptyState(
-        icon: Icons.school_outlined,
-        title: 'No Classes Yet',
-        subtitle: viewModel.isMentorViewing
-            ? 'This student hasn\'t joined any classes'
-            : 'Join a class using the button above',
+      return Transform.translate(
+        offset: Offset(0, offsetY),
+        child: _buildEmptyState(
+          icon: Icons.school_outlined,
+          title: 'No Classes Yet',
+          subtitle: viewModel.isMentorViewing
+              ? 'This student hasn\'t joined any classes'
+              : 'Join a class using the button above',
+        ),
       );
     }
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
+      transform: Matrix4.translationValues(0, offsetY, 0),
       child: Column(
         children: viewModel.classes
             .map((classItem) => _buildClassCard(context, classItem))
@@ -382,10 +420,8 @@ class StudentProfileView extends StatelessWidget {
   Widget _buildClassCard(BuildContext context, ClassModel classItem) {
     return GestureDetector(
       onTap: () async {
-        // EĞER MENTÖR İZLİYORSA HİÇBİR ŞEY YAPMA
         if (viewModel.isMentorViewing) return;
 
-        // Sadece öğrenci kendi profilindeyse çalışsın
         await LocalStorageService().saveActiveClassId(classItem.id);
 
         if (context.mounted) {
@@ -397,7 +433,6 @@ class StudentProfileView extends StatelessWidget {
         }
       },
       child: Container(
-        // ... (Tasarım kodları aynı kalıyor)
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -413,8 +448,6 @@ class StudentProfileView extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // ... (İçerik aynı)
-            // Class Icon
             Container(
               width: 56,
               height: 56,
@@ -435,8 +468,6 @@ class StudentProfileView extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 16),
-
-            // Class Info
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -474,8 +505,6 @@ class StudentProfileView extends StatelessWidget {
                 ],
               ),
             ),
-
-            // Leave Button
             if (!viewModel.isMentorViewing)
               PopupMenuButton(
                 icon: Icon(Icons.more_vert, color: Colors.grey[600]),
@@ -510,23 +539,28 @@ class StudentProfileView extends StatelessWidget {
   }
 
   Widget _buildTasksList(BuildContext context) {
+    final double offsetY = viewModel.isMentorViewing ? -20 : -60;
+
     if (viewModel.tasks.isEmpty) {
-      return _buildEmptyState(
-        icon: Icons.assignment_outlined,
-        title: 'No Tasks Yet',
-        subtitle: viewModel.isMentorViewing
-            ? 'This student has no tasks assigned'
-            : 'Your mentors haven\'t assigned any tasks yet',
+      return Transform.translate(
+        offset: Offset(0, offsetY),
+        child: _buildEmptyState(
+          icon: Icons.assignment_outlined,
+          title: 'No Tasks Yet',
+          subtitle: viewModel.isMentorViewing
+              ? 'This student has no tasks assigned'
+              : 'Your mentors haven\'t assigned any tasks yet',
+        ),
       );
     }
 
-    // Group tasks by status
     final notStarted = viewModel.tasks.where((t) => (t.status ?? 'not_started') == 'not_started').toList();
     final inProgress = viewModel.tasks.where((t) => t.status == 'in_progress').toList();
     final completed = viewModel.tasks.where((t) => t.status == 'completed').toList();
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
+      transform: Matrix4.translationValues(0, offsetY, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -592,9 +626,19 @@ class StudentProfileView extends StatelessWidget {
     );
   }
 
+  String _getTaskClassName(String classId) {
+    try {
+      final foundClass = viewModel.classes.firstWhere((c) => c.id == classId);
+      return foundClass.className;
+    } catch (e) {
+      return 'Unknown Class';
+    }
+  }
+
   Widget _buildTaskCard(TaskModel task) {
     final isOverdue = task.dueDate.isBefore(DateTime.now()) && task.status != 'completed';
     final formattedDate = DateFormat('MMM dd, yyyy').format(task.dueDate);
+    final className = _getTaskClassName(task.classId);
 
     Color priorityColor;
     switch (task.priority.toLowerCase()) {
@@ -629,6 +673,33 @@ class StudentProfileView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // --- Class Name Badge ---
+          Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF3F4F6),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.school_outlined, size: 12, color: Color(0xFF6B7280)),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    className,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF6B7280),
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
           Row(
             children: [
               Expanded(
@@ -641,6 +712,7 @@ class StudentProfileView extends StatelessWidget {
                   ),
                 ),
               ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
@@ -710,6 +782,7 @@ class StudentProfileView extends StatelessWidget {
     );
   }
 
+  // EKLENEN METOD
   Widget _buildEmptyState({
     required IconData icon,
     required String title,
@@ -768,13 +841,10 @@ class StudentProfileView extends StatelessWidget {
     );
   }
 
-  // _buildMenuOptions, _buildMenuItem, _buildDivider, _showJoinClassDialog, _showLeaveClassDialog, _showLogoutDialog...
-  // Bu metodlar aynı kalıyor, dosyanın sonuna mevcut kodlarınızdan ekleyebilirsiniz.
-  // Kod bütünlüğü için onları da ekliyorum:
-
   Widget _buildMenuOptions(BuildContext context) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
+      transform: Matrix4.translationValues(0, -60, 0),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
