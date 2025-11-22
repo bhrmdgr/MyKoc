@@ -80,7 +80,27 @@ class MentorProfileView extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: Center(
+                child: (profileData.profileImageUrl != null &&
+                    profileData.profileImageUrl!.isNotEmpty)
+                    ? ClipOval(
+                  child: Image.network(
+                    profileData.profileImageUrl!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Center(
+                        child: Text(
+                          profileData.userInitials,
+                          style: const TextStyle(
+                            fontSize: 36,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF6366F1),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                )
+                    : Center(
                   child: Text(
                     profileData.userInitials,
                     style: const TextStyle(

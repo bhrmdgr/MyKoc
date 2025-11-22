@@ -9,6 +9,8 @@ import 'package:mykoc/firebase/tasks/task_service.dart';
 import 'package:mykoc/firebase/profile/profile_service.dart';
 import 'package:mykoc/services/storage/local_storage_service.dart';
 import 'package:mykoc/routers/appRouter.dart';
+import 'package:mykoc/pages/auth/sign_in/signIn.dart';
+
 
 class ProfileViewModel extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -447,10 +449,30 @@ class ProfileViewModel extends ChangeNotifier {
 
   Future<void> logout(BuildContext context) async {
     try {
+      debugPrint('🚪 Starting logout process...');
+
       await _auth.signOut();
+      debugPrint('✅ Firebase logout successful');
+
       await _localStorage.clearAll();
-      if (context.mounted) navigateToSignIn(context);
-    } catch (e) { debugPrint('Logout error: $e'); }
+      debugPrint('✅ Local storage cleared');
+
+      if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const Signin()),
+              (route) => false,
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Error during logout: $e');
+      await _localStorage.clearAll();
+      if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const Signin()),
+              (route) => false,
+        );
+      }
+    }
   }
 
   String _getInitials(String name) {

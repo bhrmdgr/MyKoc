@@ -52,12 +52,9 @@ class FirebaseSignIn {
       final userData = userDoc.data()!;
       final role = userData['role'];
 
-      // ✅ Timestamp'i String'e çevir
+      // ✅ Timestamp'leri temizle
       final userDataToSave = Map<String, dynamic>.from(userData);
-      if (userDataToSave['createdAt'] is Timestamp) {
-        userDataToSave['createdAt'] =
-            (userDataToSave['createdAt'] as Timestamp).toDate().toIso8601String();
-      }
+      userDataToSave.removeWhere((key, value) => value is Timestamp);
 
       await _localStorage.saveUserData(userDataToSave);
 
@@ -66,22 +63,16 @@ class FirebaseSignIn {
         final mentorDoc = await _firestore.collection('mentors').doc(uid).get();
         if (mentorDoc.exists) {
           final mentorData = Map<String, dynamic>.from(mentorDoc.data()!);
-
           // Timestamp'leri temizle
-          mentorData.remove('createdAt');
-          mentorData.remove('subscriptionStartDate');
-          mentorData.remove('subscriptionEndDate');
-
+          mentorData.removeWhere((key, value) => value is Timestamp);
           await _localStorage.saveMentorData(mentorData);
         }
       } else if (role == 'student') {
         final studentDoc = await _firestore.collection('students').doc(uid).get();
         if (studentDoc.exists) {
           final studentData = Map<String, dynamic>.from(studentDoc.data()!);
-
           // Timestamp'leri temizle
-          studentData.remove('enrolledAt');
-
+          studentData.removeWhere((key, value) => value is Timestamp);
           await _localStorage.saveStudentData(studentData);
         }
       }
@@ -96,9 +87,21 @@ class FirebaseSignIn {
   // Çıkış yapma
   Future<void> signOut() async {
     try {
+      debugPrint('🚪 Signing out from Firebase...');
       await _auth.signOut();
-      await _localStorage.clearAllUserData();
+      debugPrint('✅ Firebase sign out successful');
+
+      debugPrint('🗑️ Clearing local storage...');
+      await _localStorage.clearAll();
+      debugPrint('✅ Local storage cleared');
     } catch (e) {
+      debugPrint('❌ Error during sign out: $e');
+      // Hata olsa bile local storage'ı temizle
+      try {
+        await _localStorage.clearAll();
+      } catch (clearError) {
+        debugPrint('❌ Error clearing storage: $clearError');
+      }
       throw 'Çıkış yapılırken bir hata oluştu';
     }
   }

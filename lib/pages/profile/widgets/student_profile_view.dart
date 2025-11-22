@@ -79,7 +79,7 @@ class StudentProfileView extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
           child: Column(
             children: [
-              // Avatar
+              // Avatar with Profile Image Support
               Container(
                 width: 100,
                 height: 100,
@@ -94,7 +94,27 @@ class StudentProfileView extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: Center(
+                child: (profileData.profileImageUrl != null &&
+                    profileData.profileImageUrl!.isNotEmpty)
+                    ? ClipOval(
+                  child: Image.network(
+                    profileData.profileImageUrl!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Center(
+                        child: Text(
+                          profileData.userInitials,
+                          style: const TextStyle(
+                            fontSize: 36,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF6366F1),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                )
+                    : Center(
                   child: Text(
                     profileData.userInitials,
                     style: const TextStyle(
@@ -123,7 +143,7 @@ class StudentProfileView extends StatelessWidget {
                 ),
               ),
 
-              // --- MESSAGE BUTTON (SADECE MENTÖR GÖRÜR) ---
+              // Message button (sadece mentör görür)
               if (viewModel.isMentorViewing) ...[
                 const SizedBox(height: 20),
                 SizedBox(

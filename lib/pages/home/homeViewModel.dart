@@ -187,11 +187,9 @@ class HomeViewModel extends ChangeNotifier {
         upcomingSessions: sessions,
       );
 
+      // Timestamp'leri temizle
       final userDataToSave = Map<String, dynamic>.from(userData);
-      if (userDataToSave['createdAt'] is Timestamp) {
-        userDataToSave['createdAt'] =
-            (userDataToSave['createdAt'] as Timestamp).toDate().toIso8601String();
-      }
+      userDataToSave.removeWhere((key, value) => value is Timestamp);
 
       await _localStorage.saveUserData(userDataToSave);
       notifyListeners();

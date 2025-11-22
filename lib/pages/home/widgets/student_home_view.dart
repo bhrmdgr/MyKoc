@@ -206,7 +206,6 @@ class StudentHomeView extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Welcome Text & Avatar
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -242,7 +241,27 @@ class StudentHomeView extends StatelessWidget {
                       color: Colors.white.withOpacity(0.3),
                       shape: BoxShape.circle,
                     ),
-                    child: Center(
+                    child: (homeData.profileImageUrl != null &&
+                        homeData.profileImageUrl!.isNotEmpty)
+                        ? ClipOval(
+                      child: Image.network(
+                        homeData.profileImageUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Center(
+                            child: Text(
+                              homeData.userInitials,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    )
+                        : Center(
                       child: Text(
                         homeData.userInitials,
                         style: const TextStyle(

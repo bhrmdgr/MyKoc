@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:mykoc/routers/appRouter.dart';
 import 'package:mykoc/firebase/auth/firebaseSignIn.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:mykoc/services/storage/local_storage_service.dart';
 
 class Signin extends StatefulWidget {
   const Signin({super.key});
@@ -13,8 +15,88 @@ class _SigninState extends State<Signin> {
   final _firebaseSignIn = FirebaseSignIn();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _localStorage = LocalStorageService();
+
   bool _isPasswordVisible = false;
   bool _isLoading = false;
+  bool _isCheckingSession = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // Post-frame callback kullanarak navigation'ı güvenli hale getir
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkExistingSession();
+    });
+  }
+
+  Future<void> _checkExistingSession() async {
+    if (!mounted) return;
+
+    try {
+      debugPrint('🔍 Checking existing session...');
+
+      // Firebase current user kontrolü
+      final currentUser = FirebaseAuth.instance.currentUser;
+      final localUid = _localStorage.getUid();
+
+      debugPrint('🔥 Firebase User: ${currentUser?.uid}');
+      debugPrint('📦 Local UID: $localUid');
+
+      // Eğer Firebase'de kullanıcı yoksa local'i temizle
+      if (currentUser == null) {
+        debugPrint('⚠️ No Firebase user, clearing local storage');
+        await _localStorage.clearAll();
+        if (mounted) {
+          setState(() => _isCheckingSession = false);
+        }
+        return;
+      }
+
+      // Eğer Firebase'de kullanıcı var ama local'de yoksa
+      if (localUid == null) {
+        debugPrint('⚠️ Firebase user exists but local storage is empty, signing out');
+        await FirebaseAuth.instance.signOut();
+        if (mounted) {
+          setState(() => _isCheckingSession = false);
+        }
+        return;
+      }
+
+      // Her ikisi de varsa ve eşleşiyorsa
+      if (currentUser.uid == localUid) {
+        debugPrint('✅ Valid session found, navigating to home');
+        if (mounted) {
+          // setState kullanmadan direkt navigate et
+          Future.microtask(() {
+            if (mounted) {
+              navigateToHome(context);
+            }
+          });
+        }
+        return;
+      } else {
+        debugPrint('⚠️ UID mismatch, clearing storage');
+        await _localStorage.clearAll();
+        await FirebaseAuth.instance.signOut();
+        if (mounted) {
+          setState(() => _isCheckingSession = false);
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Error during session check: $e');
+      // Hata durumunda her şeyi temizle
+      await _localStorage.clearAll();
+      try {
+        await FirebaseAuth.instance.signOut();
+      } catch (logoutError) {
+        debugPrint('❌ Error during cleanup logout: $logoutError');
+      }
+      if (mounted) {
+        setState(() => _isCheckingSession = false);
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -42,7 +124,6 @@ class _SigninState extends State<Signin> {
         password: _passwordController.text,
       );
 
-      // Giriş başarılı - Home'a git
       if (mounted) {
         navigateToHome(context);
       }
@@ -58,16 +139,29 @@ class _SigninState extends State<Signin> {
   }
 
   void _showError(String message) {
+    if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
         backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    // Session kontrol edilirken loading göster
+    if (_isCheckingSession) {
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(

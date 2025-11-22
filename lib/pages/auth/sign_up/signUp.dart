@@ -16,6 +16,8 @@ class _SignupState extends State<Signup> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _classCodeController = TextEditingController();
+  final _phoneController = TextEditingController();
+
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
   bool _isLoading = false;
@@ -64,6 +66,9 @@ class _SignupState extends State<Signup> {
         name: _nameController.text.trim(),
         email: _emailController.text.trim(),
         password: _passwordController.text,
+        phone: _phoneController.text.trim().isNotEmpty
+            ? _phoneController.text.trim()
+            : null,  // ← Telefon eklendi
         classCode: _classCodeController.text.trim().isNotEmpty
             ? _classCodeController.text.trim()
             : null,
@@ -84,6 +89,7 @@ class _SignupState extends State<Signup> {
       }
     }
   }
+
 
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -132,6 +138,8 @@ class _SignupState extends State<Signup> {
                 _buildHeader(),
                 const SizedBox(height: 32),
                 _buildNameField(),
+                const SizedBox(height: 16),
+                _buildPhoneField(),
                 const SizedBox(height: 16),
                 _buildEmailField(),
                 const SizedBox(height: 16),
@@ -261,6 +269,23 @@ class _SignupState extends State<Signup> {
     );
   }
 
+  Widget _buildPhoneField() {
+    return TextField(
+      controller: _phoneController,
+      keyboardType: TextInputType.phone,
+      decoration: InputDecoration(
+        labelText: 'Telefon (Opsiyonel)',
+        hintText: '+90 5XX XXX XX XX',
+        prefixIcon: const Icon(Icons.phone_outlined),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        filled: true,
+        fillColor: const Color(0xFFF9FAFB),
+      ),
+    );
+  }
+
   Widget _buildClassCodeField() {
     return TextField(
       controller: _classCodeController,
@@ -279,6 +304,8 @@ class _SignupState extends State<Signup> {
       ),
     );
   }
+
+
 
   Widget _buildInfoCard() {
     return Container(

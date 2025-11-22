@@ -11,6 +11,7 @@ class FirebaseSignUp {
     required String name,
     required String email,
     required String password,
+    String? phone,  // ← Telefon parametresi eklendi
     String? classCode,
   }) async {
     try {
@@ -26,9 +27,9 @@ class FirebaseSignUp {
       await _saveToLocalStorage(user.uid, email);
 
       if (classCode != null && classCode.isNotEmpty) {
-        await _registerAsStudent(user.uid, name, email, classCode);
+        await _registerAsStudent(user.uid, name, email, phone, classCode);
       } else {
-        await _registerAsMentor(user.uid, name, email);
+        await _registerAsMentor(user.uid, name, email, phone);
       }
 
       return user;
@@ -39,11 +40,17 @@ class FirebaseSignUp {
     }
   }
 
-  Future<void> _registerAsMentor(String uid, String name, String email) async {
+  Future<void> _registerAsMentor(
+      String uid,
+      String name,
+      String email,
+      String? phone,  // ← Telefon parametresi
+      ) async {
     final userData = {
       'uid': uid,
       'name': name,
       'email': email,
+      'phone': phone?.trim(),  // ← Telefon eklendi
       'role': 'mentor',
       'profileImage': '',
       'bio': '',
@@ -54,6 +61,7 @@ class FirebaseSignUp {
       'uid': uid,
       'name': name,
       'email': email,
+      'phone': phone?.trim(),  // ← Telefon eklendi
       'subscriptionTier': 'free',
       'subscriptionStartDate': FieldValue.serverTimestamp(),
       'subscriptionEndDate': null,
@@ -71,6 +79,7 @@ class FirebaseSignUp {
       'uid': uid,
       'name': name,
       'email': email,
+      'phone': phone?.trim(),  // ← Telefon eklendi
       'role': 'mentor',
       'profileImage': '',
       'bio': '',
@@ -89,6 +98,7 @@ class FirebaseSignUp {
       String uid,
       String name,
       String email,
+      String? phone,  // ← Telefon parametresi
       String classCode,
       ) async {
     final classDoc = await _firestore
@@ -108,6 +118,7 @@ class FirebaseSignUp {
       'uid': uid,
       'name': name,
       'email': email,
+      'phone': phone?.trim(),  // ← Telefon eklendi
       'role': 'student',
       'profileImage': '',
       'bio': '',
@@ -118,6 +129,7 @@ class FirebaseSignUp {
       'uid': uid,
       'name': name,
       'email': email,
+      'phone': phone?.trim(),  // ← Telefon eklendi
       'mentorId': mentorId,
       'classId': classId,
       'classCode': classCode,
@@ -136,6 +148,7 @@ class FirebaseSignUp {
       'uid': uid,
       'name': name,
       'email': email,
+      'phone': phone?.trim(),  // ← Telefon eklendi
       'enrolledAt': FieldValue.serverTimestamp(),
     });
 
@@ -151,6 +164,7 @@ class FirebaseSignUp {
       'uid': uid,
       'name': name,
       'email': email,
+      'phone': phone?.trim(),  // ← Telefon eklendi
       'role': 'student',
       'profileImage': '',
       'bio': '',
