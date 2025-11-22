@@ -4,6 +4,7 @@ import 'package:mykoc/pages/profile/profile_view_model.dart';
 import 'package:mykoc/pages/classroom/class_model.dart';
 import 'package:mykoc/pages/classroom/class_detail/class_detail_view.dart';
 import 'package:mykoc/pages/profile/student_profile_page.dart'; // EKLENDİ
+import 'package:mykoc/pages/settings/settings_view.dart';
 
 class MentorProfileView extends StatelessWidget {
   final ProfileModel profileData;
@@ -650,7 +651,10 @@ class MentorProfileView extends StatelessWidget {
             icon: Icons.settings_outlined,
             title: 'Settings',
             onTap: () {
-              // TODO: Navigate to settings
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsView()),
+              );
             },
           ),
           _buildDivider(),

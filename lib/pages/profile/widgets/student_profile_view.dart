@@ -7,6 +7,7 @@ import 'package:mykoc/pages/main/main_screen.dart';
 import 'package:mykoc/services/storage/local_storage_service.dart';
 import 'package:mykoc/pages/classroom/class_detail/class_detail_view.dart';
 import 'package:intl/intl.dart';
+import 'package:mykoc/pages/settings/settings_view.dart';
 
 class StudentProfileView extends StatelessWidget {
   final ProfileModel profileData;
@@ -861,7 +862,12 @@ class StudentProfileView extends StatelessWidget {
           _buildMenuItem(
             icon: Icons.settings_outlined,
             title: 'Settings',
-            onTap: () {},
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsView()),
+              );
+            },
           ),
           _buildDivider(),
           _buildMenuItem(
