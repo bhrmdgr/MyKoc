@@ -10,6 +10,8 @@ import 'package:mykoc/firebase/profile/profile_service.dart';
 import 'package:mykoc/services/storage/local_storage_service.dart';
 import 'package:mykoc/routers/appRouter.dart';
 import 'package:mykoc/pages/auth/sign_in/signIn.dart';
+import 'package:mykoc/firebase/messaging/fcm_service.dart';
+
 
 
 class ProfileViewModel extends ChangeNotifier {
@@ -149,6 +151,23 @@ class ProfileViewModel extends ChangeNotifier {
       _safeNotifyListeners();
     }
   }
+
+  Future<void> initializeForMentor(String mentorId) async {
+    _isLoading = true;
+    _isMentorViewing = true; // Mentor başkasının profilini görüyor
+    _viewedStudentId = null;
+    _safeNotifyListeners();
+
+    try {
+      await _loadMentorProfile(mentorId);
+    } catch (e) {
+      debugPrint('❌ ProfileViewModel Error: $e');
+    } finally {
+      _isLoading = false;
+      _safeNotifyListeners();
+    }
+  }
+
 
   // ------------------------------------------------------------------------
   // LOCAL STORAGE LOAD
@@ -365,6 +384,44 @@ class ProfileViewModel extends ChangeNotifier {
   // HELPER METHODS
   // ------------------------------------------------------------------------
 
+  Future<void> _loadMentorProfile(String mentorId) async {
+    try {
+      final userDoc = await _firestore.collection('users').doc(mentorId).get();
+      if (!userDoc.exists) return;
+
+      final userData = userDoc.data()!;
+      final name = userData['name'] ?? 'Mentor';
+      final email = userData['email'] ?? '';
+
+      // Mentor sınıflarını çek
+      _classes = await _profileService.getMentorClassesDetailed(mentorId);
+
+      // Task sayısını hesapla
+      int calculatedTaskCount = 0;
+      for (var classItem in _classes) {
+        calculatedTaskCount += classItem.taskCount;
+      }
+
+      // Unique öğrenci sayısını hesapla
+      int uniqueStudentCount = await _syncAndCountUniqueStudents(mentorId);
+
+      _profileData = ProfileModel(
+        userName: name,
+        userInitials: _getInitials(name),
+        userRole: 'mentor',
+        email: email,
+        profileImageUrl: userData['profileImage'],
+        classCount: _classes.length,
+        studentCount: uniqueStudentCount,
+        activeTasks: calculatedTaskCount,
+      );
+
+      _safeNotifyListeners();
+    } catch (e) {
+      debugPrint('❌ Error loading mentor profile: $e');
+    }
+  }
+
   Future<void> _loadStudentProfile(String studentId) async {
     try {
       final userDoc = await _firestore.collection('users').doc(studentId).get();
@@ -450,6 +507,12 @@ class ProfileViewModel extends ChangeNotifier {
   Future<void> logout(BuildContext context) async {
     try {
       debugPrint('🚪 Starting logout process...');
+
+      // Token sil
+      final uid = _localStorage.getUid();
+      if (uid != null) {
+        await FCMService().deleteToken(uid); // ← YENİ
+      }
 
       await _auth.signOut();
       debugPrint('✅ Firebase logout successful');

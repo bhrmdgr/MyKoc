@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:provider/provider.dart'; // Provider Paketi
+import 'package:provider/provider.dart';
 import 'package:mykoc/firebase_options.dart';
 import 'package:mykoc/pages/auth/sign_in/signIn.dart';
 import 'package:mykoc/pages/main/main_screen.dart';
 import 'package:mykoc/services/storage/local_storage_service.dart';
-import 'package:mykoc/pages/home/homeViewModel.dart'; // ViewModel importu
+import 'package:mykoc/pages/home/homeViewModel.dart';
+import 'package:mykoc/firebase/messaging/fcm_service.dart'; // ← YENİ
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,11 +18,12 @@ void main() async {
 
   await LocalStorageService().init();
 
+  // FCM Initialize
+  await FCMService().initialize(); // ← YENİ
+
   runApp(
-    // MultiProvider ile ViewModel'leri en tepeye taşıyoruz
     MultiProvider(
       providers: [
-        // HomeViewModel burada oluşturuluyor ve uygulama kapanana kadar silinmiyor
         ChangeNotifierProvider(create: (_) => HomeViewModel()),
       ],
       child: const MyApp(),

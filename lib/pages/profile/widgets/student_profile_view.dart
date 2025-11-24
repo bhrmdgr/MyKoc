@@ -1156,18 +1156,20 @@ class StudentProfileView extends StatelessWidget {
   void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(  // ← Farklı context kullan
         title: const Text('Log Out'),
         content: const Text('Are you sure you want to log out?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),  // ← dialogContext
             child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () {
-              Navigator.pop(context);
-              viewModel.logout(context);
+              Navigator.pop(dialogContext);  // ← İlk dialog'u kapat
+
+              // Logout'u ana context ile çağır
+              viewModel.logout(context);  // ← context (ana sayfa context'i)
             },
             child: const Text(
               'Log Out',

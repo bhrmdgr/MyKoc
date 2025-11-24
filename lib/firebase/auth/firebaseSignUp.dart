@@ -1,17 +1,21 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:mykoc/services/storage/local_storage_service.dart';
+import 'package:mykoc/firebase/messaging/fcm_service.dart';
+import 'package:mykoc/firebase/messaging/messaging_service.dart';
 
 class FirebaseSignUp {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final _localStorage = LocalStorageService();
+  final LocalStorageService _localStorage = LocalStorageService();
+  final MessagingService _messagingService = MessagingService();
 
   Future<User?> signUpWithEmailAndPassword({
     required String name,
     required String email,
     required String password,
-    String? phone,  // ← Telefon parametresi eklendi
+    String? phone,
     String? classCode,
   }) async {
     try {
@@ -32,6 +36,10 @@ class FirebaseSignUp {
         await _registerAsMentor(user.uid, name, email, phone);
       }
 
+      // FCM token kaydet
+      await FCMService().saveToken(user.uid);
+      debugPrint('✅ FCM token saved');
+
       return user;
     } on FirebaseAuthException catch (e) {
       throw _getErrorMessage(e.code);
@@ -44,13 +52,13 @@ class FirebaseSignUp {
       String uid,
       String name,
       String email,
-      String? phone,  // ← Telefon parametresi
+      String? phone,
       ) async {
     final userData = {
       'uid': uid,
       'name': name,
       'email': email,
-      'phone': phone?.trim(),  // ← Telefon eklendi
+      'phone': phone?.trim(),
       'role': 'mentor',
       'profileImage': '',
       'bio': '',
@@ -61,7 +69,7 @@ class FirebaseSignUp {
       'uid': uid,
       'name': name,
       'email': email,
-      'phone': phone?.trim(),  // ← Telefon eklendi
+      'phone': phone?.trim(),
       'subscriptionTier': 'free',
       'subscriptionStartDate': FieldValue.serverTimestamp(),
       'subscriptionEndDate': null,
@@ -79,12 +87,13 @@ class FirebaseSignUp {
       'uid': uid,
       'name': name,
       'email': email,
-      'phone': phone?.trim(),  // ← Telefon eklendi
+      'phone': phone?.trim(),
       'role': 'mentor',
       'profileImage': '',
       'bio': '',
       'createdAt': DateTime.now().toIso8601String(),
     });
+
     await _localStorage.saveMentorData({
       'subscriptionTier': 'free',
       'maxClasses': 1,
@@ -98,9 +107,10 @@ class FirebaseSignUp {
       String uid,
       String name,
       String email,
-      String? phone,  // ← Telefon parametresi
+      String? phone,
       String classCode,
       ) async {
+    // 1. Sınıfı bul
     final classDoc = await _firestore
         .collection('classes')
         .where('classCode', isEqualTo: classCode.trim())
@@ -114,22 +124,24 @@ class FirebaseSignUp {
     final classId = classDoc.docs.first.id;
     final mentorId = classData['mentorId'];
 
+    // 2. Users collection
     final userData = {
       'uid': uid,
       'name': name,
       'email': email,
-      'phone': phone?.trim(),  // ← Telefon eklendi
+      'phone': phone?.trim(),
       'role': 'student',
       'profileImage': '',
       'bio': '',
       'createdAt': FieldValue.serverTimestamp(),
     };
 
+    // 3. Students collection
     final studentData = {
       'uid': uid,
       'name': name,
       'email': email,
-      'phone': phone?.trim(),  // ← Telefon eklendi
+      'phone': phone?.trim(),
       'mentorId': mentorId,
       'classId': classId,
       'classCode': classCode,
@@ -139,6 +151,7 @@ class FirebaseSignUp {
     await _firestore.collection('users').doc(uid).set(userData);
     await _firestore.collection('students').doc(uid).set(studentData);
 
+    // 4. Sınıfa öğrenci ekle
     await _firestore
         .collection('classes')
         .doc(classId)
@@ -148,10 +161,11 @@ class FirebaseSignUp {
       'uid': uid,
       'name': name,
       'email': email,
-      'phone': phone?.trim(),  // ← Telefon eklendi
+      'phone': phone?.trim(),
       'enrolledAt': FieldValue.serverTimestamp(),
     });
 
+    // 5. Student count artır
     await _firestore.collection('classes').doc(classId).update({
       'studentCount': FieldValue.increment(1),
     });
@@ -160,21 +174,45 @@ class FirebaseSignUp {
       'studentCount': FieldValue.increment(1),
     });
 
+    // 6. ÖNEMLİ: Öğrenciyi chat room'a ekle
+    try {
+      final chatRoomId = await _messagingService.getChatRoomIdByClassId(classId);
+
+      if (chatRoomId != null) {
+        await _messagingService.addStudentToChatRoom(
+          chatRoomId: chatRoomId,
+          studentId: uid,
+          studentName: name,
+          studentImageUrl: null,
+        );
+        debugPrint('✅ Student added to chat room: $chatRoomId');
+      } else {
+        debugPrint('⚠️ Chat room not found for class: $classId');
+      }
+    } catch (e) {
+      debugPrint('❌ Error adding student to chat room: $e');
+      // Chat room hatası kayıt işlemini durdurmamalı
+    }
+
+    // 7. Local storage
     await _localStorage.saveUserData({
       'uid': uid,
       'name': name,
       'email': email,
-      'phone': phone?.trim(),  // ← Telefon eklendi
+      'phone': phone?.trim(),
       'role': 'student',
       'profileImage': '',
       'bio': '',
       'createdAt': DateTime.now().toIso8601String(),
     });
+
     await _localStorage.saveStudentData({
       'mentorId': mentorId,
       'classId': classId,
       'classCode': classCode,
     });
+
+    await _localStorage.saveActiveClassId(classId);
   }
 
   Future<void> _saveToLocalStorage(String uid, String email) async {

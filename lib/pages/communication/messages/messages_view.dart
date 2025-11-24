@@ -140,8 +140,9 @@ class _MessagesViewState extends State<MessagesView> {
     final displayName = viewModel.getOtherParticipantName(chatRoom);
     final imageUrl = viewModel.getOtherParticipantImage(chatRoom);
     final initials = viewModel.getOtherParticipantInitials(chatRoom);
-    final unreadCount = chatRoom.getUnreadCountForUser(viewModel.currentUserId ?? ''); // ← _ kaldırıldı
+    final unreadCount = chatRoom.getUnreadCountForUser(viewModel.currentUserId ?? '');
     final timeText = viewModel.getRelativeTime(chatRoom.lastMessageTime);
+    final lastMessageText = chatRoom.lastMessage ?? 'No messages yet';
 
     return InkWell(
       onTap: () {
@@ -169,19 +170,12 @@ class _MessagesViewState extends State<MessagesView> {
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: isGroup
-                          ? [Color(0xFF6366F1), Color(0xFF8B5CF6)]
-                          : [Color(0xFF9CA3AF), Color(0xFF6B7280)],
+                          ? [const Color(0xFF6366F1), const Color(0xFF8B5CF6)]
+                          : [const Color(0xFF9CA3AF), const Color(0xFF6B7280)],
                     ),
                     shape: BoxShape.circle,
                   ),
-                  child: chatRoom.emoji != null
-                      ? Center(
-                    child: Text(
-                      chatRoom.emoji!,
-                      style: const TextStyle(fontSize: 28),
-                    ),
-                  )
-                      : (imageUrl != null && imageUrl.isNotEmpty)
+                  child: (imageUrl != null && imageUrl.isNotEmpty)
                       ? ClipOval(
                     child: Image.network(
                       imageUrl,
@@ -248,13 +242,6 @@ class _MessagesViewState extends State<MessagesView> {
                 children: [
                   Row(
                     children: [
-                      if (chatRoom.emoji != null) ...[
-                        Text(
-                          chatRoom.emoji!,
-                          style: const TextStyle(fontSize: 16),
-                        ),
-                        const SizedBox(width: 6),
-                      ],
                       Expanded(
                         child: Text(
                           displayName,
@@ -279,7 +266,7 @@ class _MessagesViewState extends State<MessagesView> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    chatRoom.lastMessage,
+                    lastMessageText,
                     style: TextStyle(
                       fontSize: 14,
                       color: unreadCount > 0

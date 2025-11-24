@@ -1,9 +1,14 @@
-// lib/pages/communication/chat_room/chat_room_view.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mykoc/pages/communication/chat_room/chat_room_view_model.dart';
+import 'package:mykoc/pages/profile/student_profile_page.dart';
+import 'package:mykoc/pages/profile/mentor_profile_page.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:dio/dio.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:open_filex/open_filex.dart';
 import 'dart:io';
 
 class ChatRoomView extends StatefulWidget {
@@ -221,9 +226,12 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     );
   }
 
+  // Sadece _buildMessageBubble metodunu değiştir:
+
   Widget _buildMessageBubble(message, ChatRoomViewModel viewModel) {
     final isMe = viewModel.isMyMessage(message);
-    final hasFile = message.fileUrl != null;
+    final hasFile = message.fileUrl != null && message.fileUrl!.isNotEmpty;
+    final messageText = message.text ?? ''; // ← Null kontrolü
 
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -237,14 +245,72 @@ class _ChatRoomViewState extends State<ChatRoomView> {
           isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
             if (!isMe && widget.isGroup) ...[
-              Padding(
-                padding: const EdgeInsets.only(left: 12, bottom: 4),
-                child: Text(
-                  message.senderName,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF6366F1),
+              GestureDetector(
+                onTap: () async {
+                  final userRole = await _getUserRole(message.senderId);
+
+                  if (userRole == 'mentor') {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => MentorProfilePage(
+                          mentorId: message.senderId,
+                        ),
+                      ),
+                    );
+                  } else {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => StudentProfilePage(
+                          studentId: message.senderId,
+                        ),
+                      ),
+                    );
+                  }
+                },
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 12, bottom: 4),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (message.senderImageUrl != null &&
+                          message.senderImageUrl!.isNotEmpty)
+                        CircleAvatar(
+                          radius: 10,
+                          backgroundImage:
+                          NetworkImage(message.senderImageUrl!),
+                          backgroundColor: const Color(0xFF6366F1),
+                        )
+                      else
+                        CircleAvatar(
+                          radius: 10,
+                          backgroundColor: const Color(0xFF6366F1),
+                          child: Text(
+                            (message.senderName ?? 'U')[0].toUpperCase(),
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      const SizedBox(width: 6),
+                      Text(
+                        message.senderName ?? 'Unknown',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF6366F1),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(
+                        Icons.chevron_right,
+                        size: 14,
+                        color: const Color(0xFF6366F1).withOpacity(0.6),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -280,12 +346,11 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                 children: [
                   if (hasFile) ...[
                     _buildFilePreview(message, isMe),
-                    if (message.messageText.isNotEmpty)
-                      const SizedBox(height: 8),
+                    if (messageText.isNotEmpty) const SizedBox(height: 8),
                   ],
-                  if (message.messageText.isNotEmpty)
+                  if (messageText.isNotEmpty)
                     Text(
-                      message.messageText,
+                      messageText,
                       style: TextStyle(
                         fontSize: 15,
                         color: isMe ? Colors.white : const Color(0xFF1F2937),
@@ -307,11 +372,11 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                       if (isMe) ...[
                         const SizedBox(width: 4),
                         Icon(
-                          message.readBy.length > 1
+                          message.readBy != null && message.readBy.length > 1
                               ? Icons.done_all
                               : Icons.done,
                           size: 14,
-                          color: message.readBy.length > 1
+                          color: message.readBy != null && message.readBy.length > 1
                               ? Colors.blue[200]
                               : Colors.white.withOpacity(0.7),
                         ),
@@ -328,84 +393,96 @@ class _ChatRoomViewState extends State<ChatRoomView> {
   }
 
   Widget _buildFilePreview(message, bool isMe) {
-    if (message.fileType == 'image') {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: Image.network(
-          message.fileUrl!,
-          width: 200,
-          fit: BoxFit.cover,
-          loadingBuilder: (context, child, loadingProgress) {
-            if (loadingProgress == null) return child;
-            return Container(
-              width: 200,
-              height: 150,
-              color: isMe ? Colors.white.withOpacity(0.2) : Colors.grey[200],
-              child: const Center(child: CircularProgressIndicator()),
-            );
-          },
-          errorBuilder: (context, error, stackTrace) {
-            return Container(
-              width: 200,
-              height: 150,
-              color: Colors.grey[300],
-              child: const Icon(Icons.broken_image, size: 48),
-            );
-          },
+    final extension = message.fileType?.toLowerCase() ?? '';
+    final isImage = extension == 'image' ||
+        message.fileUrl?.toLowerCase().contains('.jpg') == true ||
+        message.fileUrl?.toLowerCase().contains('.jpeg') == true ||
+        message.fileUrl?.toLowerCase().contains('.png') == true;
+
+    if (isImage) {
+      return GestureDetector(
+        onTap: () => _showFullScreenImage(message.fileUrl!),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.network(
+            message.fileUrl!,
+            width: 200,
+            fit: BoxFit.cover,
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return Container(
+                width: 200,
+                height: 150,
+                color: isMe ? Colors.white.withOpacity(0.2) : Colors.grey[200],
+                child: const Center(child: CircularProgressIndicator()),
+              );
+            },
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                width: 200,
+                height: 150,
+                color: Colors.grey[300],
+                child: const Icon(Icons.broken_image, size: 48),
+              );
+            },
+          ),
         ),
       );
     }
 
     // Document/File preview
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: isMe ? Colors.white.withOpacity(0.2) : Colors.grey[100],
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            _getFileIcon(message.fileType),
-            color: isMe ? Colors.white : const Color(0xFF6366F1),
-            size: 32,
-          ),
-          const SizedBox(width: 12),
-          Flexible(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  message.fileName ?? 'File',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: isMe ? Colors.white : const Color(0xFF1F2937),
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  message.fileType?.toUpperCase() ?? 'FILE',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: isMe
-                        ? Colors.white.withOpacity(0.7)
-                        : Colors.grey[600],
-                  ),
-                ),
-              ],
+    return GestureDetector(
+      onTap: () => _downloadFile(message.fileUrl!, message.fileName),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isMe ? Colors.white.withOpacity(0.2) : Colors.grey[100],
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              _getFileIcon(message.fileType),
+              color: isMe ? Colors.white : const Color(0xFF6366F1),
+              size: 32,
             ),
-          ),
-          const SizedBox(width: 8),
-          Icon(
-            Icons.download,
-            color: isMe ? Colors.white : const Color(0xFF6366F1),
-            size: 20,
-          ),
-        ],
+            const SizedBox(width: 12),
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    message.fileName ?? 'File',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: isMe ? Colors.white : const Color(0xFF1F2937),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    message.fileType?.toUpperCase() ?? 'FILE',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isMe
+                          ? Colors.white.withOpacity(0.7)
+                          : Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(
+              Icons.download,
+              color: isMe ? Colors.white : const Color(0xFF6366F1),
+              size: 20,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -440,12 +517,10 @@ class _ChatRoomViewState extends State<ChatRoomView> {
         top: false,
         child: Row(
           children: [
-            // Attach file button
             IconButton(
               icon: const Icon(Icons.attach_file, color: Color(0xFF6366F1)),
               onPressed: () => _showAttachmentOptions(),
             ),
-            // Text input
             Expanded(
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -470,7 +545,6 @@ class _ChatRoomViewState extends State<ChatRoomView> {
               ),
             ),
             const SizedBox(width: 8),
-            // Send button
             Consumer<ChatRoomViewModel>(
               builder: (context, viewModel, child) {
                 return Container(
@@ -492,9 +566,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                       ),
                     )
                         : const Icon(Icons.send, color: Colors.white),
-                    onPressed: viewModel.isSending
-                        ? null
-                        : () => _sendMessage(),
+                    onPressed: viewModel.isSending ? null : () => _sendMessage(),
                   ),
                 );
               },
@@ -626,6 +698,262 @@ class _ChatRoomViewState extends State<ChatRoomView> {
 
     if (!success && mounted) {
       _showErrorSnackBar('Failed to send file');
+    }
+  }
+
+  void _showFullScreenImage(String imageUrl) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          backgroundColor: Colors.black,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.close, color: Colors.white),
+              onPressed: () => Navigator.pop(context),
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.download, color: Colors.white),
+                onPressed: () => _downloadImage(imageUrl),
+              ),
+            ],
+          ),
+          body: Center(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 0.5,
+              maxScale: 4.0,
+              child: Image.network(
+                imageUrl,
+                fit: BoxFit.contain,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return const Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  return const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.broken_image, color: Colors.white, size: 64),
+                        SizedBox(height: 16),
+                        Text(
+                          'Failed to load image',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // _downloadImage ve _downloadFile metodlarındaki permission kontrolünü değiştir:
+
+  Future<void> _downloadImage(String imageUrl) async {
+    try {
+      // Loading göster
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+          ),
+        ),
+      );
+
+      // Dosya adını oluştur
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final fileName = 'MyKoc_Image_$timestamp.jpg';
+
+      // Download dizini
+      Directory? directory;
+      if (Platform.isAndroid) {
+        directory = Directory('/storage/emulated/0/Download');
+        if (!await directory.exists()) {
+          directory = await getExternalStorageDirectory();
+        }
+      } else {
+        directory = await getApplicationDocumentsDirectory();
+      }
+
+      final filePath = '${directory!.path}/$fileName';
+
+      // İndir
+      final dio = Dio();
+      await dio.download(imageUrl, filePath);
+
+      // Loading kapat
+      if (mounted) Navigator.pop(context);
+
+      // Başarı mesajı
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      Text(
+                        'Image saved successfully',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        'Download folder',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFF10B981),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Error downloading image: $e');
+
+      if (mounted && Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+
+      _showErrorSnackBar('Failed to save image: ${e.toString()}');
+    }
+  }
+
+  Future<void> _downloadFile(String fileUrl, String? fileName) async {
+    try {
+      // Loading göster
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
+          ),
+        ),
+      );
+
+      // Dosya adını al
+      final decodedFileName = fileName ??
+          Uri.decodeComponent(fileUrl.split('/').last.split('?').first);
+
+      // Download dizini
+      Directory? directory;
+      if (Platform.isAndroid) {
+        directory = Directory('/storage/emulated/0/Download');
+        if (!await directory.exists()) {
+          directory = await getExternalStorageDirectory();
+        }
+      } else {
+        directory = await getApplicationDocumentsDirectory();
+      }
+
+      final filePath = '${directory!.path}/$decodedFileName';
+
+      // Dosyayı indir
+      final dio = Dio();
+      await dio.download(
+        fileUrl,
+        filePath,
+        onReceiveProgress: (received, total) {
+          if (total != -1) {
+            debugPrint(
+                'Download progress: ${(received / total * 100).toStringAsFixed(0)}%');
+          }
+        },
+      );
+
+      // Loading kapat
+      if (mounted) Navigator.pop(context);
+
+      // Başarı mesajı göster
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      Text(
+                        'File downloaded successfully',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        'Download folder',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFF10B981),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'Open',
+              textColor: Colors.white,
+              onPressed: () async {
+                final result = await OpenFilex.open(filePath);
+                if (result.type != ResultType.done) {
+                  _showErrorSnackBar('Cannot open this file type');
+                }
+              },
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Error downloading file: $e');
+
+      if (mounted && Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+
+      _showErrorSnackBar('Failed to download file: ${e.toString()}');
+    }
+  }
+
+  Future<String> _getUserRole(String userId) async {
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .get();
+
+      if (userDoc.exists) {
+        return userDoc.data()?['role'] ?? 'student';
+      }
+      return 'student';
+    } catch (e) {
+      debugPrint('❌ Error getting user role: $e');
+      return 'student';
     }
   }
 

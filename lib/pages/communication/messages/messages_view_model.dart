@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:mykoc/pages/communication/messages/message_model.dart';
 import 'package:mykoc/firebase/messaging/messaging_service.dart';
 import 'package:mykoc/services/storage/local_storage_service.dart';
+import 'dart:async';
 
 class MessagesViewModel extends ChangeNotifier {
   final MessagingService _messagingService = MessagingService();
@@ -17,8 +18,12 @@ class MessagesViewModel extends ChangeNotifier {
   String? _currentUserId;
   String? _currentUserRole;
 
-  // Getter ekle
   String? get currentUserId => _currentUserId;
+
+  StreamSubscription<List<ChatRoomModel>>? _chatRoomsSubscription;
+
+  // DÜZELTME: Dispose kontrolü
+  bool _isDisposed = false;
 
   void initialize() {
     _currentUserId = _localStorage.getUid();
@@ -30,14 +35,33 @@ class MessagesViewModel extends ChangeNotifier {
   }
 
   void _listenToChatRooms() {
+    // Sayfa kapalıysa işlem yapma
+    if (_isDisposed) return;
+
     _isLoading = true;
     notifyListeners();
 
-    _messagingService.getUserChatRooms(_currentUserId!).listen((rooms) {
-      _chatRooms = rooms;
-      _isLoading = false;
-      notifyListeners();
-    });
+    _chatRoomsSubscription?.cancel();
+
+    _chatRoomsSubscription = _messagingService
+        .getUserChatRooms(_currentUserId!)
+        .listen(
+          (rooms) {
+        // DÜZELTME: Veri geldiğinde sayfa hala açık mı kontrol et
+        if (_isDisposed) return;
+
+        _chatRooms = rooms;
+        _isLoading = false;
+        notifyListeners();
+      },
+      onError: (error) {
+        if (_isDisposed) return;
+
+        debugPrint('❌ Chat rooms listen error: $error');
+        _isLoading = false;
+        notifyListeners();
+      },
+    );
   }
 
   /// Direkt mesaj odası aç
@@ -81,7 +105,6 @@ class MessagesViewModel extends ChangeNotifier {
       return chatRoom.name;
     }
 
-    // Direct chat için karşı tarafın adını bul
     for (var participantId in chatRoom.participantIds) {
       if (participantId != _currentUserId) {
         return chatRoom.participantDetails[participantId]?['name'] ?? 'User';
@@ -111,7 +134,11 @@ class MessagesViewModel extends ChangeNotifier {
     return '${parts[0][0]}${parts[parts.length - 1][0]}'.toUpperCase();
   }
 
-  String getRelativeTime(DateTime dateTime) {
+  String getRelativeTime(DateTime? dateTime) {
+    if (dateTime == null) {
+      return 'No messages yet';
+    }
+
     final now = DateTime.now();
     final difference = now.difference(dateTime);
 
@@ -128,5 +155,12 @@ class MessagesViewModel extends ChangeNotifier {
     } else {
       return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
     }
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    _chatRoomsSubscription?.cancel();
+    super.dispose();
   }
 }

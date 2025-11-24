@@ -1,3 +1,7 @@
+// lib/pages/settings/settings_model.dart
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class SettingsModel {
   final String userName;
   final String userEmail;
@@ -34,21 +38,31 @@ class SettingsModel {
   }
 }
 
+// Delete Reason Enum
+enum DeleteReason {
+  notUseful,
+  foundAlternative,
+  privacyConcerns,
+  tooManyNotifications,
+  technicalIssues,
+  other,
+}
+
+// Delete Account Reason Class
 class DeleteAccountReason {
-  final String reason;
-  final String? additionalInfo;
-  final DateTime timestamp;
+  final DeleteReason reason;
+  final String? additionalFeedback;
 
   DeleteAccountReason({
     required this.reason,
-    this.additionalInfo,
-  }) : timestamp = DateTime.now();
+    this.additionalFeedback,
+  });
 
   Map<String, dynamic> toMap() {
     return {
-      'reason': reason,
-      'additionalInfo': additionalInfo,
-      'timestamp': timestamp.toIso8601String(),
+      'reason': reason.toString().split('.').last,
+      'additionalFeedback': additionalFeedback,
+      'timestamp': FieldValue.serverTimestamp(),
     };
   }
 }

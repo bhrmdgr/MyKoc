@@ -1,9 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:mykoc/pages/settings/settings_model.dart';
 import 'package:mykoc/services/storage/local_storage_service.dart';
 import 'package:mykoc/routers/appRouter.dart';
+import 'package:mykoc/firebase/messaging/fcm_service.dart';
 
 class SettingsViewModel extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -15,6 +17,9 @@ class SettingsViewModel extends ChangeNotifier {
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
+
+  bool _isDeleting = false;
+  bool get isDeleting => _isDeleting;
 
   bool _isDisposed = false;
 
@@ -87,8 +92,15 @@ class SettingsViewModel extends ChangeNotifier {
     required BuildContext context,
     required DeleteAccountReason deleteReason,
   }) async {
+    _isDeleting = true;
+    _safeNotifyListeners();
+
     try {
       final uid = _localStorage.getUid();
+      final role = _localStorage.getUserRole();
+      final email = _localStorage.getEmail();
+      final name = _localStorage.getUserName();
+
       if (uid == null) {
         debugPrint('❌ User ID not found');
         return false;
@@ -96,47 +108,66 @@ class SettingsViewModel extends ChangeNotifier {
 
       debugPrint('🗑️ Starting account deletion process...');
 
-      // 1. Silme nedenini kaydet
-      await _firestore
-          .collection('deleted_accounts')
-          .doc(uid)
-          .set(deleteReason.toMap());
+      // 1. Silme nedenini ÖNCE kaydet (detaylı bilgi ile)
+      await _firestore.collection('deleted_accounts').add({
+        'uid': uid,
+        'email': email,
+        'name': name,
+        'role': role,
+        'reason': deleteReason.reason.toString().split('.').last,
+        'reasonText': _getReasonText(deleteReason.reason),
+        'additionalFeedback': deleteReason.additionalFeedback,
+        'deletedAt': FieldValue.serverTimestamp(),
+        'platform': Platform.isAndroid ? 'android' : (Platform.isIOS ? 'ios' : 'unknown'),
+      });
 
       debugPrint('✅ Delete reason saved');
 
       // 2. Kullanıcının verilerini sil
       await _deleteUserData(uid);
 
-      // 3. Firebase Auth hesabını sil
+      // 3. FCM token sil
+      try {
+        await FCMService().deleteToken(uid);
+        debugPrint('✅ FCM token deleted');
+      } catch (e) {
+        debugPrint('⚠️ FCM token delete error: $e');
+      }
+
+      // 4. Firebase Auth hesabını sil
       final currentUser = _auth.currentUser;
       if (currentUser != null) {
         await currentUser.delete();
         debugPrint('✅ Firebase Auth account deleted');
       }
 
-      // 4. Local storage'ı temizle
+      // 5. Local storage'ı temizle
       await _localStorage.clearAll();
       debugPrint('✅ Local storage cleared');
 
-      // 5. Login sayfasına yönlendir
+      // 6. Login sayfasına yönlendir
       if (context.mounted) {
         navigateToSignIn(context);
       }
 
       return true;
-    } catch (e) {
-      debugPrint('❌ Error deleting account: $e');
+    } on FirebaseAuthException catch (e) {
+      debugPrint('❌ Auth error during account deletion: ${e.code}');
 
-      if (e is FirebaseAuthException) {
-        if (e.code == 'requires-recent-login') {
-          // Kullanıcının yeniden giriş yapması gerekiyor
-          if (context.mounted) {
-            _showReauthDialog(context);
-          }
+      if (e.code == 'requires-recent-login') {
+        // Kullanıcının yeniden giriş yapması gerekiyor
+        if (context.mounted) {
+          _showReauthDialog(context);
         }
       }
 
       return false;
+    } catch (e) {
+      debugPrint('❌ Error deleting account: $e');
+      return false;
+    } finally {
+      _isDeleting = false;
+      _safeNotifyListeners();
     }
   }
 
@@ -184,6 +215,24 @@ class SettingsViewModel extends ChangeNotifier {
     }
   }
 
+  /// Silme nedeni text'ini döndür
+  String _getReasonText(DeleteReason reason) {
+    switch (reason) {
+      case DeleteReason.notUseful:
+        return 'Uygulama kullanışlı değil';
+      case DeleteReason.foundAlternative:
+        return 'Alternatif bir uygulama buldum';
+      case DeleteReason.privacyConcerns:
+        return 'Gizlilik endişeleri';
+      case DeleteReason.tooManyNotifications:
+        return 'Çok fazla bildirim';
+      case DeleteReason.technicalIssues:
+        return 'Teknik sorunlar';
+      case DeleteReason.other:
+        return 'Diğer';
+    }
+  }
+
   /// Yeniden kimlik doğrulama dialog'u
   void _showReauthDialog(BuildContext context) {
     showDialog(
@@ -214,6 +263,18 @@ class SettingsViewModel extends ChangeNotifier {
   /// Logout
   Future<void> logout(BuildContext context) async {
     try {
+      final uid = _localStorage.getUid();
+
+      // FCM token sil
+      if (uid != null) {
+        try {
+          await FCMService().deleteToken(uid);
+          debugPrint('✅ FCM token deleted on logout');
+        } catch (e) {
+          debugPrint('⚠️ FCM token delete error: $e');
+        }
+      }
+
       await _auth.signOut();
       await _localStorage.clearAll();
 

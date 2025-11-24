@@ -2,6 +2,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mykoc/services/storage/local_storage_service.dart';
 import 'package:flutter/foundation.dart';
+import 'package:mykoc/firebase/messaging/fcm_service.dart';
+
 
 class FirebaseSignIn {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -9,6 +11,9 @@ class FirebaseSignIn {
   final LocalStorageService _localStorage = LocalStorageService();
 
   // Email ve şifre ile giriş
+  // Email ve şifre ile giriş
+  // lib/firebase/auth/firebaseSignIn.dart
+
   Future<User?> signInWithEmailAndPassword({
     required String email,
     required String password,
@@ -22,8 +27,28 @@ class FirebaseSignIn {
       final user = userCredential.user;
       if (user == null) throw 'Kullanıcı bulunamadı';
 
-      // ✅ Firestore'dan kullanıcı bilgilerini çek ve local storage'a kaydet
+      // Firestore'da kullanıcı var mı kontrol et
+      final userDoc = await _firestore.collection('users').doc(user.uid).get();
+
+      if (!userDoc.exists) {
+        // Kullanıcı Firestore'da yok = hesap silinmiş
+        await _auth.signOut();
+
+        // Firebase Auth'dan da sil
+        try {
+          await user.delete();
+        } catch (e) {
+          debugPrint('⚠️ Could not delete orphaned auth user: $e');
+        }
+
+        throw 'Bu hesap silinmiş. Lütfen yeni bir hesap oluşturun.';
+      }
+
+      // Normal flow devam eder
       await _fetchAndSaveUserData(user.uid, email);
+      await FCMService().saveToken(user.uid);
+
+      if (kDebugMode) print('✅ FCM token saved');
 
       return user;
     } on FirebaseAuthException catch (e) {

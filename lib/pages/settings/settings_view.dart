@@ -108,7 +108,8 @@ class _SettingsViewState extends State<SettingsView> {
     );
   }
 
-  Widget _buildUserInfoSection(BuildContext context, SettingsModel settingsData) {
+  Widget _buildUserInfoSection(BuildContext context,
+      SettingsModel settingsData) {
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -135,7 +136,8 @@ class _SettingsViewState extends State<SettingsView> {
           children: [
             Row(
               children: [
-                const Icon(Icons.person_outline, color: Color(0xFF6366F1), size: 20),
+                const Icon(
+                    Icons.person_outline, color: Color(0xFF6366F1), size: 20),
                 const SizedBox(width: 8),
                 const Text(
                   'User Information',
@@ -162,7 +164,7 @@ class _SettingsViewState extends State<SettingsView> {
                     shape: BoxShape.circle,
                   ),
                   child: (settingsData.profileImageUrl != null &&
-                      settingsData.profileImageUrl!.isNotEmpty)  // ← FIX
+                      settingsData.profileImageUrl!.isNotEmpty) // ← FIX
                       ? ClipOval(
                     child: Image.network(
                       settingsData.profileImageUrl!,
@@ -215,7 +217,8 @@ class _SettingsViewState extends State<SettingsView> {
                       ),
                       const SizedBox(height: 4),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: const Color(0xFF6366F1).withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
@@ -404,7 +407,8 @@ class _SettingsViewState extends State<SettingsView> {
           children: [
             Icon(
               icon,
-              color: isDestructive ? const Color(0xFFEF4444) : const Color(0xFF6B7280),
+              color: isDestructive ? const Color(0xFFEF4444) : const Color(
+                  0xFF6B7280),
               size: 24,
             ),
             const SizedBox(width: 16),
@@ -417,7 +421,9 @@ class _SettingsViewState extends State<SettingsView> {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
-                      color: isDestructive ? const Color(0xFFEF4444) : const Color(0xFF1F2937),
+                      color: isDestructive
+                          ? const Color(0xFFEF4444)
+                          : const Color(0xFF1F2937),
                     ),
                   ),
                   if (subtitle != null) ...[
@@ -456,24 +462,26 @@ class _SettingsViewState extends State<SettingsView> {
   void _showLanguageDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        title: const Text('Select Language'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildLanguageOption(context, 'English', '🇬🇧'),
-            _buildLanguageOption(context, 'Türkçe', '🇹🇷'),
-            _buildLanguageOption(context, 'Español', '🇪🇸'),
-          ],
-        ),
-      ),
+      builder: (context) =>
+          AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: const Text('Select Language'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildLanguageOption(context, 'English', '🇬🇧'),
+                _buildLanguageOption(context, 'Türkçe', '🇹🇷'),
+                _buildLanguageOption(context, 'Español', '🇪🇸'),
+              ],
+            ),
+          ),
     );
   }
 
-  Widget _buildLanguageOption(BuildContext context, String language, String flag) {
+  Widget _buildLanguageOption(BuildContext context, String language,
+      String flag) {
     return ListTile(
       leading: Text(flag, style: const TextStyle(fontSize: 28)),
       title: Text(language),
@@ -497,118 +505,8 @@ class _SettingsViewState extends State<SettingsView> {
   void _showComingSoonDialog(BuildContext context, String feature) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF6366F1).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(
-                Icons.info_outline,
-                color: Color(0xFF6366F1),
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Text('Coming Soon'),
-          ],
-        ),
-        content: Text('$feature feature will be available in the next update!'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showAboutDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                ),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(
-                Icons.school_outlined,
-                color: Colors.white,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Text('About MyKoc'),
-          ],
-        ),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'MyKoc - Educational Platform',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: 12),
-            Text('Version: 1.0.0'),
-            SizedBox(height: 8),
-            Text(
-              'A modern platform connecting mentors and students for effective learning.',
-              style: TextStyle(fontSize: 14, height: 1.5),
-            ),
-            SizedBox(height: 12),
-            Text(
-              '© 2024 MyKoc. All rights reserved.',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showDeleteAccountDialog(BuildContext context) {
-    final reasonController = TextEditingController();
-    final reasons = [
-      'I no longer need the service',
-      'Privacy concerns',
-      'Too many emails/notifications',
-      'Difficulty using the platform',
-      'Found a better alternative',
-      'Other (please specify)',
-    ];
-    String? selectedReason;
-
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) {
-          return AlertDialog(
+      builder: (context) =>
+          AlertDialog(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
             ),
@@ -617,168 +515,301 @@ class _SettingsViewState extends State<SettingsView> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEF4444).withOpacity(0.1),
+                    color: const Color(0xFF6366F1).withOpacity(0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(
-                    Icons.warning_outlined,
-                    color: Color(0xFFEF4444),
+                    Icons.info_outline,
+                    color: Color(0xFF6366F1),
                     size: 20,
                   ),
                 ),
                 const SizedBox(width: 12),
-                const Text('Delete Account'),
+                const Text('Coming Soon'),
               ],
             ),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEF4444).withOpacity(0.05),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: const Color(0xFFEF4444).withOpacity(0.2),
-                      ),
-                    ),
-                    child: const Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'This action cannot be undone!',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFFEF4444),
-                          ),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          'All your data including:\n'
-                              '• Classes and enrollments\n'
-                              '• Tasks and submissions\n'
-                              '• Profile information\n'
-                              'will be permanently deleted.',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF6B7280),
-                            height: 1.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    'Why are you deleting your account?',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  ...reasons.map((reason) {
-                    return RadioListTile<String>(
-                      title: Text(
-                        reason,
-                        style: const TextStyle(fontSize: 13),
-                      ),
-                      value: reason,
-                      groupValue: selectedReason,
-                      onChanged: (value) {
-                        setState(() {
-                          selectedReason = value;
-                        });
-                      },
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                    );
-                  }).toList(),
-                  if (selectedReason == 'Other (please specify)') ...[
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: reasonController,
-                      maxLines: 3,
-                      decoration: InputDecoration(
-                        hintText: 'Please tell us why...',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        contentPadding: const EdgeInsets.all(12),
-                      ),
-                    ),
-                  ],
-                ],
+            content: Text(
+                '$feature feature will be available in the next update!'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
               ),
+            ],
+          ),
+    );
+  }
+
+  void _showAboutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) =>
+          AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.school_outlined,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Text('About MyKoc'),
+              ],
+            ),
+            content: const Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'MyKoc - Educational Platform',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 12),
+                Text('Version: 1.0.0'),
+                SizedBox(height: 8),
+                Text(
+                  'A modern platform connecting mentors and students for effective learning.',
+                  style: TextStyle(fontSize: 14, height: 1.5),
+                ),
+                SizedBox(height: 12),
+                Text(
+                  '© 2024 MyKoc. All rights reserved.',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-              Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEF4444),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: TextButton(
-                  onPressed: selectedReason == null
-                      ? null
-                      : () async {
-                    Navigator.pop(context);
-
-                    // Show loading
-                    showDialog(
-                      context: context,
-                      barrierDismissible: false,
-                      builder: (context) => const Center(
-                        child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      ),
-                    );
-
-                    final deleteReason = DeleteAccountReason(
-                      reason: selectedReason!,
-                      additionalInfo: selectedReason == 'Other (please specify)'
-                          ? reasonController.text
-                          : null,
-                    );
-
-                    final success = await _viewModel.deleteAccount(
-                      context: context,
-                      deleteReason: deleteReason,
-                    );
-
-                    if (context.mounted) {
-                      Navigator.pop(context); // Close loading
-
-                      if (!success) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Failed to delete account. Please try again.'),
-                            backgroundColor: Color(0xFFEF4444),
-                          ),
-                        );
-                      }
-                    }
-                  },
-                  child: Text(
-                    'Delete My Account',
-                    style: TextStyle(
-                      color: selectedReason == null ? Colors.white54 : Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
+                child: const Text('Close'),
               ),
             ],
-          );
-        },
-      ),
+          ),
     );
+  }
+
+  // lib/pages/settings/settings_view.dart
+// Sadece _showDeleteAccountDialog metodunu değiştir:
+
+  void _showDeleteAccountDialog(BuildContext context) {
+    final reasonController = TextEditingController();
+    DeleteReason? selectedReason; // ← String? yerine DeleteReason?
+
+    showDialog(
+      context: context,
+      builder: (context) =>
+          StatefulBuilder(
+            builder: (context, setState) {
+              return AlertDialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                title: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEF4444).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.warning_outlined,
+                        color: Color(0xFFEF4444),
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text('Delete Account'),
+                  ],
+                ),
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEF4444).withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: const Color(0xFFEF4444).withOpacity(0.2),
+                          ),
+                        ),
+                        child: const Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'This action cannot be undone!',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFFEF4444),
+                              ),
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'All your data including:\n'
+                                  '• Classes and enrollments\n'
+                                  '• Tasks and submissions\n'
+                                  '• Profile information\n'
+                                  'will be permanently deleted.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF6B7280),
+                                height: 1.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      const Text(
+                        'Why are you deleting your account?',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      ...DeleteReason.values.map((reason) {
+                        return RadioListTile<DeleteReason>(
+                          title: Text(
+                            _getReasonDisplayText(reason),
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                          value: reason,
+                          groupValue: selectedReason,
+                          onChanged: (value) {
+                            setState(() {
+                              selectedReason = value;
+                            });
+                          },
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                        );
+                      }).toList(),
+                      if (selectedReason == DeleteReason.other) ...[
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: reasonController,
+                          maxLines: 3,
+                          decoration: InputDecoration(
+                            hintText: 'Please tell us why...',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            contentPadding: const EdgeInsets.all(12),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancel'),
+                  ),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEF4444),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: TextButton(
+                      onPressed: selectedReason == null
+                          ? null
+                          : () async {
+                        Navigator.pop(context);
+
+                        // Show loading
+                        showDialog(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (context) =>
+                          const Center(
+                            child: CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white),
+                            ),
+                          ),
+                        );
+
+                        final deleteReason = DeleteAccountReason(
+                          reason: selectedReason!,
+                          additionalFeedback: selectedReason ==
+                              DeleteReason.other
+                              ? reasonController.text
+                              : null,
+                        );
+
+                        final success = await _viewModel.deleteAccount(
+                          context: context,
+                          deleteReason: deleteReason,
+                        );
+
+                        if (context.mounted) {
+                          Navigator.pop(context); // Close loading
+
+                          if (!success) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                    'Failed to delete account. Please try again.'),
+                                backgroundColor: Color(0xFFEF4444),
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      child: Text(
+                        'Delete My Account',
+                        style: TextStyle(
+                          color: selectedReason == null
+                              ? Colors.white54
+                              : Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+    );
+  }
+
+// Helper method ekle - class içinde
+  String _getReasonDisplayText(DeleteReason reason) {
+    switch (reason) {
+      case DeleteReason.notUseful:
+        return 'I no longer need the service';
+      case DeleteReason.foundAlternative:
+        return 'Found a better alternative';
+      case DeleteReason.privacyConcerns:
+        return 'Privacy concerns';
+      case DeleteReason.tooManyNotifications:
+        return 'Too many emails/notifications';
+      case DeleteReason.technicalIssues:
+        return 'Difficulty using the platform';
+      case DeleteReason.other:
+        return 'Other (please specify)';
+    }
   }
 }

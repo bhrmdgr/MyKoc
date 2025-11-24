@@ -49,9 +49,10 @@ dependencies:
   url_launcher: ^6.2.5
   dio: ^5.4.0          # Dosya indirmek için
   path_provider: ^2.1.2 # Dosya yolunu bulmak için
-  open_filex: ^4.3.2
+  open_filex: ^4.7.0
   image_picker: ^1.0.7
   permission_handler: ^11.0.1
+
 
 
 

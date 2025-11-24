@@ -1,9 +1,9 @@
-// lib/pages/communication/chat_room/chat_room_view_model.dart
 import 'package:flutter/material.dart';
 import 'package:mykoc/pages/communication/messages/message_model.dart';
 import 'package:mykoc/firebase/messaging/messaging_service.dart';
 import 'package:mykoc/services/storage/local_storage_service.dart';
 import 'dart:io';
+import 'dart:async';
 
 class ChatRoomViewModel extends ChangeNotifier {
   final MessagingService _messagingService = MessagingService();
@@ -12,12 +12,22 @@ class ChatRoomViewModel extends ChangeNotifier {
   List<MessageModel> _messages = [];
   List<MessageModel> get messages => _messages;
 
+  // Yükleme ve Hata Durumları
+  bool _isLoading = true; // Başlangıçta true olsun
+  bool get isLoading => _isLoading;
+
+  String? _errorMessage;
+  String? get errorMessage => _errorMessage;
+
   bool _isSending = false;
   bool get isSending => _isSending;
 
   String? _currentUserId;
   String? _currentUserName;
   String? _currentUserImageUrl;
+
+  StreamSubscription<List<MessageModel>>? _messagesSubscription;
+  bool _isDisposed = false;
 
   void initialize(String chatRoomId) {
     _currentUserId = _localStorage.getUid();
@@ -30,15 +40,40 @@ class ChatRoomViewModel extends ChangeNotifier {
   }
 
   void _listenToMessages(String chatRoomId) {
-    _messagingService.getChatMessages(chatRoomId).listen((messages) {
-      _messages = messages;
-      notifyListeners();
-    });
+    _messagesSubscription?.cancel();
+    _isLoading = true; // Yükleme başladı
+    _errorMessage = null; // Hata sıfırla
+    notifyListeners();
+
+    _messagesSubscription = _messagingService
+        .getChatMessages(chatRoomId)
+        .listen(
+          (messages) {
+        if (_isDisposed) return;
+
+        _messages = messages;
+        _isLoading = false; // Yükleme bitti
+        _errorMessage = null;
+        notifyListeners();
+      },
+      onError: (error) {
+        if (_isDisposed) return;
+
+        debugPrint('❌ Messages listen error: $error');
+        _errorMessage = "Mesajlar yüklenemedi: $error";
+        _isLoading = false;
+        notifyListeners();
+      },
+    );
   }
 
   Future<void> _markMessagesAsRead(String chatRoomId) async {
     if (_currentUserId != null) {
-      await _messagingService.markMessagesAsRead(chatRoomId, _currentUserId!);
+      try {
+        await _messagingService.markMessagesAsRead(chatRoomId, _currentUserId!);
+      } catch (e) {
+        debugPrint("Read status error: $e");
+      }
     }
   }
 
@@ -49,6 +84,7 @@ class ChatRoomViewModel extends ChangeNotifier {
   }) async {
     if (_currentUserId == null || _currentUserName == null) return false;
     if (messageText.trim().isEmpty && file == null) return false;
+    if (_isDisposed) return false;
 
     _isSending = true;
     notifyListeners();
@@ -62,11 +98,15 @@ class ChatRoomViewModel extends ChangeNotifier {
         messageText: messageText.trim(),
         file: file,
       );
-
       return success;
+    } catch (e) {
+      debugPrint("Send message error: $e");
+      return false;
     } finally {
-      _isSending = false;
-      notifyListeners();
+      if (!_isDisposed) {
+        _isSending = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -114,5 +154,12 @@ class ChatRoomViewModel extends ChangeNotifier {
     );
 
     return currentDate != nextDate;
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    _messagesSubscription?.cancel();
+    super.dispose();
   }
 }
