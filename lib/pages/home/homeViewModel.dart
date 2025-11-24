@@ -16,6 +16,9 @@ class HomeViewModel extends ChangeNotifier {
   final AnnouncementService _announcementService = AnnouncementService();
   final LocalStorageService _localStorage = LocalStorageService();
 
+  bool _isDisposed = false;
+
+
   HomeModel? _homeData;
   HomeModel? get homeData => _homeData;
 
@@ -251,39 +254,35 @@ class HomeViewModel extends ChangeNotifier {
     try {
       debugPrint('📋 Öğrenci task\'ları çekiliyor...');
 
-      // Task'ları çek
       final allTasks = await _taskService.getStudentTasks(studentId);
-
-      // Sadece aktif sınıfa ait task'ları filtrele
       _studentTasks = allTasks.where((task) => task.classId == classId).toList();
 
       debugPrint('✅ ${_studentTasks.length} task yüklendi (classId: $classId)');
-
-      // Task'ları due date'e göre sırala
       _studentTasks.sort((a, b) => a.dueDate.compareTo(b.dueDate));
-
-      // Cache'e kaydet
       _tasksCache[classId] = List.from(_studentTasks);
 
-      // Duyuruları çek
       debugPrint('📢 Sınıf duyuruları çekiliyor...');
       _studentAnnouncements = await _announcementService.getClassAnnouncements(classId);
       debugPrint('✅ ${_studentAnnouncements.length} duyuru yüklendi');
 
-      // En son 5 duyuruyu göster
       if (_studentAnnouncements.length > 5) {
         _studentAnnouncements = _studentAnnouncements.take(5).toList();
       }
 
-      // Cache'e kaydet
       _announcementsCache[classId] = List.from(_studentAnnouncements);
 
-      notifyListeners();
+      // ← BU SATIRDA
+      _safeNotifyListeners(); // notifyListeners() yerine
     } catch (e) {
       debugPrint('❌ Error loading student tasks and announcements: $e');
     }
   }
 
+  void _safeNotifyListeners() {
+    if (!_isDisposed) {
+      notifyListeners();
+    }
+  }
   /// Cache'i temizle - Yeni task eklendiğinde veya güncelleme yapıldığında kullanılır
   void clearCache({String? classId}) {
     if (classId != null) {

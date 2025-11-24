@@ -1,109 +1,160 @@
+// lib/pages/communication/messages/messages_view.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:mykoc/pages/communication/messages/messages_view_model.dart';
+import 'package:mykoc/pages/communication/chat_room/chat_room_view.dart';
 
-class MessagesView extends StatelessWidget {
+class MessagesView extends StatefulWidget {
   const MessagesView({super.key});
 
   @override
+  State<MessagesView> createState() => _MessagesViewState();
+}
+
+class _MessagesViewState extends State<MessagesView> {
+  late MessagesViewModel _viewModel;
+
+  @override
+  void initState() {
+    super.initState();
+    _viewModel = MessagesViewModel();
+    _viewModel.initialize();
+  }
+
+  @override
+  void dispose() {
+    _viewModel.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Column(
-        children: [
-          // Header
-          Container(
-            width: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-              ),
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(30),
-                bottomRight: Radius.circular(30),
+    return ChangeNotifierProvider.value(
+      value: _viewModel,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF9FAFB),
+        body: Column(
+          children: [
+            _buildHeader(),
+            Expanded(
+              child: Consumer<MessagesViewModel>(
+                builder: (context, viewModel, child) {
+                  if (viewModel.isLoading) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (viewModel.chatRooms.isEmpty) {
+                    return _buildEmptyState();
+                  }
+
+                  return ListView.builder(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    itemCount: viewModel.chatRooms.length,
+                    itemBuilder: (context, index) {
+                      final chatRoom = viewModel.chatRooms[index];
+                      return _buildConversationItem(chatRoom, viewModel);
+                    },
+                  );
+                },
               ),
             ),
-            child: SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
-                child: const Text(
-                  'Messages',
-                  style: TextStyle(
-                    fontSize: 32,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+        ),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(30),
+          bottomRight: Radius.circular(30),
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+          child: const Text(
+            'Messages',
+            style: TextStyle(
+              fontSize: 32,
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
             ),
           ),
+        ),
+      ),
+    );
+  }
 
-          // Conversations List
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              children: [
-                _buildConversationItem(
-                  emoji: '📚',
-                  title: 'English Literature',
-                  subtitle: 'Sarah: Don\'t forget about ...',
-                  time: '10 min ago',
-                  unreadCount: 3,
-                  color: const Color(0xFF3B82F6),
-                  hasGroup: true,
-                ),
-                _buildConversationItem(
-                  initials: 'SJ',
-                  title: 'Sarah Johnson',
-                  subtitle: 'Great work on your essay!',
-                  time: '1 hour ago',
-                  color: const Color(0xFF9CA3AF),
-                ),
-                _buildConversationItem(
-                  emoji: '🎨',
-                  title: 'Design Fundament...',
-                  subtitle: 'Alex: Here\'s my logo con...',
-                  time: '2 hours ago',
-                  unreadCount: 1,
-                  color: const Color(0xFF8B5CF6),
-                  hasGroup: true,
-                ),
-                _buildConversationItem(
-                  emoji: '💻',
-                  title: 'Web Development',
-                  subtitle: 'Michael: Check out this tut...',
-                  time: 'Yesterday',
-                  color: const Color(0xFF10B981),
-                  hasGroup: true,
-                ),
-                _buildConversationItem(
-                  initials: 'EC',
-                  title: 'Dr. Emily Chen',
-                  subtitle: 'Can we schedule a meetin...',
-                  time: '2 days ago',
-                  color: const Color(0xFF9CA3AF),
-                ),
-              ],
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: const Color(0xFF6366F1).withOpacity(0.1),
+              shape: BoxShape.circle,
             ),
+            child: const Icon(
+              Icons.chat_bubble_outline,
+              size: 64,
+              color: Color(0xFF6366F1),
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'No messages yet',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF1F2937),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Start chatting with your class or mentor',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildConversationItem({
-    String? emoji,
-    String? initials,
-    required String title,
-    required String subtitle,
-    required String time,
-    int? unreadCount,
-    required Color color,
-    bool hasGroup = false,
-  }) {
+  Widget _buildConversationItem(chatRoom, MessagesViewModel viewModel) {
+    final isGroup = chatRoom.type == 'class_group';
+    final displayName = viewModel.getOtherParticipantName(chatRoom);
+    final imageUrl = viewModel.getOtherParticipantImage(chatRoom);
+    final initials = viewModel.getOtherParticipantInitials(chatRoom);
+    final unreadCount = chatRoom.getUnreadCountForUser(viewModel.currentUserId ?? ''); // ← _ kaldırıldı
+    final timeText = viewModel.getRelativeTime(chatRoom.lastMessageTime);
+
     return InkWell(
       onTap: () {
-        // TODO: Navigate to chat detail
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ChatRoomView(
+              chatRoomId: chatRoom.id,
+              chatRoomName: displayName,
+              isGroup: isGroup,
+            ),
+          ),
+        );
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -116,27 +167,52 @@ class MessagesView extends StatelessWidget {
                   width: 56,
                   height: 56,
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.2),
+                    gradient: LinearGradient(
+                      colors: isGroup
+                          ? [Color(0xFF6366F1), Color(0xFF8B5CF6)]
+                          : [Color(0xFF9CA3AF), Color(0xFF6B7280)],
+                    ),
                     shape: BoxShape.circle,
                   ),
-                  child: Center(
-                    child: emoji != null
-                        ? Text(
-                      emoji,
-                      style: const TextStyle(fontSize: 24),
-                    )
-                        : Text(
-                      initials ?? '',
-                      style: TextStyle(
-                        fontSize: 18,
+                  child: chatRoom.emoji != null
+                      ? Center(
+                    child: Text(
+                      chatRoom.emoji!,
+                      style: const TextStyle(fontSize: 28),
+                    ),
+                  )
+                      : (imageUrl != null && imageUrl.isNotEmpty)
+                      ? ClipOval(
+                    child: Image.network(
+                      imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Center(
+                          child: Text(
+                            initials,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  )
+                      : Center(
+                    child: Text(
+                      initials,
+                      style: const TextStyle(
+                        fontSize: 20,
                         fontWeight: FontWeight.bold,
-                        color: color,
+                        color: Colors.white,
                       ),
                     ),
                   ),
                 ),
                 // Unread badge
-                if (unreadCount != null && unreadCount > 0)
+                if (unreadCount > 0)
                   Positioned(
                     top: 0,
                     right: 0,
@@ -152,7 +228,7 @@ class MessagesView extends StatelessWidget {
                       ),
                       child: Center(
                         child: Text(
-                          unreadCount.toString(),
+                          unreadCount > 99 ? '99+' : unreadCount.toString(),
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 11,
@@ -172,16 +248,16 @@ class MessagesView extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      if (emoji != null) ...[
+                      if (chatRoom.emoji != null) ...[
                         Text(
-                          emoji,
+                          chatRoom.emoji!,
                           style: const TextStyle(fontSize: 16),
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: 6),
                       ],
                       Expanded(
                         child: Text(
-                          title,
+                          displayName,
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -191,7 +267,7 @@ class MessagesView extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      if (hasGroup) ...[
+                      if (isGroup) ...[
                         const SizedBox(width: 4),
                         Icon(
                           Icons.people_outline_rounded,
@@ -203,13 +279,13 @@ class MessagesView extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    subtitle,
+                    chatRoom.lastMessage,
                     style: TextStyle(
                       fontSize: 14,
-                      color: unreadCount != null && unreadCount > 0
+                      color: unreadCount > 0
                           ? const Color(0xFF6B7280)
                           : Colors.grey[500],
-                      fontWeight: unreadCount != null && unreadCount > 0
+                      fontWeight: unreadCount > 0
                           ? FontWeight.w500
                           : FontWeight.normal,
                     ),
@@ -222,7 +298,7 @@ class MessagesView extends StatelessWidget {
             const SizedBox(width: 8),
             // Time
             Text(
-              time,
+              timeText,
               style: TextStyle(
                 fontSize: 12,
                 color: Colors.grey[500],

@@ -2,10 +2,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:mykoc/pages/classroom/class_model.dart';
 import 'package:mykoc/services/storage/local_storage_service.dart';
+import 'package:mykoc/firebase/messaging/messaging_service.dart';
 
 class ClassroomService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final LocalStorageService _localStorage = LocalStorageService();
+  final MessagingService _messagingService = MessagingService();
 
   // Sınıf oluştur
   Future<String?> createClass({
@@ -32,6 +34,16 @@ class ClassroomService {
         'taskCount': 0,
         'createdAt': FieldValue.serverTimestamp(),
       });
+
+      // Chat room oluştur
+      await _messagingService.createClassChatRoom(
+        classId: docRef.id,
+        className: className,
+        mentorId: mentorId,
+        mentorName: mentorName,
+        emoji: emoji,
+        imageUrl: imageUrl,
+      );
 
       // Mentor'un sınıf sayısını artır
       await _firestore.collection('mentors').doc(mentorId).update({
@@ -64,7 +76,7 @@ class ClassroomService {
     }
   }
 
-  // Öğrenci'nin sınıflarını çek (GÜNCELLEND İ - birden fazla sınıf)
+  // Öğrenci'nin sınıflarını çek (GÜNCELLENDİ - birden fazla sınıf)
   Future<List<ClassModel>> getStudentClasses(String studentId) async {
     try {
       debugPrint('🔍 Fetching student classes for: $studentId');
@@ -204,6 +216,20 @@ class ClassroomService {
       await _firestore.collection('mentors').doc(mentorId).update({
         'studentCount': FieldValue.increment(1),
       });
+
+      // Chat room'a öğrenciyi ekle
+      final chatRoomId = await _messagingService.getChatRoomIdByClassId(classId);
+      if (chatRoomId != null) {
+        final userData = await _firestore.collection('users').doc(studentId).get();
+        final studentImageUrl = userData.data()?['profileImage'];
+
+        await _messagingService.addStudentToChatRoom(
+          chatRoomId: chatRoomId,
+          studentId: studentId,
+          studentName: studentName,
+          studentImageUrl: studentImageUrl,
+        );
+      }
 
       // Local cache'i güncelle
       final localStudents = _localStorage.getClassStudents(classId) ?? [];

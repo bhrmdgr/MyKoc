@@ -678,13 +678,7 @@ class MentorProfileView extends StatelessWidget {
             },
           ),
           _buildDivider(),
-          _buildMenuItem(
-            icon: Icons.notifications_outlined,
-            title: 'Notifications',
-            onTap: () {
-              // TODO: Navigate to notifications
-            },
-          ),
+
           _buildDivider(),
           _buildMenuItem(
             icon: Icons.logout_rounded,

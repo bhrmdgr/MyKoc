@@ -20,7 +20,6 @@ class _UserInfoViewState extends State<UserInfoView> {
 
   late TextEditingController _nameController;
   late TextEditingController _phoneController;
-  late TextEditingController _bioController;
 
   @override
   void initState() {
@@ -30,7 +29,6 @@ class _UserInfoViewState extends State<UserInfoView> {
 
     _nameController = TextEditingController();
     _phoneController = TextEditingController();
-    _bioController = TextEditingController();
 
     // ViewModel'den veri geldiğinde controller'ları güncelle
     _viewModel.addListener(_updateControllers);
@@ -40,7 +38,6 @@ class _UserInfoViewState extends State<UserInfoView> {
     if (_viewModel.userInfo != null) {
       _nameController.text = _viewModel.userInfo!.name;
       _phoneController.text = _viewModel.userInfo!.phone ?? '';
-      _bioController.text = _viewModel.userInfo!.bio ?? '';
     }
   }
 
@@ -50,7 +47,6 @@ class _UserInfoViewState extends State<UserInfoView> {
     _viewModel.dispose();
     _nameController.dispose();
     _phoneController.dispose();
-    _bioController.dispose();
     super.dispose();
   }
 
@@ -166,7 +162,7 @@ class _UserInfoViewState extends State<UserInfoView> {
                   ],
                 ),
                 child: (viewModel.userInfo!.profileImageUrl != null &&
-                    viewModel.userInfo!.profileImageUrl!.isNotEmpty)  // ← FIX
+                    viewModel.userInfo!.profileImageUrl!.isNotEmpty) // ← FIX
                     ? ClipOval(
                   child: Image.network(
                     viewModel.userInfo!.profileImageUrl!,
@@ -245,7 +241,8 @@ class _UserInfoViewState extends State<UserInfoView> {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
-                'Member since ${DateFormat('MMM yyyy').format(viewModel.userInfo!.createdAt!)}',
+                'Member since ${DateFormat('MMM yyyy').format(
+                    viewModel.userInfo!.createdAt!)}',
                 style: const TextStyle(
                   fontSize: 12,
                   color: Color(0xFF6366F1),
@@ -304,7 +301,9 @@ class _UserInfoViewState extends State<UserInfoView> {
                 ),
               ),
               validator: (value) {
-                if (value == null || value.trim().isEmpty) {
+                if (value == null || value
+                    .trim()
+                    .isEmpty) {
                   return 'Please enter your name';
                 }
                 return null;
@@ -322,20 +321,6 @@ class _UserInfoViewState extends State<UserInfoView> {
                 ),
               ),
               keyboardType: TextInputType.phone,
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _bioController,
-              decoration: InputDecoration(
-                labelText: 'Bio',
-                hintText: 'Tell us about yourself',
-                prefixIcon: const Icon(Icons.info_outline),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              maxLines: 3,
-              maxLength: 200,
             ),
             const SizedBox(height: 24),
             SizedBox(
@@ -417,7 +402,8 @@ class _UserInfoViewState extends State<UserInfoView> {
               padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               child: Row(
                 children: [
-                  Icon(Icons.vpn_key_outlined, color: Color(0xFF6B7280), size: 24),
+                  Icon(Icons.vpn_key_outlined, color: Color(0xFF6B7280),
+                      size: 24),
                   SizedBox(width: 16),
                   Expanded(
                     child: Text(
@@ -468,115 +454,120 @@ class _UserInfoViewState extends State<UserInfoView> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.camera_alt, color: Color(0xFF6366F1)),
-              title: const Text('Take Photo'),
-              onTap: () async {
-                Navigator.pop(context);
+      builder: (context) =>
+          Container(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(
+                      Icons.camera_alt, color: Color(0xFF6366F1)),
+                  title: const Text('Take Photo'),
+                  onTap: () async {
+                    Navigator.pop(context);
 
-                // İzin kontrolü
-                final hasPermission = await _checkPermissions(isCamera: true);
-                if (!hasPermission) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Camera permission is required'),
-                        backgroundColor: Color(0xFFEF4444),
-                      ),
-                    );
-                  }
-                  return;
-                }
+                    // İzin kontrolü
+                    final hasPermission = await _checkPermissions(
+                        isCamera: true);
+                    if (!hasPermission) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Camera permission is required'),
+                            backgroundColor: Color(0xFFEF4444),
+                          ),
+                        );
+                      }
+                      return;
+                    }
 
-                try {
-                  final ImagePicker picker = ImagePicker();
-                  final XFile? image = await picker.pickImage(
-                    source: ImageSource.camera,
-                    maxWidth: 1024,
-                    maxHeight: 1024,
-                    imageQuality: 85,
-                  );
+                    try {
+                      final ImagePicker picker = ImagePicker();
+                      final XFile? image = await picker.pickImage(
+                        source: ImageSource.camera,
+                        maxWidth: 1024,
+                        maxHeight: 1024,
+                        imageQuality: 85,
+                      );
 
-                  if (image != null && mounted) {
-                    await _uploadProfileImage(viewModel, File(image.path));
-                  }
-                } catch (e) {
-                  debugPrint('❌ Camera error: $e');
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Failed to take photo'),
-                        backgroundColor: Color(0xFFEF4444),
-                      ),
-                    );
-                  }
-                }
-              },
+                      if (image != null && mounted) {
+                        await _uploadProfileImage(viewModel, File(image.path));
+                      }
+                    } catch (e) {
+                      debugPrint('❌ Camera error: $e');
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Failed to take photo'),
+                            backgroundColor: Color(0xFFEF4444),
+                          ),
+                        );
+                      }
+                    }
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(
+                      Icons.photo_library, color: Color(0xFF6366F1)),
+                  title: const Text('Choose from Gallery'),
+                  onTap: () async {
+                    Navigator.pop(context);
+
+                    // İzin kontrolü
+                    final hasPermission = await _checkPermissions(
+                        isCamera: false);
+                    if (!hasPermission) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Storage permission is required'),
+                            backgroundColor: Color(0xFFEF4444),
+                          ),
+                        );
+                      }
+                      return;
+                    }
+
+                    try {
+                      final ImagePicker picker = ImagePicker();
+                      final XFile? image = await picker.pickImage(
+                        source: ImageSource.gallery,
+                        maxWidth: 1024,
+                        maxHeight: 1024,
+                        imageQuality: 85,
+                      );
+
+                      if (image != null && mounted) {
+                        await _uploadProfileImage(viewModel, File(image.path));
+                      }
+                    } catch (e) {
+                      debugPrint('❌ Gallery error: $e');
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Failed to pick image'),
+                            backgroundColor: Color(0xFFEF4444),
+                          ),
+                        );
+                      }
+                    }
+                  },
+                ),
+              ],
             ),
-            ListTile(
-              leading: const Icon(Icons.photo_library, color: Color(0xFF6366F1)),
-              title: const Text('Choose from Gallery'),
-              onTap: () async {
-                Navigator.pop(context);
-
-                // İzin kontrolü
-                final hasPermission = await _checkPermissions(isCamera: false);
-                if (!hasPermission) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Storage permission is required'),
-                        backgroundColor: Color(0xFFEF4444),
-                      ),
-                    );
-                  }
-                  return;
-                }
-
-                try {
-                  final ImagePicker picker = ImagePicker();
-                  final XFile? image = await picker.pickImage(
-                    source: ImageSource.gallery,
-                    maxWidth: 1024,
-                    maxHeight: 1024,
-                    imageQuality: 85,
-                  );
-
-                  if (image != null && mounted) {
-                    await _uploadProfileImage(viewModel, File(image.path));
-                  }
-                } catch (e) {
-                  debugPrint('❌ Gallery error: $e');
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Failed to pick image'),
-                        backgroundColor: Color(0xFFEF4444),
-                      ),
-                    );
-                  }
-                }
-              },
-            ),
-          ],
-        ),
-      ),
+          ),
     );
   }
 
-  Future<void> _uploadProfileImage(
-      UserInfoViewModel viewModel,
-      File imageFile,
-      ) async {
+
+  Future<void> _uploadProfileImage(UserInfoViewModel viewModel,
+      File imageFile,) async {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(
+      builder: (context) =>
+      const Center(
         child: CircularProgressIndicator(),
       ),
     );
@@ -591,7 +582,8 @@ class _UserInfoViewState extends State<UserInfoView> {
           content: Text(success
               ? 'Profile image updated successfully'
               : 'Failed to update profile image'),
-          backgroundColor: success ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+          backgroundColor: success ? const Color(0xFF10B981) : const Color(
+              0xFFEF4444),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -607,7 +599,6 @@ class _UserInfoViewState extends State<UserInfoView> {
     final success = await viewModel.updateUserInfo(
       name: _nameController.text,
       phone: _phoneController.text.isNotEmpty ? _phoneController.text : null,
-      bio: _bioController.text.isNotEmpty ? _bioController.text : null,
     );
 
     if (mounted) {
@@ -616,7 +607,8 @@ class _UserInfoViewState extends State<UserInfoView> {
           content: Text(success
               ? 'Information updated successfully'
               : 'Failed to update information'),
-          backgroundColor: success ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+          backgroundColor: success ? const Color(0xFF10B981) : const Color(
+              0xFFEF4444),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -636,7 +628,7 @@ class _UserInfoViewState extends State<UserInfoView> {
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
+      builder: (dialogContext) => StatefulBuilder(
         builder: (context, setState) {
           return AlertDialog(
             shape: RoundedRectangleBorder(
@@ -714,7 +706,7 @@ class _UserInfoViewState extends State<UserInfoView> {
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => Navigator.pop(dialogContext),
                 child: const Text('Cancel'),
               ),
               ElevatedButton(
@@ -739,12 +731,15 @@ class _UserInfoViewState extends State<UserInfoView> {
                     return;
                   }
 
-                  Navigator.pop(context);
+                  // İlk dialog'u kapat
+                  Navigator.pop(dialogContext);
 
+                  // Loading göster
+                  if (!mounted) return;
                   showDialog(
-                    context: context,
+                    context: this.context,
                     barrierDismissible: false,
-                    builder: (context) => const Center(
+                    builder: (loadingContext) => const Center(
                       child: CircularProgressIndicator(),
                     ),
                   );
@@ -755,39 +750,43 @@ class _UserInfoViewState extends State<UserInfoView> {
                       newPassword: newPasswordController.text,
                     );
 
-                    if (mounted) {
-                      Navigator.pop(context);
+                    if (!mounted) return;
 
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(success
-                              ? 'Password changed successfully'
-                              : 'Failed to change password'),
-                          backgroundColor: success
-                              ? const Color(0xFF10B981)
-                              : const Color(0xFFEF4444),
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                    // Loading'i kapat
+                    Navigator.of(this.context).pop();
+
+                    // Sonucu göster
+                    ScaffoldMessenger.of(this.context).showSnackBar(
+                      SnackBar(
+                        content: Text(success
+                            ? 'Password changed successfully'
+                            : 'Failed to change password'),
+                        backgroundColor: success
+                            ? const Color(0xFF10B981)
+                            : const Color(0xFFEF4444),
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                      );
-                    }
+                      ),
+                    );
                   } catch (e) {
-                    if (mounted) {
-                      Navigator.pop(context);
+                    if (!mounted) return;
 
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(e.toString()),
-                          backgroundColor: const Color(0xFFEF4444),
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                    // Loading'i kapat
+                    Navigator.of(this.context).pop();
+
+                    // Hatayı göster
+                    ScaffoldMessenger.of(this.context).showSnackBar(
+                      SnackBar(
+                        content: Text(e.toString()),
+                        backgroundColor: const Color(0xFFEF4444),
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                      );
-                    }
+                      ),
+                    );
                   }
                 },
                 style: ElevatedButton.styleFrom(

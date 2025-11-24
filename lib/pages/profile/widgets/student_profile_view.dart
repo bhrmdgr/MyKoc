@@ -890,11 +890,7 @@ class StudentProfileView extends StatelessWidget {
             },
           ),
           _buildDivider(),
-          _buildMenuItem(
-            icon: Icons.notifications_outlined,
-            title: 'Notifications',
-            onTap: () {},
-          ),
+
           _buildDivider(),
           _buildMenuItem(
             icon: Icons.logout_rounded,
