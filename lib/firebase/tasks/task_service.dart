@@ -267,13 +267,14 @@ class TaskService {
   }
 
   /// Mentor için: Task detayını tüm öğrenci durumları ile çek
+  /// Mentor için: Task detayını tüm öğrenci durumları ile çek
   Future<TaskDetailWithStudents?> getTaskDetailWithStudents({
     required String taskId,
   }) async {
     try {
       debugPrint('📋 Fetching task detail with students: $taskId');
 
-      // Ana task verisini çek
+      // 1. Ana task verisini çek
       final taskDoc = await _firestore.collection('tasks').doc(taskId).get();
 
       if (!taskDoc.exists) {
@@ -284,24 +285,33 @@ class TaskService {
       final task = TaskModel.fromFirestore(taskDoc);
       final assignedStudents = List<String>.from(task.assignedStudents ?? []);
 
-      // Her öğrenci için status bilgisini çek
+      debugPrint('👥 Assigned Students Count: ${assignedStudents.length}');
+
       final studentStatuses = <StudentTaskStatus>[];
 
       for (var studentId in assignedStudents) {
         try {
-          // Öğrenci bilgisini çek
-          final studentDoc = await _firestore
-              .collection('students')
-              .doc(studentId)
-              .get();
+          // ============================================================
+          // DÜZELTME BURADA: Profil bilgisini 'users' koleksiyonundan çek
+          // ============================================================
 
-          if (!studentDoc.exists) continue;
+          DocumentSnapshot userDoc = await _firestore.collection('users').doc(studentId).get();
 
-          final studentData = studentDoc.data()!;
-          final studentName = studentData['name'] ?? 'Unknown';
-          final studentEmail = studentData['email'] ?? '';
+          // Eğer users'da bulamazsa (belki eski veri) fallback yap
+          Map<String, dynamic> userData;
+          if (userDoc.exists) {
+            userData = userDoc.data() as Map<String, dynamic>;
+          } else {
+            // Users'da yoksa students'a bak (nadiren gerekir)
+            final fallbackDoc = await _firestore.collection('students').doc(studentId).get();
+            userData = fallbackDoc.exists ? (fallbackDoc.data() as Map<String, dynamic>) : {};
+          }
 
-          // Öğrencinin task status'ünü çek
+          final studentName = userData['name'] ?? 'Unknown Student';
+          final studentEmail = userData['email'] ?? '';
+          // ============================================================
+
+          // Öğrencinin task status'ünü çek (Burası DOĞRU, durum 'students' altında)
           final studentTaskDoc = await _firestore
               .collection('students')
               .doc(studentId)
@@ -328,8 +338,8 @@ class TaskService {
 
           studentStatuses.add(StudentTaskStatus(
             studentId: studentId,
-            studentName: studentName,
-            studentEmail: studentEmail,
+            studentName: studentName, // Artık users'dan geliyor
+            studentEmail: studentEmail, // Artık users'dan geliyor
             status: status,
             completedAt: completedAt,
             completionNote: completionNote,
