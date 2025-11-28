@@ -5,6 +5,10 @@ import 'package:mykoc/pages/classroom/class_model.dart';
 import 'package:mykoc/pages/classroom/class_detail/class_detail_view.dart';
 import 'package:mykoc/pages/profile/student_profile_page.dart';
 import 'package:mykoc/pages/settings/settings_view.dart';
+import 'package:mykoc/firebase/messaging/messaging_service.dart';
+import 'package:mykoc/pages/communication/chat_room/chat_room_view.dart';
+import 'package:mykoc/services/storage/local_storage_service.dart';
+import 'package:flutter/foundation.dart';
 
 class MentorProfileView extends StatelessWidget {
   final ProfileModel profileData;
@@ -129,21 +133,13 @@ class MentorProfileView extends StatelessWidget {
                 ),
               ),
 
-              // Message button (başkası görüyorsa)
-              if (viewModel.isMentorViewing) ...[
+              // Message button (sadece öğrenci görüyorsa)
+              if (viewModel.isStudentViewing) ...[
                 const SizedBox(height: 20),
                 SizedBox(
                   height: 45,
                   child: ElevatedButton.icon(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Chat feature coming soon!"),
-                          backgroundColor: Color(0xFF6366F1),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    },
+                    onPressed: () => _openDirectChat(context),
                     icon: const Icon(
                         Icons.chat_bubble_outline_rounded, size: 20),
                     label: const Text(
@@ -168,6 +164,95 @@ class MentorProfileView extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// Direkt mesajlaşma başlat (Mentor Profile için)
+  Future<void> _openDirectChat(BuildContext context) async {
+    // Loading göster
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
+        ),
+      ),
+    );
+
+    try {
+      final localStorage = LocalStorageService();
+      final currentUserId = localStorage.getUid();
+      final currentUserData = localStorage.getUserData();
+      final currentUserRole = localStorage.getUserRole();
+
+      if (currentUserId == null || currentUserData == null) {
+        throw Exception('User not logged in');
+      }
+
+      final currentUserName = currentUserData['name'] ?? 'User';
+      final currentUserImageUrl = currentUserData['profileImage'];
+
+      // Profil sahibinin bilgileri (Mentor)
+      final mentorId = viewModel.viewedMentorId;
+      if (mentorId == null) {
+        throw Exception('Mentor ID not found');
+      }
+
+      final mentorName = profileData.userName;
+      final mentorImageUrl = profileData.profileImageUrl;
+
+      // Mesaj servisini çağır
+      final messagingService = MessagingService();
+      String? chatRoomId;
+
+      if (currentUserRole == 'student') {
+        // Student -> Mentor
+        chatRoomId = await messagingService.getOrCreateDirectChatRoomId(
+          mentorId: mentorId,
+          studentId: currentUserId,
+        );
+      } else {
+        // Mentor -> Mentor (bu senaryoda mantıksız)
+        throw Exception('Cannot message another mentor');
+      }
+
+      if (!context.mounted) return;
+      Navigator.pop(context); // Loading kapat
+
+      if (chatRoomId != null) {
+        // Chat room'a git - otherUser bilgilerini aktar
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ChatRoomView(
+              chatRoomId: chatRoomId!,
+              chatRoomName: mentorName,
+              isGroup: false,
+              otherUserName: mentorName,
+              otherUserImageUrl: mentorImageUrl,
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to start chat'),
+            backgroundColor: Color(0xFFEF4444),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Error opening chat: $e');
+      if (context.mounted) {
+        Navigator.pop(context); // Loading kapat
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: const Color(0xFFEF4444),
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildStatsOverview() {
@@ -684,7 +769,7 @@ class MentorProfileView extends StatelessWidget {
   }
 
   Widget _buildMenuOptions(BuildContext context) {
-    if (viewModel.isMentorViewing) {
+    if (viewModel.isStudentViewing) {
       return const SizedBox.shrink();
     }
 
@@ -916,6 +1001,8 @@ class MentorProfileView extends StatelessWidget {
           ),
     );
   }
+
+
 
   void _showLogoutDialog(BuildContext context) {
     showDialog(

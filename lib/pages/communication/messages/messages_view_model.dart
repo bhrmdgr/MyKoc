@@ -10,15 +10,18 @@ class MessagesViewModel extends ChangeNotifier {
   final LocalStorageService _localStorage = LocalStorageService();
 
   List<ChatRoomModel> _chatRooms = [];
+
   List<ChatRoomModel> get chatRooms => _chatRooms;
 
   bool _isLoading = false;
+
   bool get isLoading => _isLoading;
 
   String? _currentUserId;
   String? _currentUserRole;
 
   String? get currentUserId => _currentUserId;
+
   String? get currentUserRole => _currentUserRole;
 
   StreamSubscription<List<ChatRoomModel>>? _chatRoomsSubscription;
@@ -94,36 +97,19 @@ class MessagesViewModel extends ChangeNotifier {
       }
 
       final mentorId = targetClass['mentorId'] as String?;
-      final mentorName = targetClass['mentorName'] as String?;
 
-      if (mentorId == null || mentorName == null) {
+      if (mentorId == null || _currentUserId == null) {
         debugPrint('❌ Mentor info not found');
         return;
       }
 
-      // Mentor profil resmini al
-      String? mentorImageUrl;
-      try {
-        final mentorDoc = await _messagingService.getUserProfile(mentorId);
-        mentorImageUrl = mentorDoc?['profileImage'];
-      } catch (e) {
-        debugPrint('⚠️ Could not fetch mentor image: $e');
-      }
-
-      final userData = _localStorage.getUserData();
-      final currentUserName = userData?['name'] ?? 'Student';
-      final currentUserImageUrl = userData?['profileImage'];
-
-      await _messagingService.createDirectChatRoom(
+      // Sadece ID oluştur, gerçek chat room ilk mesajda oluşacak
+      await _messagingService.getOrCreateDirectChatRoomId(
         mentorId: mentorId,
-        mentorName: mentorName,
-        mentorImageUrl: mentorImageUrl,
         studentId: _currentUserId!,
-        studentName: currentUserName,
-        studentImageUrl: currentUserImageUrl,
       );
 
-      debugPrint('✅ Student-mentor chat ensured');
+      debugPrint('✅ Student-mentor chat ID ensured');
     } catch (e) {
       debugPrint('❌ Error ensuring student-mentor chat: $e');
     }
@@ -139,25 +125,29 @@ class MessagesViewModel extends ChangeNotifier {
     final currentUserName = userData?['name'] ?? 'User';
     final currentUserImageUrl = userData?['profileImage'];
 
+    String mentorId, mentorName, studentId, studentName;
+    String? mentorImageUrl, studentImageUrl;
+
     if (_currentUserRole == 'mentor') {
-      return await _messagingService.createDirectChatRoom(
-        mentorId: _currentUserId!,
-        mentorName: currentUserName,
-        mentorImageUrl: currentUserImageUrl,
-        studentId: otherUserId,
-        studentName: otherUserName,
-        studentImageUrl: otherUserImageUrl,
-      );
+      mentorId = _currentUserId!;
+      mentorName = currentUserName;
+      mentorImageUrl = currentUserImageUrl;
+      studentId = otherUserId;
+      studentName = otherUserName;
+      studentImageUrl = otherUserImageUrl;
     } else {
-      return await _messagingService.createDirectChatRoom(
-        mentorId: otherUserId,
-        mentorName: otherUserName,
-        mentorImageUrl: otherUserImageUrl,
-        studentId: _currentUserId!,
-        studentName: currentUserName,
-        studentImageUrl: currentUserImageUrl,
-      );
+      mentorId = otherUserId;
+      mentorName = otherUserName;
+      mentorImageUrl = otherUserImageUrl;
+      studentId = _currentUserId!;
+      studentName = currentUserName;
+      studentImageUrl = currentUserImageUrl;
     }
+
+    return await _messagingService.getOrCreateDirectChatRoomId(
+      mentorId: mentorId,
+      studentId: studentId,
+    );
   }
 
   /// Sınıf grubunu aç
@@ -248,7 +238,9 @@ class MessagesViewModel extends ChangeNotifier {
     } else if (difference.inMinutes < 60) {
       return '${difference.inMinutes} min ago';
     } else if (difference.inHours < 24) {
-      return '${difference.inHours} hour${difference.inHours > 1 ? 's' : ''} ago';
+      return '${difference.inHours} hour${difference.inHours > 1
+          ? 's'
+          : ''} ago';
     } else if (difference.inDays == 1) {
       return 'Yesterday';
     } else if (difference.inDays < 7) {
@@ -258,40 +250,30 @@ class MessagesViewModel extends ChangeNotifier {
     }
   }
 
-  /// Chat room'u sil (sadece mentor için direkt mesajlaşmalarda)
+  // messages_view_model.dart içinde deleteChatRoom metodunu güncelle:
+
+  /// Chat room'u sil (herkes kendi direkt mesajlarını silebilir)
   Future<bool> deleteChatRoom(String chatRoomId, String chatRoomType) async {
-    // Sadece mentor direkt mesajları silebilir
-    if (_currentUserRole != 'mentor' || chatRoomType != 'direct') {
-      debugPrint('❌ Only mentor can delete direct chats');
+    // Sadece direkt mesajlar silinebilir (grup sohbetleri silinemez)
+    if (chatRoomType != 'direct') {
+      debugPrint('❌ Only direct chats can be deleted');
       return false;
     }
 
     try {
-      final success = await _messagingService.deleteChatRoom(chatRoomId);
+      final success = await _messagingService.hideChatRoomForUser(
+        chatRoomId,
+        _currentUserId!,
+      );
       if (success) {
-        debugPrint('✅ Chat room deleted');
+        debugPrint('✅ Chat room hidden');
         // Liste otomatik güncellenecek (Stream sayesinde)
         return true;
       }
       return false;
     } catch (e) {
-      debugPrint('❌ Error deleting chat room: $e');
+      debugPrint('❌ Error hiding chat room: $e');
       return false;
     }
-  }
-
-  /// Öğrencinin sohbet durumunu kontrol et (mentor listesi için)
-  bool hasExistingChat(String studentId) {
-    return _chatRooms.any((room) {
-      if (room.type != 'direct') return false;
-      return room.participantIds.contains(studentId);
-    });
-  }
-
-  @override
-  void dispose() {
-    _isDisposed = true;
-    _chatRoomsSubscription?.cancel();
-    super.dispose();
   }
 }

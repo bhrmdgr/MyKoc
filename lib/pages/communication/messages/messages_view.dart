@@ -151,6 +151,8 @@ class _MessagesViewState extends State<MessagesView> {
     );
   }
 
+  // messages_view.dart içinde _buildConversationItem metodunu güncelle:
+
   Widget _buildConversationItem(chatRoom, MessagesViewModel viewModel) {
     final isGroup = chatRoom.type == 'class_group';
     final displayName = viewModel.getOtherParticipantName(chatRoom);
@@ -159,11 +161,12 @@ class _MessagesViewState extends State<MessagesView> {
     final unreadCount = chatRoom.getUnreadCountForUser(viewModel.currentUserId ?? '');
     final timeText = viewModel.getRelativeTime(chatRoom.lastMessageTime);
     final lastMessageText = chatRoom.lastMessage ?? 'No messages yet';
-    final isDirect = chatRoom.type == 'direct';
-    final isMentor = viewModel.currentUserRole == 'mentor';
-    final canDelete = isMentor && isDirect;
 
-    // Chat kartı widget'ı
+    // DEĞİŞİKLİK: Herkes direkt mesajları silebilir
+    final isDirect = chatRoom.type == 'direct';
+    final canDelete = isDirect; // ← Mentor kontrolü kaldırıldı
+
+    // Chat kartı widget'ı (aynı kalıyor)
     final chatCard = Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
@@ -325,7 +328,7 @@ class _MessagesViewState extends State<MessagesView> {
                   color: Colors.grey[500],
                 ),
               ),
-              // Delete hint için ikon (sadece mentor ve direkt mesaj için)
+              // Delete hint için ikon (direkt mesajlar için)
               if (canDelete) ...[
                 const SizedBox(width: 8),
                 Icon(
@@ -340,7 +343,7 @@ class _MessagesViewState extends State<MessagesView> {
       ),
     );
 
-    // Mentor ve direkt mesaj ise Dismissible ile sarmala
+    // Direkt mesaj ise Dismissible ile sarmala
     if (canDelete) {
       return Dismissible(
         key: Key(chatRoom.id),
@@ -378,40 +381,38 @@ class _MessagesViewState extends State<MessagesView> {
       );
     }
 
-    // Grup sohbeti ise direkt kartı döndür (silinemesin)
+    // Grup sohbeti ise direkt kartı döndür
     return chatCard;
   }
 
-  /// Chat silme dialogunu göster - bool döndürür (confirmDismiss için)
+  // _showDeleteChatDialog metodunu güncelle (aynı dosyada):
+
   Future<bool> _showDeleteChatDialog(chatRoom, MessagesViewModel viewModel) async {
     final displayName = viewModel.getOtherParticipantName(chatRoom);
 
     final result = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: const Color(0xFFEF4444).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(
                 Icons.delete_outline,
                 color: Color(0xFFEF4444),
-                size: 24,
+                size: 20,
               ),
             ),
             const SizedBox(width: 12),
             const Expanded(
               child: Text(
-                'Delete Chat',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
+                'Delete Chat?',
+                style: TextStyle(fontSize: 18),
               ),
             ),
           ],
@@ -421,31 +422,38 @@ class _MessagesViewState extends State<MessagesView> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Are you sure you want to delete the chat with $displayName?',
-              style: const TextStyle(fontSize: 15),
+              'Delete chat with $displayName?',
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+              ),
             ),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFFFEF2F2),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFFFECACA)),
+                color: Colors.blue.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.blue.withOpacity(0.2),
+                ),
               ),
-              child: const Row(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Icon(
-                    Icons.warning_amber_rounded,
-                    color: Color(0xFFEF4444),
-                    size: 20,
+                    Icons.info_outline,
+                    size: 18,
+                    color: Colors.blue[700],
                   ),
-                  SizedBox(width: 8),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'All messages will be permanently deleted',
+                      'This chat will be removed from your list, but $displayName will still be able to see it.',
                       style: TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFFB91C1C),
+                        fontSize: 12,
+                        color: Colors.blue[700],
+                        height: 1.4,
                       ),
                     ),
                   ),
@@ -506,14 +514,21 @@ class _MessagesViewState extends State<MessagesView> {
                           color: Colors.white,
                         ),
                         const SizedBox(width: 12),
-                        Text(success
-                            ? 'Chat deleted successfully'
-                            : 'Failed to delete chat'),
+                        Expanded(
+                          child: Text(
+                            success
+                                ? 'Chat with $displayName deleted'
+                                : 'Failed to delete chat',
+                          ),
+                        ),
                       ],
                     ),
                     backgroundColor:
                     success ? const Color(0xFF10B981) : const Color(0xFFEF4444),
                     behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     duration: const Duration(seconds: 2),
                   ),
                 );

@@ -74,13 +74,10 @@ class MessagingService {
   }
 
   /// Direkt mesajlaşma odası oluştur (mentor-student)
-  Future<String?> createDirectChatRoom({
+  /// NOT: Bu sadece chat room ID'sini döndürür, gerçek oluşturma ilk mesajda olur
+  Future<String?> getOrCreateDirectChatRoomId({
     required String mentorId,
-    required String mentorName,
-    String? mentorImageUrl,
     required String studentId,
-    required String studentName,
-    String? studentImageUrl,
   }) async {
     try {
       // Önce var olan odayı kontrol et
@@ -98,34 +95,62 @@ class MessagingService {
         }
       }
 
-      // Yeni oda oluştur
-      final chatRoom = await _firestore.collection('chatRooms').add({
-        'name': '$mentorName & $studentName',
-        'type': 'direct',
-        'participantIds': [mentorId, studentId],
-        'participantDetails': {
-          mentorId: {
-            'name': mentorName,
-            'imageUrl': mentorImageUrl,
-            'role': 'mentor',
-          },
-          studentId: {
-            'name': studentName,
-            'imageUrl': studentImageUrl,
-            'role': 'student',
-          },
-        },
-        'lastMessage': '',
-        'lastMessageTime': FieldValue.serverTimestamp(),
-        'lastMessageSenderId': '',
-        'unreadCount': {mentorId: 0, studentId: 0},
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-
-      debugPrint('✅ Direct chat room created: ${chatRoom.id}');
-      return chatRoom.id;
+      // Yeni bir temporary ID oluştur (gerçek oluşturma ilk mesajda olacak)
+      // Format: direct_{mentorId}_{studentId}
+      final tempChatRoomId = 'direct_${mentorId}_$studentId';
+      debugPrint('✅ Temporary chat room ID created: $tempChatRoomId');
+      return tempChatRoomId;
     } catch (e) {
-      debugPrint('❌ Error creating direct chat room: $e');
+      debugPrint('❌ Error getting/creating direct chat room: $e');
+      return null;
+    }
+  }
+
+  /// Chat room'u gerçekten oluştur (ilk mesaj gönderilirken)
+  Future<String?> _ensureDirectChatRoomExists({
+    required String chatRoomId,
+    required String mentorId,
+    required String mentorName,
+    String? mentorImageUrl,
+    required String studentId,
+    required String studentName,
+    String? studentImageUrl,
+  }) async {
+    try {
+      // Eğer temporary ID ise gerçek chat room oluştur
+      if (chatRoomId.startsWith('direct_')) {
+        final chatRoom = await _firestore.collection('chatRooms').add({
+          'name': '$mentorName & $studentName',
+          'type': 'direct',
+          'participantIds': [mentorId, studentId],
+          'participantDetails': {
+            mentorId: {
+              'name': mentorName,
+              'imageUrl': mentorImageUrl,
+              'role': 'mentor',
+            },
+            studentId: {
+              'name': studentName,
+              'imageUrl': studentImageUrl,
+              'role': 'student',
+            },
+          },
+          'lastMessage': '',
+          'lastMessageTime': FieldValue.serverTimestamp(),
+          'lastMessageSenderId': '',
+          'unreadCount': {mentorId: 0, studentId: 0},
+          'createdAt': FieldValue.serverTimestamp(),
+          'hiddenFor': [], // Silinme kontrolü için
+        });
+
+        debugPrint('✅ Direct chat room created: ${chatRoom.id}');
+        return chatRoom.id;
+      }
+
+      // Zaten gerçek bir ID ise doğrudan döndür
+      return chatRoomId;
+    } catch (e) {
+      debugPrint('❌ Error ensuring chat room exists: $e');
       return null;
     }
   }
@@ -138,6 +163,12 @@ class MessagingService {
     String? senderImageUrl,
     required String messageText,
     File? file,
+    String? mentorId,
+    String? mentorName,
+    String? mentorImageUrl,
+    String? studentId,
+    String? studentName,
+    String? studentImageUrl,
   }) async {
     try {
       String? fileUrl;
@@ -161,13 +192,34 @@ class MessagingService {
         }
       }
 
+      // Eğer temporary chat room ise gerçek chat room oluştur
+      String? realChatRoomId = chatRoomId;
+      if (chatRoomId.startsWith('direct_') &&
+          mentorId != null && studentId != null &&
+          mentorName != null && studentName != null) {
+        realChatRoomId = await _ensureDirectChatRoomExists(
+          chatRoomId: chatRoomId,
+          mentorId: mentorId,
+          mentorName: mentorName,
+          mentorImageUrl: mentorImageUrl,
+          studentId: studentId,
+          studentName: studentName,
+          studentImageUrl: studentImageUrl,
+        );
+
+        if (realChatRoomId == null) {
+          debugPrint('❌ Failed to create chat room');
+          return false;
+        }
+      }
+
       // Mesajı kaydet
       await _firestore
           .collection('chatRooms')
-          .doc(chatRoomId)
+          .doc(realChatRoomId)
           .collection('messages')
           .add({
-        'chatRoomId': chatRoomId,
+        'chatRoomId': realChatRoomId,
         'senderId': senderId,
         'senderName': senderName,
         'senderImageUrl': senderImageUrl,
@@ -183,7 +235,7 @@ class MessagingService {
       // Chat room'u güncelle
       final chatRoomDoc = await _firestore
           .collection('chatRooms')
-          .doc(chatRoomId)
+          .doc(realChatRoomId)
           .get();
 
       final participants = List<String>.from(
@@ -205,14 +257,16 @@ class MessagingService {
           ? '📎 ${fileName ?? 'File'}'
           : messageText;
 
-      await _firestore.collection('chatRooms').doc(chatRoomId).update({
+      // hiddenFor listesinden göndereni çıkar (silmiş olsa bile geri gelsin)
+      await _firestore.collection('chatRooms').doc(realChatRoomId).update({
         'lastMessage': lastMessagePreview,
         'lastMessageTime': FieldValue.serverTimestamp(),
         'lastMessageSenderId': senderId,
         'unreadCount': unreadCount,
+        'hiddenFor': FieldValue.arrayRemove([senderId]),
       });
 
-      debugPrint('✅ Message sent');
+      debugPrint('✅ Message sent to: $realChatRoomId');
       return true;
     } catch (e) {
       debugPrint('❌ Error sending message: $e');
@@ -253,16 +307,24 @@ class MessagingService {
     }
   }
 
-  /// Kullanıcının chat roomlarını getir
+  /// Kullanıcının chat roomlarını getir (hiddenFor kontrolü ile)
   Stream<List<ChatRoomModel>> getUserChatRooms(String userId) {
     return _firestore
         .collection('chatRooms')
         .where('participantIds', arrayContains: userId)
         .orderBy('lastMessageTime', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-        .map((doc) => ChatRoomModel.fromFirestore(doc))
-        .toList());
+        .map((snapshot) {
+      // hiddenFor listesinde olmayan chat room'ları filtrele
+      return snapshot.docs
+          .where((doc) {
+        final data = doc.data();
+        final hiddenFor = List<String>.from(data['hiddenFor'] ?? []);
+        return !hiddenFor.contains(userId);
+      })
+          .map((doc) => ChatRoomModel.fromFirestore(doc))
+          .toList();
+    });
   }
 
   /// Chat room mesajlarını getir
@@ -357,31 +419,19 @@ class MessagingService {
     }
   }
 
-  /// Chat room ve tüm mesajlarını sil
-  Future<bool> deleteChatRoom(String chatRoomId) async {
+  /// Chat room'u kullanıcı için gizle (diğer kullanıcılar görebilir)
+  Future<bool> hideChatRoomForUser(String chatRoomId, String userId) async {
     try {
-      // Önce tüm mesajları sil
-      final messagesSnapshot = await _firestore
-          .collection('chatRooms')
-          .doc(chatRoomId)
-          .collection('messages')
-          .get();
+      // Chat room'u kullanıcı için gizle
+      await _firestore.collection('chatRooms').doc(chatRoomId).update({
+        'hiddenFor': FieldValue.arrayUnion([userId]),
+        'unreadCount.$userId': 0, // Unread count'u sıfırla
+      });
 
-      final batch = _firestore.batch();
-
-      // Mesajları batch ile sil
-      for (var doc in messagesSnapshot.docs) {
-        batch.delete(doc.reference);
-      }
-
-      // Chat room'u sil
-      batch.delete(_firestore.collection('chatRooms').doc(chatRoomId));
-
-      await batch.commit();
-      debugPrint('✅ Chat room deleted: $chatRoomId');
+      debugPrint('✅ Chat room hidden for user: $chatRoomId');
       return true;
     } catch (e) {
-      debugPrint('❌ Error deleting chat room: $e');
+      debugPrint('❌ Error hiding chat room: $e');
       return false;
     }
   }

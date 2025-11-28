@@ -54,6 +54,18 @@ class ProfileViewModel extends ChangeNotifier {
   String? _viewedStudentId;
   String? get viewedStudentId => _viewedStudentId;
 
+  // ============ YENİ EKLENEN PROPERTY'LER ============
+  String? _viewedMentorId;
+  String? get viewedMentorId => _viewedMentorId;
+
+  String? _currentUserRole;
+  String? get currentUserRole => _currentUserRole;
+
+  // Görüntüleme durumu kontrolleri
+  bool get isStudentViewing => _currentUserRole == 'student';
+  // isMentorViewing zaten var, sadece getter'ını kullanabiliriz
+  // ============ YENİ EKLENEN PROPERTY'LER SONU ============
+
   bool _isDisposed = false;
 
   void _safeNotifyListeners() {
@@ -121,7 +133,12 @@ class ProfileViewModel extends ChangeNotifier {
     _isLoading = true;
     _isMentorViewing = false;
     _viewedStudentId = null;
+    _viewedMentorId = null; // ← EKLENDI
     _mentorFilter = 'classes';
+
+    // Current user role'ünü set et
+    _currentUserRole = _localStorage.getUserRole(); // ← EKLENDI
+
     _safeNotifyListeners();
 
     try {
@@ -137,9 +154,14 @@ class ProfileViewModel extends ChangeNotifier {
   }
 
   Future<void> initializeForStudent(String studentId) async {
+    _viewedStudentId = studentId; // ← İLK SATIRA TAŞINDI
+    _viewedMentorId = null; // ← EKLENDI
     _isLoading = true;
     _isMentorViewing = true;
-    _viewedStudentId = studentId;
+
+    // Current user role'ünü set et
+    _currentUserRole = _localStorage.getUserRole(); // ← EKLENDI
+
     _safeNotifyListeners();
 
     try {
@@ -153,9 +175,14 @@ class ProfileViewModel extends ChangeNotifier {
   }
 
   Future<void> initializeForMentor(String mentorId) async {
+    _viewedMentorId = mentorId; // ← EKLENDI
+    _viewedStudentId = null; // ← EKLENDI
     _isLoading = true;
     _isMentorViewing = true; // Mentor başkasının profilini görüyor
-    _viewedStudentId = null;
+
+    // Current user role'ünü set et
+    _currentUserRole = _localStorage.getUserRole(); // ← EKLENDI
+
     _safeNotifyListeners();
 
     try {
@@ -386,15 +413,23 @@ class ProfileViewModel extends ChangeNotifier {
 
   Future<void> _loadMentorProfile(String mentorId) async {
     try {
+      debugPrint('🔍 _loadMentorProfile called with mentorId: $mentorId');
+
       final userDoc = await _firestore.collection('users').doc(mentorId).get();
-      if (!userDoc.exists) return;
+      if (!userDoc.exists) {
+        debugPrint('❌ User document not found for mentorId: $mentorId');
+        return;
+      }
 
       final userData = userDoc.data()!;
+      debugPrint('✅ User data loaded: ${userData['name']}');
+
       final name = userData['name'] ?? 'Mentor';
       final email = userData['email'] ?? '';
 
       // Mentor sınıflarını çek
       _classes = await _profileService.getMentorClassesDetailed(mentorId);
+      debugPrint('✅ Classes loaded: ${_classes.length}');
 
       // Task sayısını hesapla
       int calculatedTaskCount = 0;
@@ -404,6 +439,7 @@ class ProfileViewModel extends ChangeNotifier {
 
       // Unique öğrenci sayısını hesapla
       int uniqueStudentCount = await _syncAndCountUniqueStudents(mentorId);
+      debugPrint('✅ Unique students: $uniqueStudentCount');
 
       _profileData = ProfileModel(
         userName: name,
@@ -416,6 +452,7 @@ class ProfileViewModel extends ChangeNotifier {
         activeTasks: calculatedTaskCount,
       );
 
+      debugPrint('✅ Mentor profile loaded successfully');
       _safeNotifyListeners();
     } catch (e) {
       debugPrint('❌ Error loading mentor profile: $e');
@@ -424,14 +461,28 @@ class ProfileViewModel extends ChangeNotifier {
 
   Future<void> _loadStudentProfile(String studentId) async {
     try {
+      debugPrint('🔍 _loadStudentProfile called with studentId: $studentId');
+
       final userDoc = await _firestore.collection('users').doc(studentId).get();
-      if (!userDoc.exists) return;
+      if (!userDoc.exists) {
+        debugPrint('❌ User document not found for studentId: $studentId');
+        return;
+      }
+
       final userData = userDoc.data()!;
+      debugPrint('✅ User data loaded: ${userData['name']}');
+
       final name = userData['name'] ?? 'Student';
       final email = userData['email'] ?? '';
+
       _classes = await _classroomService.getStudentClasses(studentId);
+      debugPrint('✅ Classes loaded: ${_classes.length}');
+
       _tasks = await _taskService.getStudentTasks(studentId);
+      debugPrint('✅ Tasks loaded: ${_tasks.length}');
+
       final completedTasks = _tasks.where((t) => t.status == 'completed').length;
+
       _profileData = ProfileModel(
         userName: name,
         userInitials: _getInitials(name),
@@ -443,8 +494,12 @@ class ProfileViewModel extends ChangeNotifier {
         completedTasks: completedTasks,
         completionPercentage: _tasks.isEmpty ? 0 : ((completedTasks / _tasks.length) * 100).round(),
       );
+
+      debugPrint('✅ Student profile loaded successfully');
       _safeNotifyListeners();
-    } catch (e) { debugPrint('Error: $e'); }
+    } catch (e) {
+      debugPrint('❌ Error loading student profile: $e');
+    }
   }
 
   Future<bool> joinClass(String classCode) async {
@@ -511,7 +566,7 @@ class ProfileViewModel extends ChangeNotifier {
       // Token sil
       final uid = _localStorage.getUid();
       if (uid != null) {
-        await FCMService().deleteToken(uid); // ← YENİ
+        await FCMService().deleteToken(uid);
       }
 
       await _auth.signOut();

@@ -944,6 +944,9 @@ class StudentProfileView extends StatelessWidget {
     );
   }
 
+  // student_profile_view.dart içinde _openDirectChat metodunu güncelle:
+
+  /// Direkt mesajlaşma başlat (Student Profile için)
   Future<void> _openDirectChat(BuildContext context) async {
     // Loading göster
     showDialog(
@@ -969,10 +972,10 @@ class StudentProfileView extends StatelessWidget {
       final currentUserName = currentUserData['name'] ?? 'User';
       final currentUserImageUrl = currentUserData['profileImage'];
 
-      // Profil sahibinin bilgileri
-      final otherUserId = viewModel.viewedStudentId ?? profileData.userName; // Student ID veya mentor ID
-      final otherUserName = profileData.userName;
-      final otherUserImageUrl = profileData.profileImageUrl;
+      // Profil sahibinin bilgileri (Student)
+      final studentId = viewModel.viewedStudentId!;
+      final studentName = profileData.userName;
+      final studentImageUrl = profileData.profileImageUrl;
 
       // Mesaj servisini çağır
       final messagingService = MessagingService();
@@ -980,23 +983,17 @@ class StudentProfileView extends StatelessWidget {
 
       if (currentUserRole == 'mentor') {
         // Mentor -> Student
-        chatRoomId = await messagingService.createDirectChatRoom(
+        chatRoomId = await messagingService.getOrCreateDirectChatRoomId(
           mentorId: currentUserId,
-          mentorName: currentUserName,
-          mentorImageUrl: currentUserImageUrl,
-          studentId: otherUserId,
-          studentName: otherUserName,
-          studentImageUrl: otherUserImageUrl,
+          studentId: studentId,
         );
       } else {
-        // Student -> Mentor
-        chatRoomId = await messagingService.createDirectChatRoom(
-          mentorId: otherUserId,
-          mentorName: otherUserName,
-          mentorImageUrl: otherUserImageUrl,
-          studentId: currentUserId,
-          studentName: currentUserName,
-          studentImageUrl: currentUserImageUrl,
+        // Student -> Student (YENİ EKLENEN)
+        // Alfabetik sıraya göre ID'leri belirle
+        final ids = [currentUserId, studentId]..sort();
+        chatRoomId = await messagingService.getOrCreateDirectChatRoomId(
+          mentorId: ids[0],
+          studentId: ids[1],
         );
       }
 
@@ -1004,14 +1001,16 @@ class StudentProfileView extends StatelessWidget {
       Navigator.pop(context); // Loading kapat
 
       if (chatRoomId != null) {
-        // Chat room'a git
+        // Chat room'a git - otherUser bilgilerini aktar
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (_) => ChatRoomView(
               chatRoomId: chatRoomId!,
-              chatRoomName: otherUserName,
+              chatRoomName: studentName,
               isGroup: false,
+              otherUserName: studentName,
+              otherUserImageUrl: studentImageUrl,
             ),
           ),
         );
@@ -1027,9 +1026,10 @@ class StudentProfileView extends StatelessWidget {
       debugPrint('❌ Error opening chat: $e');
       if (context.mounted) {
         Navigator.pop(context); // Loading kapat
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString()}'),
+            content: Text('Failed to start chat: ${e.toString()}'),
             backgroundColor: const Color(0xFFEF4444),
           ),
         );

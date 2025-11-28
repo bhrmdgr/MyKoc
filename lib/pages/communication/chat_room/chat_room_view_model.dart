@@ -36,7 +36,7 @@ class ChatRoomViewModel extends ChangeNotifier {
   Map<String, dynamic>? _chatRoomData;
   Map<String, dynamic>? get chatRoomData => _chatRoomData;
 
-  void initialize(String chatRoomId) {
+  void initialize(String chatRoomId, {String? otherUserName, String? otherUserImageUrl}) {
     _currentUserId = _localStorage.getUid();
     final userData = _localStorage.getUserData();
     _currentUserName = userData?['name'] ?? 'User';
@@ -44,12 +44,27 @@ class ChatRoomViewModel extends ChangeNotifier {
 
     _listenToMessages(chatRoomId);
     _markMessagesAsRead(chatRoomId);
-    _loadChatRoomData(chatRoomId);
+    _loadChatRoomData(chatRoomId, otherUserName: otherUserName, otherUserImageUrl: otherUserImageUrl);
   }
 
   /// Chat room bilgilerini yükle
-  Future<void> _loadChatRoomData(String chatRoomId) async {
+  Future<void> _loadChatRoomData(String chatRoomId, {String? otherUserName, String? otherUserImageUrl}) async {
     try {
+      // Temporary ID ise gerçek chat room henüz yok
+      if (chatRoomId.startsWith('direct_')) {
+        _chatRoomData = {
+          'id': chatRoomId,
+          'type': 'direct',
+          'isTemporary': true,
+          'otherUserName': otherUserName,
+          'otherUserImageUrl': otherUserImageUrl,
+        };
+        if (!_isDisposed) {
+          notifyListeners();
+        }
+        return;
+      }
+
       _chatRoomData = await _messagingService.getChatRoomData(chatRoomId);
       if (!_isDisposed) {
         notifyListeners();
@@ -110,6 +125,45 @@ class ChatRoomViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
+      // Participant bilgilerini hazırla (temporary chat için gerekli)
+      String? mentorId, mentorName, mentorImageUrl;
+      String? studentId, studentName, studentImageUrl;
+
+      if (chatRoomId.startsWith('direct_')) {
+        // Temporary ID formatı: direct_{mentorId}_{studentId}
+        final parts = chatRoomId.split('_');
+        if (parts.length >= 3) {
+          mentorId = parts[1];
+          studentId = parts[2];
+
+          // Kullanıcı bilgilerini al
+          final currentUserRole = _localStorage.getUserRole();
+          final userData = _localStorage.getUserData();
+
+          if (currentUserRole == 'mentor') {
+            mentorName = userData?['name'] ?? 'Mentor';
+            mentorImageUrl = userData?['profileImage'];
+            // Student bilgisini chat room data'dan al (eğer varsa)
+            if (_chatRoomData != null && _chatRoomData!['otherUserName'] != null) {
+              studentName = _chatRoomData!['otherUserName'];
+              studentImageUrl = _chatRoomData!['otherUserImageUrl'];
+            } else {
+              studentName = 'Student';
+            }
+          } else {
+            studentName = userData?['name'] ?? 'Student';
+            studentImageUrl = userData?['profileImage'];
+            // Mentor bilgisini chat room data'dan al (eğer varsa)
+            if (_chatRoomData != null && _chatRoomData!['otherUserName'] != null) {
+              mentorName = _chatRoomData!['otherUserName'];
+              mentorImageUrl = _chatRoomData!['otherUserImageUrl'];
+            } else {
+              mentorName = 'Mentor';
+            }
+          }
+        }
+      }
+
       final success = await _messagingService.sendMessage(
         chatRoomId: chatRoomId,
         senderId: _currentUserId!,
@@ -117,7 +171,21 @@ class ChatRoomViewModel extends ChangeNotifier {
         senderImageUrl: _currentUserImageUrl,
         messageText: messageText.trim(),
         file: file,
+        mentorId: mentorId,
+        mentorName: mentorName,
+        mentorImageUrl: mentorImageUrl,
+        studentId: studentId,
+        studentName: studentName,
+        studentImageUrl: studentImageUrl,
       );
+
+      // İlk mesajdan sonra chat room data'yı yeniden yükle
+      if (success && chatRoomId.startsWith('direct_')) {
+        await Future.delayed(const Duration(milliseconds: 500));
+        // Yeni oluşturulan gerçek chat room ID'sini bul
+        // Bu durumda chat room listesi otomatik güncellenecek
+      }
+
       return success;
     } catch (e) {
       debugPrint("Send message error: $e");

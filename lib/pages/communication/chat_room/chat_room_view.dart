@@ -16,12 +16,16 @@ class ChatRoomView extends StatefulWidget {
   final String chatRoomId;
   final String chatRoomName;
   final bool isGroup;
+  final String? otherUserName;  // ← YENİ
+  final String? otherUserImageUrl;  // ← YENİ
 
   const ChatRoomView({
     super.key,
     required this.chatRoomId,
     required this.chatRoomName,
     this.isGroup = false,
+    this.otherUserName,  // ← YENİ
+    this.otherUserImageUrl,  // ← YENİ
   });
 
   @override
@@ -38,8 +42,13 @@ class _ChatRoomViewState extends State<ChatRoomView> {
   void initState() {
     super.initState();
     _viewModel = ChatRoomViewModel();
-    _viewModel.initialize(widget.chatRoomId);
+    _viewModel.initialize(
+      widget.chatRoomId,
+      otherUserName: widget.otherUserName,
+      otherUserImageUrl: widget.otherUserImageUrl,
+    );
   }
+
 
   @override
   void dispose() {
