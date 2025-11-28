@@ -8,6 +8,10 @@ import 'package:mykoc/services/storage/local_storage_service.dart';
 import 'package:mykoc/pages/classroom/class_detail/class_detail_view.dart';
 import 'package:intl/intl.dart';
 import 'package:mykoc/pages/settings/settings_view.dart';
+import 'package:mykoc/firebase/messaging/messaging_service.dart';
+import 'package:mykoc/pages/communication/chat_room/chat_room_view.dart';
+
+
 
 class StudentProfileView extends StatelessWidget {
   final ProfileModel profileData;
@@ -149,14 +153,9 @@ class StudentProfileView extends StatelessWidget {
                 SizedBox(
                   height: 45,
                   child: ElevatedButton.icon(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Chat feature coming soon!"),
-                          backgroundColor: Color(0xFF6366F1),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
+                    onPressed: () async {
+                      // Mesajlaşma başlat
+                      await _openDirectChat(context);
                     },
                     icon: const Icon(Icons.chat_bubble_outline_rounded, size: 20),
                     label: const Text(
@@ -943,6 +942,99 @@ class StudentProfileView extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Divider(height: 1, color: Colors.grey[200]),
     );
+  }
+
+  Future<void> _openDirectChat(BuildContext context) async {
+    // Loading göster
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
+        ),
+      ),
+    );
+
+    try {
+      final localStorage = LocalStorageService();
+      final currentUserId = localStorage.getUid();
+      final currentUserData = localStorage.getUserData();
+      final currentUserRole = localStorage.getUserRole();
+
+      if (currentUserId == null || currentUserData == null) {
+        throw Exception('User not logged in');
+      }
+
+      final currentUserName = currentUserData['name'] ?? 'User';
+      final currentUserImageUrl = currentUserData['profileImage'];
+
+      // Profil sahibinin bilgileri
+      final otherUserId = viewModel.viewedStudentId ?? profileData.userName; // Student ID veya mentor ID
+      final otherUserName = profileData.userName;
+      final otherUserImageUrl = profileData.profileImageUrl;
+
+      // Mesaj servisini çağır
+      final messagingService = MessagingService();
+      String? chatRoomId;
+
+      if (currentUserRole == 'mentor') {
+        // Mentor -> Student
+        chatRoomId = await messagingService.createDirectChatRoom(
+          mentorId: currentUserId,
+          mentorName: currentUserName,
+          mentorImageUrl: currentUserImageUrl,
+          studentId: otherUserId,
+          studentName: otherUserName,
+          studentImageUrl: otherUserImageUrl,
+        );
+      } else {
+        // Student -> Mentor
+        chatRoomId = await messagingService.createDirectChatRoom(
+          mentorId: otherUserId,
+          mentorName: otherUserName,
+          mentorImageUrl: otherUserImageUrl,
+          studentId: currentUserId,
+          studentName: currentUserName,
+          studentImageUrl: currentUserImageUrl,
+        );
+      }
+
+      if (!context.mounted) return;
+      Navigator.pop(context); // Loading kapat
+
+      if (chatRoomId != null) {
+        // Chat room'a git
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ChatRoomView(
+              chatRoomId: chatRoomId!,
+              chatRoomName: otherUserName,
+              isGroup: false,
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to start chat'),
+            backgroundColor: Color(0xFFEF4444),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Error opening chat: $e');
+      if (context.mounted) {
+        Navigator.pop(context); // Loading kapat
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: const Color(0xFFEF4444),
+          ),
+        );
+      }
+    }
   }
 
   void _showJoinClassDialog(BuildContext context) {

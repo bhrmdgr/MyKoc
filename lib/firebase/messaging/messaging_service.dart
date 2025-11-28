@@ -296,6 +296,111 @@ class MessagingService {
     }
   }
 
+  /// Sınıf bilgisini al (öğrenci mentor bilgisi için)
+  Future<Map<String, dynamic>?> getClassById(String classId) async {
+    try {
+      final doc = await _firestore.collection('classes').doc(classId).get();
+      if (!doc.exists) return null;
+      return doc.data();
+    } catch (e) {
+      debugPrint('❌ Error getting class: $e');
+      return null;
+    }
+  }
+
+  /// Kullanıcı profil bilgisini al
+  Future<Map<String, dynamic>?> getUserProfile(String userId) async {
+    try {
+      final doc = await _firestore.collection('users').doc(userId).get();
+      if (!doc.exists) return null;
+      return doc.data();
+    } catch (e) {
+      debugPrint('❌ Error getting user profile: $e');
+      return null;
+    }
+  }
+
+  /// Sınıf öğrencilerini al
+  Future<List<Map<String, dynamic>>> getClassStudents(String classId) async {
+    try {
+      final snapshot = await _firestore
+          .collection('students')
+          .where('classId', isEqualTo: classId)
+          .get();
+
+      List<Map<String, dynamic>> students = [];
+
+      for (var doc in snapshot.docs) {
+        final studentData = doc.data();
+        final userId = studentData['userId'] as String?;
+
+        if (userId != null) {
+          // User bilgisini de al
+          final userDoc = await _firestore.collection('users').doc(userId).get();
+          if (userDoc.exists) {
+            final userData = userDoc.data()!;
+            students.add({
+              'id': userId,
+              'name': userData['name'] ?? 'Student',
+              'email': userData['email'] ?? '',
+              'profileImage': userData['profileImage'],
+              'classId': classId,
+            });
+          }
+        }
+      }
+
+      return students;
+    } catch (e) {
+      debugPrint('❌ Error getting class students: $e');
+      return [];
+    }
+  }
+
+  /// Chat room ve tüm mesajlarını sil
+  Future<bool> deleteChatRoom(String chatRoomId) async {
+    try {
+      // Önce tüm mesajları sil
+      final messagesSnapshot = await _firestore
+          .collection('chatRooms')
+          .doc(chatRoomId)
+          .collection('messages')
+          .get();
+
+      final batch = _firestore.batch();
+
+      // Mesajları batch ile sil
+      for (var doc in messagesSnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+
+      // Chat room'u sil
+      batch.delete(_firestore.collection('chatRooms').doc(chatRoomId));
+
+      await batch.commit();
+      debugPrint('✅ Chat room deleted: $chatRoomId');
+      return true;
+    } catch (e) {
+      debugPrint('❌ Error deleting chat room: $e');
+      return false;
+    }
+  }
+
+  /// Chat room bilgilerini getir
+  Future<Map<String, dynamic>?> getChatRoomData(String chatRoomId) async {
+    try {
+      final doc = await _firestore.collection('chatRooms').doc(chatRoomId).get();
+      if (!doc.exists) return null;
+
+      final data = doc.data()!;
+      data['id'] = doc.id;
+      return data;
+    } catch (e) {
+      debugPrint('❌ Error getting chat room data: $e');
+      return null;
+    }
+  }
+
   String _getFileType(String extension) {
     if (['jpg', 'jpeg', 'png', 'gif', 'webp'].contains(extension)) {
       return 'image';

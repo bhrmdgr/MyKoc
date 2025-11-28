@@ -19,6 +19,7 @@ class MessagesViewModel extends ChangeNotifier {
   String? _currentUserRole;
 
   String? get currentUserId => _currentUserId;
+  String? get currentUserRole => _currentUserRole;
 
   StreamSubscription<List<ChatRoomModel>>? _chatRoomsSubscription;
 
@@ -31,6 +32,12 @@ class MessagesViewModel extends ChangeNotifier {
 
     if (_currentUserId != null) {
       _listenToChatRooms();
+
+      // Sadece öğrenci için otomatik mentor ile direkt mesaj oluştur
+      if (_currentUserRole == 'student') {
+        _ensureStudentMentorChat();
+      }
+      // Mentor için otomatik sohbet oluşturma KALDIRILDI
     }
   }
 
@@ -62,6 +69,64 @@ class MessagesViewModel extends ChangeNotifier {
         notifyListeners();
       },
     );
+  }
+
+  /// Öğrenci için mentor ile otomatik direkt mesajlaşma oluştur
+  Future<void> _ensureStudentMentorChat() async {
+    try {
+      final studentClasses = _localStorage.getStudentClasses();
+      if (studentClasses == null || studentClasses.isEmpty) {
+        debugPrint('❌ Student has no classes');
+        return;
+      }
+
+      // İlk sınıfın mentorü ile chat oluştur (multiple class varsa aktif olanı kullan)
+      final activeClassId = _localStorage.getActiveClassId();
+      Map<String, dynamic>? targetClass;
+
+      if (activeClassId != null) {
+        targetClass = studentClasses.firstWhere(
+              (c) => c['id'] == activeClassId,
+          orElse: () => studentClasses.first,
+        );
+      } else {
+        targetClass = studentClasses.first;
+      }
+
+      final mentorId = targetClass['mentorId'] as String?;
+      final mentorName = targetClass['mentorName'] as String?;
+
+      if (mentorId == null || mentorName == null) {
+        debugPrint('❌ Mentor info not found');
+        return;
+      }
+
+      // Mentor profil resmini al
+      String? mentorImageUrl;
+      try {
+        final mentorDoc = await _messagingService.getUserProfile(mentorId);
+        mentorImageUrl = mentorDoc?['profileImage'];
+      } catch (e) {
+        debugPrint('⚠️ Could not fetch mentor image: $e');
+      }
+
+      final userData = _localStorage.getUserData();
+      final currentUserName = userData?['name'] ?? 'Student';
+      final currentUserImageUrl = userData?['profileImage'];
+
+      await _messagingService.createDirectChatRoom(
+        mentorId: mentorId,
+        mentorName: mentorName,
+        mentorImageUrl: mentorImageUrl,
+        studentId: _currentUserId!,
+        studentName: currentUserName,
+        studentImageUrl: currentUserImageUrl,
+      );
+
+      debugPrint('✅ Student-mentor chat ensured');
+    } catch (e) {
+      debugPrint('❌ Error ensuring student-mentor chat: $e');
+    }
   }
 
   /// Direkt mesaj odası aç
@@ -98,6 +163,42 @@ class MessagesViewModel extends ChangeNotifier {
   /// Sınıf grubunu aç
   Future<String?> openClassChat(String classId) async {
     return await _messagingService.getChatRoomIdByClassId(classId);
+  }
+
+  /// Mentor için öğrenci listesini al (tüm sınıflardan)
+  Future<List<Map<String, dynamic>>> getMentorStudents() async {
+    if (_currentUserRole != 'mentor') return [];
+
+    try {
+      final mentorClasses = _localStorage.getClassesList();
+      if (mentorClasses == null || mentorClasses.isEmpty) {
+        return [];
+      }
+
+      List<Map<String, dynamic>> allStudents = [];
+      Set<String> addedStudentIds = {};
+
+      for (var classData in mentorClasses) {
+        final classId = classData['id'] as String?;
+        if (classId == null) continue;
+
+        final students = await _messagingService.getClassStudents(classId);
+
+        for (var student in students) {
+          final studentId = student['id'] as String?;
+          if (studentId != null && !addedStudentIds.contains(studentId)) {
+            allStudents.add(student);
+            addedStudentIds.add(studentId);
+          }
+        }
+      }
+
+      debugPrint('✅ Found ${allStudents.length} unique students');
+      return allStudents;
+    } catch (e) {
+      debugPrint('❌ Error getting mentor students: $e');
+      return [];
+    }
   }
 
   String getOtherParticipantName(ChatRoomModel chatRoom) {
@@ -155,6 +256,36 @@ class MessagesViewModel extends ChangeNotifier {
     } else {
       return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
     }
+  }
+
+  /// Chat room'u sil (sadece mentor için direkt mesajlaşmalarda)
+  Future<bool> deleteChatRoom(String chatRoomId, String chatRoomType) async {
+    // Sadece mentor direkt mesajları silebilir
+    if (_currentUserRole != 'mentor' || chatRoomType != 'direct') {
+      debugPrint('❌ Only mentor can delete direct chats');
+      return false;
+    }
+
+    try {
+      final success = await _messagingService.deleteChatRoom(chatRoomId);
+      if (success) {
+        debugPrint('✅ Chat room deleted');
+        // Liste otomatik güncellenecek (Stream sayesinde)
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('❌ Error deleting chat room: $e');
+      return false;
+    }
+  }
+
+  /// Öğrencinin sohbet durumunu kontrol et (mentor listesi için)
+  bool hasExistingChat(String studentId) {
+    return _chatRooms.any((room) {
+      if (room.type != 'direct') return false;
+      return room.participantIds.contains(studentId);
+    });
   }
 
   @override

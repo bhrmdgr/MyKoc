@@ -10,6 +10,7 @@ import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:open_filex/open_filex.dart';
 import 'dart:io';
+import 'package:mykoc/pages/communication/chat_room/chat_room_view_model.dart';
 
 class ChatRoomView extends StatefulWidget {
   final String chatRoomId;
@@ -95,6 +96,8 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     );
   }
 
+  // chat_room_view.dart içindeki _buildHeader metodunu bu şekilde değiştirin:
+
   Widget _buildHeader() {
     return Container(
       width: double.infinity,
@@ -120,46 +123,481 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                 onPressed: () => Navigator.pop(context),
               ),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      widget.chatRoomName,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (widget.isGroup)
+                child: GestureDetector(
+                  onTap: widget.isGroup ? null : () => _openOtherUserProfile(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                       Row(
                         children: [
-                          Icon(
-                            Icons.people,
-                            size: 12,
-                            color: Colors.white.withOpacity(0.8),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Group Chat',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.white.withOpacity(0.8),
+                          Flexible(
+                            child: Text(
+                              widget.chatRoomName,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
+                          if (!widget.isGroup) ...[
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.chevron_right,
+                              size: 16,
+                              color: Colors.white.withOpacity(0.7),
+                            ),
+                          ],
                         ],
                       ),
-                  ],
+                      if (widget.isGroup)
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.people,
+                              size: 12,
+                              color: Colors.white.withOpacity(0.8),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Group Chat',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.white.withOpacity(0.8),
+                              ),
+                            ),
+                          ],
+                        ),
+                    ],
+                  ),
                 ),
               ),
               IconButton(
                 icon: const Icon(Icons.info_outline, color: Colors.white),
-                onPressed: () {
-                  // TODO: Show chat info
-                },
+                onPressed: widget.isGroup
+                    ? () => _showGroupInfo()
+                    : () => _openOtherUserProfile(),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Karşıdaki kullanıcının profiline git (direkt mesajlaşmada)
+  Future<void> _openOtherUserProfile() async {
+    final chatRoomData = _viewModel.chatRoomData;
+    if (chatRoomData == null) return;
+
+    final participantIds = List<String>.from(chatRoomData['participantIds'] ?? []);
+    final participantDetails = Map<String, dynamic>.from(chatRoomData['participantDetails'] ?? {});
+    final currentUserId = _viewModel.currentUserId; // ← _currentUserId yerine currentUserId
+
+    // Karşıdaki kullanıcıyı bul
+    String? otherUserId;
+    for (var id in participantIds) {
+      if (id != currentUserId) {
+        otherUserId = id;
+        break;
+      }
+    }
+
+    if (otherUserId == null) return;
+
+    final otherUserRole = participantDetails[otherUserId]?['role'] ?? 'student';
+
+    // Loading göster
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+        ),
+      ),
+    );
+
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    if (!mounted) return;
+    Navigator.pop(context); // Loading kapat
+
+    // Profile git
+    if (otherUserRole == 'mentor') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => MentorProfilePage(mentorId: otherUserId!),
+        ),
+      );
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => StudentProfilePage(studentId: otherUserId!),
+        ),
+      );
+    }
+  }
+
+  /// Grup bilgisi dialogunu göster
+  Future<void> _showGroupInfo() async {
+    final chatRoomData = _viewModel.chatRoomData;
+    if (chatRoomData == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Loading group info...'),
+          duration: Duration(seconds: 1),
+        ),
+      );
+      return;
+    }
+
+    final classId = chatRoomData['classId'] as String?;
+    if (classId == null) return;
+
+    // Class bilgisini çek
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
+        ),
+      ),
+    );
+
+    try {
+      final classDoc = await FirebaseFirestore.instance
+          .collection('classes')
+          .doc(classId)
+          .get();
+
+      if (!mounted) return;
+      Navigator.pop(context); // Loading kapat
+
+      if (!classDoc.exists) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Class not found'),
+            backgroundColor: Color(0xFFEF4444),
+          ),
+        );
+        return;
+      }
+
+      final classData = classDoc.data()!;
+      final className = classData['className'] ?? 'Class';
+      final classType = classData['classType'] ?? 'Unknown';
+      final mentorName = classData['mentorName'] ?? 'Unknown';
+      final mentorId = classData['mentorId'] as String?;
+      final studentCount = classData['studentCount'] ?? 0;
+
+      // Participantları çek
+      final participantDetails = Map<String, dynamic>.from(
+          chatRoomData['participantDetails'] ?? {}
+      );
+      final participants = participantDetails.entries.toList();
+
+      _showGroupInfoDialog(
+        className: className,
+        classType: classType,
+        mentorName: mentorName,
+        mentorId: mentorId,
+        studentCount: studentCount,
+        participants: participants,
+      );
+    } catch (e) {
+      debugPrint('❌ Error loading class info: $e');
+      if (mounted) {
+        Navigator.pop(context); // Loading kapat
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to load group info'),
+            backgroundColor: Color(0xFFEF4444),
+          ),
+        );
+      }
+    }
+  }
+
+  void _showGroupInfoDialog({
+    required String className,
+    required String classType,
+    required String mentorName,
+    required String? mentorId,
+    required int studentCount,
+    required List<MapEntry<String, dynamic>> participants,
+  }) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.7,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                  ),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            className,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, color: Colors.white),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.school_outlined,
+                          size: 16,
+                          color: Colors.white.withOpacity(0.8),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          classType,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.white.withOpacity(0.8),
+                          ),
+                        ),
+                        const Spacer(),
+                        Icon(
+                          Icons.people_outline,
+                          size: 16,
+                          color: Colors.white.withOpacity(0.8),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '$studentCount members',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.white.withOpacity(0.8),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              // Mentor Section
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF3F4F6),
+                  border: Border(
+                    bottom: BorderSide(color: Colors.grey[300]!),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Text(
+                      'Mentor',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF6B7280),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: mentorId != null
+                            ? () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  MentorProfilePage(mentorId: mentorId),
+                            ),
+                          );
+                        }
+                            : null,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.grey[300]!),
+                          ),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 16,
+                                backgroundColor: const Color(0xFF6366F1),
+                                child: Text(
+                                  mentorName[0].toUpperCase(),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  mentorName,
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              Icon(
+                                Icons.chevron_right,
+                                size: 20,
+                                color: Colors.grey[400],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Members List
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: participants.length,
+                  itemBuilder: (context, index) {
+                    final entry = participants[index];
+                    final userId = entry.key;
+                    final userDetails = entry.value as Map<String, dynamic>;
+                    final userName = userDetails['name'] ?? 'Unknown';
+                    final userRole = userDetails['role'] ?? 'student';
+                    final userImageUrl = userDetails['imageUrl'] as String?;
+
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.pop(context);
+                        if (userRole == 'mentor') {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  MentorProfilePage(mentorId: userId),
+                            ),
+                          );
+                        } else {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  StudentProfilePage(studentId: userId),
+                            ),
+                          );
+                        }
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey[200]!),
+                        ),
+                        child: Row(
+                          children: [
+                            if (userImageUrl != null && userImageUrl.isNotEmpty)
+                              CircleAvatar(
+                                radius: 20,
+                                backgroundImage: NetworkImage(userImageUrl),
+                              )
+                            else
+                              CircleAvatar(
+                                radius: 20,
+                                backgroundColor: userRole == 'mentor'
+                                    ? const Color(0xFF6366F1)
+                                    : const Color(0xFF10B981),
+                                child: Text(
+                                  userName[0].toUpperCase(),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                userName,
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                            if (userRole == 'mentor')
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF6366F1).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Text(
+                                  'Mentor',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF6366F1),
+                                  ),
+                                ),
+                              ),
+                            const SizedBox(width: 8),
+                            Icon(
+                              Icons.chevron_right,
+                              size: 20,
+                              color: Colors.grey[400],
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ),
             ],
           ),

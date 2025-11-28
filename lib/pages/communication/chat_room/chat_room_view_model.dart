@@ -13,7 +13,7 @@ class ChatRoomViewModel extends ChangeNotifier {
   List<MessageModel> get messages => _messages;
 
   // Yükleme ve Hata Durumları
-  bool _isLoading = true; // Başlangıçta true olsun
+  bool _isLoading = true;
   bool get isLoading => _isLoading;
 
   String? _errorMessage;
@@ -26,8 +26,15 @@ class ChatRoomViewModel extends ChangeNotifier {
   String? _currentUserName;
   String? _currentUserImageUrl;
 
+  // Public getters
+  String? get currentUserId => _currentUserId;
+
   StreamSubscription<List<MessageModel>>? _messagesSubscription;
   bool _isDisposed = false;
+
+  // Chat room bilgileri
+  Map<String, dynamic>? _chatRoomData;
+  Map<String, dynamic>? get chatRoomData => _chatRoomData;
 
   void initialize(String chatRoomId) {
     _currentUserId = _localStorage.getUid();
@@ -37,12 +44,25 @@ class ChatRoomViewModel extends ChangeNotifier {
 
     _listenToMessages(chatRoomId);
     _markMessagesAsRead(chatRoomId);
+    _loadChatRoomData(chatRoomId);
+  }
+
+  /// Chat room bilgilerini yükle
+  Future<void> _loadChatRoomData(String chatRoomId) async {
+    try {
+      _chatRoomData = await _messagingService.getChatRoomData(chatRoomId);
+      if (!_isDisposed) {
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('❌ Error loading chat room data: $e');
+    }
   }
 
   void _listenToMessages(String chatRoomId) {
     _messagesSubscription?.cancel();
-    _isLoading = true; // Yükleme başladı
-    _errorMessage = null; // Hata sıfırla
+    _isLoading = true;
+    _errorMessage = null;
     notifyListeners();
 
     _messagesSubscription = _messagingService
@@ -52,7 +72,7 @@ class ChatRoomViewModel extends ChangeNotifier {
         if (_isDisposed) return;
 
         _messages = messages;
-        _isLoading = false; // Yükleme bitti
+        _isLoading = false;
         _errorMessage = null;
         notifyListeners();
       },
