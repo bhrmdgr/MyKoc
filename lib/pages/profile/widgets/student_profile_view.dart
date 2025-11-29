@@ -947,6 +947,7 @@ class StudentProfileView extends StatelessWidget {
   // student_profile_view.dart içinde _openDirectChat metodunu güncelle:
 
   /// Direkt mesajlaşma başlat (Student Profile için)
+  /// Bu metodu StudentProfileView widget'ında kullanın
   Future<void> _openDirectChat(BuildContext context) async {
     // Loading göster
     showDialog(
@@ -969,9 +970,6 @@ class StudentProfileView extends StatelessWidget {
         throw Exception('User not logged in');
       }
 
-      final currentUserName = currentUserData['name'] ?? 'User';
-      final currentUserImageUrl = currentUserData['profileImage'];
-
       // Profil sahibinin bilgileri (Student)
       final studentId = viewModel.viewedStudentId!;
       final studentName = profileData.userName;
@@ -988,8 +986,7 @@ class StudentProfileView extends StatelessWidget {
           studentId: studentId,
         );
       } else {
-        // Student -> Student (YENİ EKLENEN)
-        // Alfabetik sıraya göre ID'leri belirle
+        // Student -> Student
         final ids = [currentUserId, studentId]..sort();
         chatRoomId = await messagingService.getOrCreateDirectChatRoomId(
           mentorId: ids[0],
@@ -1001,7 +998,9 @@ class StudentProfileView extends StatelessWidget {
       Navigator.pop(context); // Loading kapat
 
       if (chatRoomId != null) {
-        // Chat room'a git - otherUser bilgilerini aktar
+        // Temporary ID ise otherUser bilgilerini aktar
+        final isTemporary = chatRoomId.startsWith('direct_');
+
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -1009,8 +1008,9 @@ class StudentProfileView extends StatelessWidget {
               chatRoomId: chatRoomId!,
               chatRoomName: studentName,
               isGroup: false,
-              otherUserName: studentName,
-              otherUserImageUrl: studentImageUrl,
+              // Sadece temporary ise otherUser bilgilerini ver
+              otherUserName: isTemporary ? studentName : null,
+              otherUserImageUrl: isTemporary ? studentImageUrl : null,
             ),
           ),
         );
@@ -1025,8 +1025,7 @@ class StudentProfileView extends StatelessWidget {
     } catch (e) {
       debugPrint('❌ Error opening chat: $e');
       if (context.mounted) {
-        Navigator.pop(context); // Loading kapat
-
+        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to start chat: ${e.toString()}'),

@@ -284,12 +284,15 @@ class MessagingService {
         'lastMessageSenderId': senderId,
         'unreadCount': unreadCount,
         'hiddenFor': FieldValue.arrayRemove([senderId]), // Gönderen için tekrar görünür yap
-        'deletedAt.$senderId': FieldValue.delete(), // ← YENİ: Gönderenin timestamp'ini sil
       };
+
+      // YENİ MANTIK: Sadece gönderenin deletedAt'ini sil
+      // Alıcının deletedAt'i olduğu gibi kalsın (WhatsApp mantığı)
+      updateData['deletedAt.$senderId'] = FieldValue.delete();
 
       await _firestore.collection('chatRooms').doc(realChatRoomId).update(updateData);
 
-      debugPrint('✅ Message sent and deletedAt cleared for sender');
+      debugPrint('✅ Message sent, sender deletedAt cleared, receiver deletedAt preserved');
       return realChatRoomId; // ← YENİ: Gerçek chat room ID'sini döndür
     } catch (e) {
       debugPrint('❌ Error sending message: $e');

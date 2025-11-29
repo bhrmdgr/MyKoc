@@ -167,6 +167,7 @@ class MentorProfileView extends StatelessWidget {
   }
 
   /// Direkt mesajlaşma başlat (Mentor Profile için)
+  /// Bu metodu MentorProfileView widget'ında kullanın
   Future<void> _openDirectChat(BuildContext context) async {
     // Loading göster
     showDialog(
@@ -189,9 +190,6 @@ class MentorProfileView extends StatelessWidget {
         throw Exception('User not logged in');
       }
 
-      final currentUserName = currentUserData['name'] ?? 'User';
-      final currentUserImageUrl = currentUserData['profileImage'];
-
       // Profil sahibinin bilgileri (Mentor)
       final mentorId = viewModel.viewedMentorId;
       if (mentorId == null) {
@@ -212,7 +210,6 @@ class MentorProfileView extends StatelessWidget {
           studentId: currentUserId,
         );
       } else {
-        // Mentor -> Mentor (bu senaryoda mantıksız)
         throw Exception('Cannot message another mentor');
       }
 
@@ -220,7 +217,9 @@ class MentorProfileView extends StatelessWidget {
       Navigator.pop(context); // Loading kapat
 
       if (chatRoomId != null) {
-        // Chat room'a git - otherUser bilgilerini aktar
+        // Temporary ID ise otherUser bilgilerini aktar
+        final isTemporary = chatRoomId.startsWith('direct_');
+
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -228,8 +227,9 @@ class MentorProfileView extends StatelessWidget {
               chatRoomId: chatRoomId!,
               chatRoomName: mentorName,
               isGroup: false,
-              otherUserName: mentorName,
-              otherUserImageUrl: mentorImageUrl,
+              // Sadece temporary ise otherUser bilgilerini ver
+              otherUserName: isTemporary ? mentorName : null,
+              otherUserImageUrl: isTemporary ? mentorImageUrl : null,
             ),
           ),
         );
@@ -244,7 +244,7 @@ class MentorProfileView extends StatelessWidget {
     } catch (e) {
       debugPrint('❌ Error opening chat: $e');
       if (context.mounted) {
-        Navigator.pop(context); // Loading kapat
+        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: ${e.toString()}'),

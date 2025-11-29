@@ -10,22 +10,21 @@ import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:open_filex/open_filex.dart';
 import 'dart:io';
-import 'package:mykoc/pages/communication/chat_room/chat_room_view_model.dart';
 
 class ChatRoomView extends StatefulWidget {
   final String chatRoomId;
   final String chatRoomName;
   final bool isGroup;
-  final String? otherUserName;  // ← YENİ
-  final String? otherUserImageUrl;  // ← YENİ
+  final String? otherUserName;
+  final String? otherUserImageUrl;
 
   const ChatRoomView({
     super.key,
     required this.chatRoomId,
     required this.chatRoomName,
     this.isGroup = false,
-    this.otherUserName,  // ← YENİ
-    this.otherUserImageUrl,  // ← YENİ
+    this.otherUserName,
+    this.otherUserImageUrl,
   });
 
   @override
@@ -48,7 +47,6 @@ class _ChatRoomViewState extends State<ChatRoomView> {
       otherUserImageUrl: widget.otherUserImageUrl,
     );
   }
-
 
   @override
   void dispose() {
@@ -104,8 +102,6 @@ class _ChatRoomViewState extends State<ChatRoomView> {
       ),
     );
   }
-
-  // chat_room_view.dart içindeki _buildHeader metodunu bu şekilde değiştirin:
 
   Widget _buildHeader() {
     return Container(
@@ -197,16 +193,13 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     );
   }
 
-  /// Karşıdaki kullanıcının profiline git (direkt mesajlaşmada)
   Future<void> _openOtherUserProfile() async {
     final chatRoomData = _viewModel.chatRoomData;
     if (chatRoomData == null) return;
 
     final participantIds = List<String>.from(chatRoomData['participantIds'] ?? []);
-    final participantDetails = Map<String, dynamic>.from(chatRoomData['participantDetails'] ?? {});
-    final currentUserId = _viewModel.currentUserId; // ← _currentUserId yerine currentUserId
+    final currentUserId = _viewModel.currentUserId;
 
-    // Karşıdaki kullanıcıyı bul
     String? otherUserId;
     for (var id in participantIds) {
       if (id != currentUserId) {
@@ -217,9 +210,6 @@ class _ChatRoomViewState extends State<ChatRoomView> {
 
     if (otherUserId == null) return;
 
-    final otherUserRole = participantDetails[otherUserId]?['role'] ?? 'student';
-
-    // Loading göster
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -230,12 +220,27 @@ class _ChatRoomViewState extends State<ChatRoomView> {
       ),
     );
 
-    await Future.delayed(const Duration(milliseconds: 300));
+    // DOĞRUDAN FIRESTORE'DAN ROLE BİLGİSİNİ ÇEK
+    String otherUserRole = 'student'; // Default
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(otherUserId)
+          .get();
+
+      if (userDoc.exists) {
+        otherUserRole = userDoc.data()?['role'] ?? 'student';
+        debugPrint('✅ User role from Firestore: $otherUserRole for user: $otherUserId');
+      }
+    } catch (e) {
+      debugPrint('❌ Error fetching user role: $e');
+    }
+
+    await Future.delayed(const Duration(milliseconds: 100));
 
     if (!mounted) return;
-    Navigator.pop(context); // Loading kapat
+    Navigator.pop(context);
 
-    // Profile git
     if (otherUserRole == 'mentor') {
       Navigator.push(
         context,
@@ -253,7 +258,6 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     }
   }
 
-  /// Grup bilgisi dialogunu göster
   Future<void> _showGroupInfo() async {
     final chatRoomData = _viewModel.chatRoomData;
     if (chatRoomData == null) {
@@ -269,7 +273,6 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     final classId = chatRoomData['classId'] as String?;
     if (classId == null) return;
 
-    // Class bilgisini çek
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -287,7 +290,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
           .get();
 
       if (!mounted) return;
-      Navigator.pop(context); // Loading kapat
+      Navigator.pop(context);
 
       if (!classDoc.exists) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -306,7 +309,6 @@ class _ChatRoomViewState extends State<ChatRoomView> {
       final mentorId = classData['mentorId'] as String?;
       final studentCount = classData['studentCount'] ?? 0;
 
-      // Participantları çek
       final participantDetails = Map<String, dynamic>.from(
           chatRoomData['participantDetails'] ?? {}
       );
@@ -323,7 +325,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     } catch (e) {
       debugPrint('❌ Error loading class info: $e');
       if (mounted) {
-        Navigator.pop(context); // Loading kapat
+        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Failed to load group info'),
@@ -355,7 +357,6 @@ class _ChatRoomViewState extends State<ChatRoomView> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Header
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: const BoxDecoration(
@@ -422,7 +423,6 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                   ],
                 ),
               ),
-              // Mentor Section
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -503,7 +503,6 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                   ],
                 ),
               ),
-              // Members List
               Expanded(
                 child: ListView.builder(
                   padding: const EdgeInsets.all(16),
@@ -673,12 +672,10 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     );
   }
 
-  // Sadece _buildMessageBubble metodunu değiştir:
-
   Widget _buildMessageBubble(message, ChatRoomViewModel viewModel) {
     final isMe = viewModel.isMyMessage(message);
     final hasFile = message.fileUrl != null && message.fileUrl!.isNotEmpty;
-    final messageText = message.text ?? ''; // ← Null kontrolü
+    final messageText = message.text ?? '';
 
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -877,7 +874,6 @@ class _ChatRoomViewState extends State<ChatRoomView> {
       );
     }
 
-    // Document/File preview
     return GestureDetector(
       onTap: () => _downloadFile(message.fileUrl!, message.fileName),
       child: Container(
@@ -1204,11 +1200,8 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     );
   }
 
-  // _downloadImage ve _downloadFile metodlarındaki permission kontrolünü değiştir:
-
   Future<void> _downloadImage(String imageUrl) async {
     try {
-      // Loading göster
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -1219,11 +1212,9 @@ class _ChatRoomViewState extends State<ChatRoomView> {
         ),
       );
 
-      // Dosya adını oluştur
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final fileName = 'MyKoc_Image_$timestamp.jpg';
 
-      // Download dizini
       Directory? directory;
       if (Platform.isAndroid) {
         directory = Directory('/storage/emulated/0/Download');
@@ -1236,14 +1227,11 @@ class _ChatRoomViewState extends State<ChatRoomView> {
 
       final filePath = '${directory!.path}/$fileName';
 
-      // İndir
       final dio = Dio();
       await dio.download(imageUrl, filePath);
 
-      // Loading kapat
       if (mounted) Navigator.pop(context);
 
-      // Başarı mesajı
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1288,7 +1276,6 @@ class _ChatRoomViewState extends State<ChatRoomView> {
 
   Future<void> _downloadFile(String fileUrl, String? fileName) async {
     try {
-      // Loading göster
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -1299,11 +1286,9 @@ class _ChatRoomViewState extends State<ChatRoomView> {
         ),
       );
 
-      // Dosya adını al
       final decodedFileName = fileName ??
           Uri.decodeComponent(fileUrl.split('/').last.split('?').first);
 
-      // Download dizini
       Directory? directory;
       if (Platform.isAndroid) {
         directory = Directory('/storage/emulated/0/Download');
@@ -1316,7 +1301,6 @@ class _ChatRoomViewState extends State<ChatRoomView> {
 
       final filePath = '${directory!.path}/$decodedFileName';
 
-      // Dosyayı indir
       final dio = Dio();
       await dio.download(
         fileUrl,
@@ -1329,10 +1313,8 @@ class _ChatRoomViewState extends State<ChatRoomView> {
         },
       );
 
-      // Loading kapat
       if (mounted) Navigator.pop(context);
 
-      // Başarı mesajı göster
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

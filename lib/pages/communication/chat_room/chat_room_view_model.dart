@@ -56,12 +56,43 @@ class ChatRoomViewModel extends ChangeNotifier {
     try {
       // Temporary ID ise gerçek chat room henüz yok
       if (chatRoomId.startsWith('direct_')) {
+        // Temporary ID formatı: direct_{userId1}_{userId2}
+        final parts = chatRoomId.split('_');
+        String? otherUserId;
+        String? otherUserRole;
+
+        if (parts.length >= 3) {
+          final id1 = parts[1];
+          final id2 = parts[2];
+
+          // Karşı tarafın ID'sini bul
+          otherUserId = (_currentUserId == id1) ? id2 : id1;
+
+          // Role bilgisini Firestore'dan al
+          try {
+            final userDoc = await _messagingService.getUserProfile(otherUserId);
+            otherUserRole = userDoc?['role'] as String?;
+          } catch (e) {
+            debugPrint('⚠️ Could not fetch user role: $e');
+            otherUserRole = null;
+          }
+        }
+
         _chatRoomData = {
           'id': chatRoomId,
           'type': 'direct',
           'isTemporary': true,
           'otherUserName': otherUserName,
           'otherUserImageUrl': otherUserImageUrl,
+          'participantIds': [_currentUserId, otherUserId],
+          'participantDetails': {
+            if (otherUserId != null)
+              otherUserId: {
+                'name': otherUserName ?? 'User',
+                'imageUrl': otherUserImageUrl,
+                'role': otherUserRole ?? 'student', // Default student
+              }
+          },
         };
         if (!_isDisposed) {
           notifyListeners();
