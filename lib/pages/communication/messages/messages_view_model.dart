@@ -10,23 +10,20 @@ class MessagesViewModel extends ChangeNotifier {
   final LocalStorageService _localStorage = LocalStorageService();
 
   List<ChatRoomModel> _chatRooms = [];
-
   List<ChatRoomModel> get chatRooms => _chatRooms;
 
   bool _isLoading = false;
-
   bool get isLoading => _isLoading;
 
   String? _currentUserId;
   String? _currentUserRole;
 
   String? get currentUserId => _currentUserId;
-
   String? get currentUserRole => _currentUserRole;
 
   StreamSubscription<List<ChatRoomModel>>? _chatRoomsSubscription;
 
-  // DÜZELTME: Dispose kontrolü
+  // Dispose kontrolü
   bool _isDisposed = false;
 
   void initialize() {
@@ -40,16 +37,18 @@ class MessagesViewModel extends ChangeNotifier {
       if (_currentUserRole == 'student') {
         _ensureStudentMentorChat();
       }
-      // Mentor için otomatik sohbet oluşturma KALDIRILDI
     }
   }
 
   void _listenToChatRooms() {
-    // Sayfa kapalıysa işlem yapma
-    if (_isDisposed) return;
+    // Önce dispose kontrolü
+    if (_isDisposed) {
+      debugPrint('⚠️ ViewModel already disposed, skipping listener');
+      return;
+    }
 
     _isLoading = true;
-    notifyListeners();
+    _safeNotifyListeners();
 
     _chatRoomsSubscription?.cancel();
 
@@ -57,21 +56,31 @@ class MessagesViewModel extends ChangeNotifier {
         .getUserChatRooms(_currentUserId!)
         .listen(
           (rooms) {
-        // DÜZELTME: Veri geldiğinde sayfa hala açık mı kontrol et
-        if (_isDisposed) return;
+        // Veri geldiğinde tekrar kontrol et
+        if (_isDisposed) {
+          debugPrint('⚠️ Data received after dispose, ignoring');
+          return;
+        }
 
         _chatRooms = rooms;
         _isLoading = false;
-        notifyListeners();
+        _safeNotifyListeners();
       },
       onError: (error) {
         if (_isDisposed) return;
 
         debugPrint('❌ Chat rooms listen error: $error');
         _isLoading = false;
-        notifyListeners();
+        _safeNotifyListeners();
       },
     );
+  }
+
+  // Helper metod
+  void _safeNotifyListeners() {
+    if (!_isDisposed) {
+      notifyListeners();
+    }
   }
 
   /// Öğrenci için mentor ile otomatik direkt mesajlaşma oluştur
@@ -83,7 +92,7 @@ class MessagesViewModel extends ChangeNotifier {
         return;
       }
 
-      // İlk sınıfın mentorü ile chat oluştur (multiple class varsa aktif olanı kullan)
+      // İlk sınıfın mentorü ile chat oluştur
       final activeClassId = _localStorage.getActiveClassId();
       Map<String, dynamic>? targetClass;
 
@@ -155,7 +164,7 @@ class MessagesViewModel extends ChangeNotifier {
     return await _messagingService.getChatRoomIdByClassId(classId);
   }
 
-  /// Mentor için öğrenci listesini al (tüm sınıflardan)
+  /// Mentor için öğrenci listesini al
   Future<List<Map<String, dynamic>>> getMentorStudents() async {
     if (_currentUserRole != 'mentor') return [];
 
@@ -238,9 +247,7 @@ class MessagesViewModel extends ChangeNotifier {
     } else if (difference.inMinutes < 60) {
       return '${difference.inMinutes} min ago';
     } else if (difference.inHours < 24) {
-      return '${difference.inHours} hour${difference.inHours > 1
-          ? 's'
-          : ''} ago';
+      return '${difference.inHours} hour${difference.inHours > 1 ? 's' : ''} ago';
     } else if (difference.inDays == 1) {
       return 'Yesterday';
     } else if (difference.inDays < 7) {
@@ -250,11 +257,9 @@ class MessagesViewModel extends ChangeNotifier {
     }
   }
 
-  // messages_view_model.dart içinde deleteChatRoom metodunu güncelle:
-
   /// Chat room'u sil (herkes kendi direkt mesajlarını silebilir)
   Future<bool> deleteChatRoom(String chatRoomId, String chatRoomType) async {
-    // Sadece direkt mesajlar silinebilir (grup sohbetleri silinemez)
+    // Sadece direkt mesajlar silinebilir
     if (chatRoomType != 'direct') {
       debugPrint('❌ Only direct chats can be deleted');
       return false;
@@ -267,7 +272,6 @@ class MessagesViewModel extends ChangeNotifier {
       );
       if (success) {
         debugPrint('✅ Chat room hidden');
-        // Liste otomatik güncellenecek (Stream sayesinde)
         return true;
       }
       return false;
@@ -275,5 +279,12 @@ class MessagesViewModel extends ChangeNotifier {
       debugPrint('❌ Error hiding chat room: $e');
       return false;
     }
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    _chatRoomsSubscription?.cancel();
+    super.dispose();
   }
 }

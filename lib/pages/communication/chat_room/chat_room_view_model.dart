@@ -1,3 +1,4 @@
+// lib/pages/communication/chat_room/chat_room_view_model.dart
 import 'package:flutter/material.dart';
 import 'package:mykoc/pages/communication/messages/message_model.dart';
 import 'package:mykoc/firebase/messaging/messaging_service.dart';
@@ -12,7 +13,6 @@ class ChatRoomViewModel extends ChangeNotifier {
   List<MessageModel> _messages = [];
   List<MessageModel> get messages => _messages;
 
-  // Yükleme ve Hata Durumları
   bool _isLoading = true;
   bool get isLoading => _isLoading;
 
@@ -26,15 +26,16 @@ class ChatRoomViewModel extends ChangeNotifier {
   String? _currentUserName;
   String? _currentUserImageUrl;
 
-  // Public getters
   String? get currentUserId => _currentUserId;
 
   StreamSubscription<List<MessageModel>>? _messagesSubscription;
   bool _isDisposed = false;
 
-  // Chat room bilgileri
   Map<String, dynamic>? _chatRoomData;
   Map<String, dynamic>? get chatRoomData => _chatRoomData;
+
+  // Chat room ID'sini sakla
+  String? _currentChatRoomId;
 
   void initialize(String chatRoomId, {String? otherUserName, String? otherUserImageUrl}) {
     _currentUserId = _localStorage.getUid();
@@ -42,12 +43,15 @@ class ChatRoomViewModel extends ChangeNotifier {
     _currentUserName = userData?['name'] ?? 'User';
     _currentUserImageUrl = userData?['profileImage'];
 
-    _listenToMessages(chatRoomId);
+    // Chat room ID'sini sakla
+    _currentChatRoomId = chatRoomId;
+
+    // YENİ: userId parametresi ile mesajları dinle (deletedAt filtresi için)
+    _listenToMessages(chatRoomId, _currentUserId!);
     _markMessagesAsRead(chatRoomId);
     _loadChatRoomData(chatRoomId, otherUserName: otherUserName, otherUserImageUrl: otherUserImageUrl);
   }
 
-  /// Chat room bilgilerini yükle
   Future<void> _loadChatRoomData(String chatRoomId, {String? otherUserName, String? otherUserImageUrl}) async {
     try {
       // Temporary ID ise gerçek chat room henüz yok
@@ -74,14 +78,14 @@ class ChatRoomViewModel extends ChangeNotifier {
     }
   }
 
-  void _listenToMessages(String chatRoomId) {
+  void _listenToMessages(String chatRoomId, String userId) {
     _messagesSubscription?.cancel();
     _isLoading = true;
     _errorMessage = null;
-    notifyListeners();
+    if (!_isDisposed) notifyListeners();
 
     _messagesSubscription = _messagingService
-        .getChatMessages(chatRoomId)
+        .getChatMessages(chatRoomId, userId) // ← YENİ: userId parametresi eklendi
         .listen(
           (messages) {
         if (_isDisposed) return;
@@ -89,15 +93,15 @@ class ChatRoomViewModel extends ChangeNotifier {
         _messages = messages;
         _isLoading = false;
         _errorMessage = null;
-        notifyListeners();
+        if (!_isDisposed) notifyListeners();
       },
       onError: (error) {
         if (_isDisposed) return;
 
         debugPrint('❌ Messages listen error: $error');
-        _errorMessage = "Mesajlar yüklenemedi: $error";
+        _errorMessage = "Failed to load messages: $error";
         _isLoading = false;
-        notifyListeners();
+        if (!_isDisposed) notifyListeners();
       },
     );
   }
@@ -113,37 +117,34 @@ class ChatRoomViewModel extends ChangeNotifier {
   }
 
   Future<bool> sendMessage({
-    required String chatRoomId,
     required String messageText,
     File? file,
   }) async {
     if (_currentUserId == null || _currentUserName == null) return false;
     if (messageText.trim().isEmpty && file == null) return false;
     if (_isDisposed) return false;
+    if (_currentChatRoomId == null) return false;
 
     _isSending = true;
-    notifyListeners();
+    if (!_isDisposed) notifyListeners();
 
     try {
-      // Participant bilgilerini hazırla (temporary chat için gerekli)
       String? mentorId, mentorName, mentorImageUrl;
       String? studentId, studentName, studentImageUrl;
 
-      if (chatRoomId.startsWith('direct_')) {
+      if (_currentChatRoomId!.startsWith('direct_')) {
         // Temporary ID formatı: direct_{mentorId}_{studentId}
-        final parts = chatRoomId.split('_');
+        final parts = _currentChatRoomId!.split('_');
         if (parts.length >= 3) {
           mentorId = parts[1];
           studentId = parts[2];
 
-          // Kullanıcı bilgilerini al
           final currentUserRole = _localStorage.getUserRole();
           final userData = _localStorage.getUserData();
 
           if (currentUserRole == 'mentor') {
             mentorName = userData?['name'] ?? 'Mentor';
             mentorImageUrl = userData?['profileImage'];
-            // Student bilgisini chat room data'dan al (eğer varsa)
             if (_chatRoomData != null && _chatRoomData!['otherUserName'] != null) {
               studentName = _chatRoomData!['otherUserName'];
               studentImageUrl = _chatRoomData!['otherUserImageUrl'];
@@ -153,7 +154,6 @@ class ChatRoomViewModel extends ChangeNotifier {
           } else {
             studentName = userData?['name'] ?? 'Student';
             studentImageUrl = userData?['profileImage'];
-            // Mentor bilgisini chat room data'dan al (eğer varsa)
             if (_chatRoomData != null && _chatRoomData!['otherUserName'] != null) {
               mentorName = _chatRoomData!['otherUserName'];
               mentorImageUrl = _chatRoomData!['otherUserImageUrl'];
@@ -164,8 +164,9 @@ class ChatRoomViewModel extends ChangeNotifier {
         }
       }
 
-      final success = await _messagingService.sendMessage(
-        chatRoomId: chatRoomId,
+      // sendMessage artık gerçek chat room ID'sini döndürüyor
+      final realChatRoomId = await _messagingService.sendMessage(
+        chatRoomId: _currentChatRoomId!,
         senderId: _currentUserId!,
         senderName: _currentUserName!,
         senderImageUrl: _currentUserImageUrl,
@@ -179,14 +180,18 @@ class ChatRoomViewModel extends ChangeNotifier {
         studentImageUrl: studentImageUrl,
       );
 
-      // İlk mesajdan sonra chat room data'yı yeniden yükle
-      if (success && chatRoomId.startsWith('direct_')) {
-        await Future.delayed(const Duration(milliseconds: 500));
-        // Yeni oluşturulan gerçek chat room ID'sini bul
-        // Bu durumda chat room listesi otomatik güncellenecek
+      if (realChatRoomId != null) {
+        // Eğer chat room ID değiştiyse (temporary → gerçek) listener'ı güncelle
+        if (realChatRoomId != _currentChatRoomId) {
+          debugPrint('🔄 Switching from temporary to real chat room: $_currentChatRoomId → $realChatRoomId');
+          _currentChatRoomId = realChatRoomId;
+          _listenToMessages(realChatRoomId, _currentUserId!);
+          _loadChatRoomData(realChatRoomId);
+        }
+        return true;
       }
 
-      return success;
+      return false;
     } catch (e) {
       debugPrint("Send message error: $e");
       return false;

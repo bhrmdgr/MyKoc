@@ -1127,7 +1127,6 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     _focusNode.unfocus();
 
     final success = await _viewModel.sendMessage(
-      chatRoomId: widget.chatRoomId,
       messageText: text,
     );
 
@@ -1138,7 +1137,6 @@ class _ChatRoomViewState extends State<ChatRoomView> {
 
   Future<void> _sendFileMessage(File file) async {
     final success = await _viewModel.sendMessage(
-      chatRoomId: widget.chatRoomId,
       messageText: '',
       file: file,
     );

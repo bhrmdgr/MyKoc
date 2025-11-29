@@ -119,6 +119,22 @@ class MessagingService {
     try {
       // Eğer temporary ID ise gerçek chat room oluştur
       if (chatRoomId.startsWith('direct_')) {
+        // ÖNCE VAR OLAN CHAT ROOM'U KONTROL ET
+        final existingRoom = await _firestore
+            .collection('chatRooms')
+            .where('type', isEqualTo: 'direct')
+            .where('participantIds', arrayContains: mentorId)
+            .get();
+
+        for (var doc in existingRoom.docs) {
+          final participants = List<String>.from(doc.data()['participantIds']);
+          if (participants.contains(studentId)) {
+            debugPrint('✅ Found existing direct chat room: ${doc.id}');
+            return doc.id;
+          }
+        }
+
+        // Yoksa yeni oluştur
         final chatRoom = await _firestore.collection('chatRooms').add({
           'name': '$mentorName & $studentName',
           'type': 'direct',
@@ -141,6 +157,7 @@ class MessagingService {
           'unreadCount': {mentorId: 0, studentId: 0},
           'createdAt': FieldValue.serverTimestamp(),
           'hiddenFor': [], // Silinme kontrolü için
+          'deletedAt': {}, // WhatsApp tarzı silme için
         });
 
         debugPrint('✅ Direct chat room created: ${chatRoom.id}');
@@ -155,8 +172,9 @@ class MessagingService {
     }
   }
 
-  /// Mesaj gönder
-  Future<bool> sendMessage({
+  /// Mesaj gönder (WhatsApp tarzı deletedAt temizleme ile)
+  /// Gerçek chat room ID'sini döndürür (temporary ID'den farklı olabilir)
+  Future<String?> sendMessage({
     required String chatRoomId,
     required String senderId,
     required String senderName,
@@ -188,7 +206,7 @@ class MessagingService {
 
         if (fileUrl == null) {
           debugPrint('❌ File upload failed');
-          return false;
+          return null;
         }
       }
 
@@ -209,8 +227,10 @@ class MessagingService {
 
         if (realChatRoomId == null) {
           debugPrint('❌ Failed to create chat room');
-          return false;
+          return null;
         }
+
+        debugPrint('✅ Temporary ID: $chatRoomId → Real ID: $realChatRoomId');
       }
 
       // Mesajı kaydet
@@ -257,20 +277,23 @@ class MessagingService {
           ? '📎 ${fileName ?? 'File'}'
           : messageText;
 
-      // hiddenFor listesinden göndereni çıkar (silmiş olsa bile geri gelsin)
-      await _firestore.collection('chatRooms').doc(realChatRoomId).update({
+      // Chat room güncelleme
+      final updateData = {
         'lastMessage': lastMessagePreview,
         'lastMessageTime': FieldValue.serverTimestamp(),
         'lastMessageSenderId': senderId,
         'unreadCount': unreadCount,
-        'hiddenFor': FieldValue.arrayRemove([senderId]),
-      });
+        'hiddenFor': FieldValue.arrayRemove([senderId]), // Gönderen için tekrar görünür yap
+        'deletedAt.$senderId': FieldValue.delete(), // ← YENİ: Gönderenin timestamp'ini sil
+      };
 
-      debugPrint('✅ Message sent to: $realChatRoomId');
-      return true;
+      await _firestore.collection('chatRooms').doc(realChatRoomId).update(updateData);
+
+      debugPrint('✅ Message sent and deletedAt cleared for sender');
+      return realChatRoomId; // ← YENİ: Gerçek chat room ID'sini döndür
     } catch (e) {
       debugPrint('❌ Error sending message: $e');
-      return false;
+      return null;
     }
   }
 
@@ -327,18 +350,43 @@ class MessagingService {
     });
   }
 
-  /// Chat room mesajlarını getir
-  Stream<List<MessageModel>> getChatMessages(String chatRoomId) {
+  /// Chat room mesajlarını getir (WhatsApp tarzı deletedAt filtresi ile)
+  Stream<List<MessageModel>> getChatMessages(String chatRoomId, String userId) {
     return _firestore
         .collection('chatRooms')
         .doc(chatRoomId)
-        .collection('messages')
-        .orderBy('timestamp', descending: true)
-        .limit(50)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-        .map((doc) => MessageModel.fromFirestore(doc))
-        .toList());
+        .asyncExpand((chatRoomSnapshot) {
+      if (!chatRoomSnapshot.exists) {
+        return Stream.value([]);
+      }
+
+      final chatRoomData = chatRoomSnapshot.data()!;
+      final deletedAtMap = chatRoomData['deletedAt'] as Map<String, dynamic>?;
+
+      // Kullanıcının silme timestamp'ini al
+      Timestamp? deletedAtTimestamp;
+      if (deletedAtMap != null && deletedAtMap.containsKey(userId)) {
+        deletedAtTimestamp = deletedAtMap[userId] as Timestamp?;
+      }
+
+      // Mesajları çek
+      Query query = _firestore
+          .collection('chatRooms')
+          .doc(chatRoomId)
+          .collection('messages')
+          .orderBy('timestamp', descending: true)
+          .limit(50);
+
+      // Eğer kullanıcı silme yapmışsa, sadece o tarihten sonraki mesajları getir
+      if (deletedAtTimestamp != null) {
+        query = query.where('timestamp', isGreaterThan: deletedAtTimestamp);
+        debugPrint('🔍 Filtering messages after: ${deletedAtTimestamp.toDate()}');
+      }
+
+      return query.snapshots().map((snapshot) =>
+          snapshot.docs.map((doc) => MessageModel.fromFirestore(doc)).toList());
+    });
   }
 
   /// Sınıf ID'sine göre chat room'u bul
@@ -419,19 +467,20 @@ class MessagingService {
     }
   }
 
-  /// Chat room'u kullanıcı için gizle (diğer kullanıcılar görebilir)
+  /// Chat room'u kullanıcı için sil (WhatsApp tarzı - timestamp ile)
   Future<bool> hideChatRoomForUser(String chatRoomId, String userId) async {
     try {
-      // Chat room'u kullanıcı için gizle
+      // deletedAt timestamp'i kaydet
       await _firestore.collection('chatRooms').doc(chatRoomId).update({
+        'deletedAt.$userId': FieldValue.serverTimestamp(),
+        'unreadCount.$userId': 0,
         'hiddenFor': FieldValue.arrayUnion([userId]),
-        'unreadCount.$userId': 0, // Unread count'u sıfırla
       });
 
-      debugPrint('✅ Chat room hidden for user: $chatRoomId');
+      debugPrint('✅ Chat deleted for user: $userId with timestamp');
       return true;
     } catch (e) {
-      debugPrint('❌ Error hiding chat room: $e');
+      debugPrint('❌ Error deleting chat for user: $e');
       return false;
     }
   }
