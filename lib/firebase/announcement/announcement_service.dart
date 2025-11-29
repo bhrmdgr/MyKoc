@@ -2,12 +2,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:mykoc/pages/classroom/class_detail/announcement_model.dart';
 import 'package:mykoc/services/storage/local_storage_service.dart';
+import 'package:mykoc/firebase/messaging/fcm_service.dart';
 
 class AnnouncementService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final LocalStorageService _localStorage = LocalStorageService();
+  final FCMService _fcmService = FCMService();
 
-  /// Duyuru oluştur
+  /// Duyuru oluştur VE bildirim gönder
   Future<String?> createAnnouncement({
     required String classId,
     required String mentorId,
@@ -31,10 +33,56 @@ class AnnouncementService {
       // Local cache'i güncelle
       await _refreshLocalCache(classId);
 
+      // 🔔 BİLDİRİM GÖNDER
+      await _sendAnnouncementNotification(
+        classId: classId,
+        announcementId: docRef.id,
+        title: title,
+        description: description,
+      );
+
       return docRef.id;
     } catch (e) {
       debugPrint('❌ Error creating announcement: $e');
       return null;
+    }
+  }
+
+  /// Bildirim gönder
+  Future<void> _sendAnnouncementNotification({
+    required String classId,
+    required String announcementId,
+    required String title,
+    required String description,
+  }) async {
+    try {
+      // Sınıf bilgilerini al
+      final classDoc = await _firestore.collection('classes').doc(classId).get();
+      if (!classDoc.exists) {
+        debugPrint('⚠️ Class not found for notification');
+        return;
+      }
+
+      final className = classDoc.data()?['className'] ?? 'Your Class';
+
+      debugPrint('📤 Sending announcement notification...');
+
+      // FCM Service ile bildirim gönder
+      final success = await _fcmService.sendAnnouncementNotification(
+        classId: classId,
+        className: className,
+        title: title,
+        description: description,
+        announcementId: announcementId,
+      );
+
+      if (success) {
+        debugPrint('✅ Announcement notification sent successfully');
+      } else {
+        debugPrint('⚠️ Failed to send announcement notification');
+      }
+    } catch (e) {
+      debugPrint('❌ Error sending announcement notification: $e');
     }
   }
 

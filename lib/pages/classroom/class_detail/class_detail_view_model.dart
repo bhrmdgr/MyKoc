@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mykoc/firebase/classroom/classroom_service.dart';
 import 'package:mykoc/firebase/tasks/task_service.dart';
 import 'package:mykoc/pages/classroom/class_detail/announcement_model.dart';
-import 'package:mykoc/firebase/announcement/announcement_service.dart';
+import 'package:mykoc/firebase/announcement/announcement_service.dart';  // ← YENİ: FCM destekli service
 import 'package:mykoc/pages/classroom/class_model.dart';
 import 'package:mykoc/pages/tasks/task_model.dart';
 import 'package:mykoc/services/storage/local_storage_service.dart';
@@ -11,7 +11,7 @@ class ClassDetailViewModel extends ChangeNotifier {
   final String classId;
   final ClassroomService _classroomService = ClassroomService();
   final TaskService _taskService = TaskService();
-  final AnnouncementService _announcementService = AnnouncementService();
+  final AnnouncementService _announcementService = AnnouncementService();  // ← Bu artık FCM destekli
   final LocalStorageService _localStorage = LocalStorageService();
 
   ClassModel? _classData;
@@ -133,13 +133,16 @@ class ClassDetailViewModel extends ChangeNotifier {
 
   // ==================== ANNOUNCEMENT İŞLEMLERİ ====================
 
-  /// Yeni duyuru oluştur
+  /// Yeni duyuru oluştur (🔔 Artık otomatik bildirim gönderir)
   Future<bool> createAnnouncement({
     required String mentorId,
     required String title,
     required String description,
   }) async {
     try {
+      debugPrint('📢 Creating announcement with notification...');
+
+      // ← YENİ: AnnouncementService artık otomatik olarak bildirim gönderiyor
       final announcementId = await _announcementService.createAnnouncement(
         classId: classId,
         mentorId: mentorId,
@@ -148,6 +151,7 @@ class ClassDetailViewModel extends ChangeNotifier {
       );
 
       if (announcementId != null) {
+        debugPrint('✅ Announcement created and notification sent!');
         // Listeyi güncelle
         await refresh();
         return true;
