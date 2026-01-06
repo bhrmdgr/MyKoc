@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:mykoc/pages/tasks/task_model.dart';
@@ -6,7 +7,6 @@ import 'package:mykoc/firebase/tasks/task_service.dart';
 import 'package:mykoc/firebase/storage/storage_service.dart';
 import 'package:mykoc/services/storage/local_storage_service.dart';
 import 'package:intl/intl.dart';
-// import 'package:url_launcher/url_launcher.dart'; // Eğer url_launcher paketiniz yoksa bu satırı silebilirsiniz
 
 class TaskDetailDialog extends StatefulWidget {
   final TaskModel task;
@@ -84,14 +84,14 @@ class _TaskDetailDialogState extends State<TaskDetailDialog> {
 
     return Container(
       padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            const Color(0xFF6366F1),
-            const Color(0xFF8B5CF6),
+            Color(0xFF6366F1),
+            Color(0xFF8B5CF6),
           ],
         ),
-        borderRadius: const BorderRadius.only(
+        borderRadius: BorderRadius.only(
           topLeft: Radius.circular(24),
           topRight: Radius.circular(24),
         ),
@@ -128,7 +128,7 @@ class _TaskDetailDialogState extends State<TaskDetailDialog> {
                   border: Border.all(color: Colors.white.withOpacity(0.3)),
                 ),
                 child: Text(
-                  widget.task.priority.toUpperCase(),
+                  'priority_${widget.task.priority.toLowerCase()}'.tr().toUpperCase(),
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
@@ -137,17 +137,17 @@ class _TaskDetailDialogState extends State<TaskDetailDialog> {
                 ),
               ),
               const SizedBox(width: 12),
-              Icon(
+              const Icon(
                 Icons.calendar_today_outlined,
                 size: 16,
-                color: Colors.white.withOpacity(0.9),
+                color: Colors.white70,
               ),
               const SizedBox(width: 6),
               Text(
                 DateFormat('MMM dd, yyyy').format(widget.task.dueDate),
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 14,
-                  color: Colors.white.withOpacity(0.9),
+                  color: Colors.white70,
                 ),
               ),
             ],
@@ -167,20 +167,20 @@ class _TaskDetailDialogState extends State<TaskDetailDialog> {
 
     switch (status) {
       case 'in_progress':
-        statusText = 'In Progress';
-        statusDescription = 'You have started working on this task';
+        statusText = 'in_progress'.tr();
+        statusDescription = 'status_desc_in_progress'.tr();
         statusColor = const Color(0xFFF59E0B);
         statusIcon = Icons.pending_outlined;
         break;
       case 'completed':
-        statusText = 'Completed';
-        statusDescription = 'Great job! You completed this task';
+        statusText = 'completed'.tr();
+        statusDescription = 'status_desc_completed'.tr();
         statusColor = const Color(0xFF10B981);
         statusIcon = Icons.check_circle_outline;
         break;
-      default: // 'not_started', null, veya boş string
-        statusText = 'Not Started';
-        statusDescription = 'Click "Start Task" below to begin';
+      default:
+        statusText = 'not_started'.tr();
+        statusDescription = 'status_desc_not_started'.tr();
         statusColor = const Color(0xFF6B7280);
         statusIcon = Icons.radio_button_unchecked;
     }
@@ -213,7 +213,7 @@ class _TaskDetailDialogState extends State<TaskDetailDialog> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Status',
+                  'status'.tr(),
                   style: TextStyle(
                     fontSize: 13,
                     color: Colors.grey[600],
@@ -249,9 +249,9 @@ class _TaskDetailDialogState extends State<TaskDetailDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Description',
-          style: TextStyle(
+        Text(
+          'description'.tr(),
+          style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
             color: Color(0xFF1F2937),
@@ -283,9 +283,9 @@ class _TaskDetailDialogState extends State<TaskDetailDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Attachments',
-          style: TextStyle(
+        Text(
+          'attachments'.tr(),
+          style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
             color: Color(0xFF1F2937),
@@ -369,9 +369,9 @@ class _TaskDetailDialogState extends State<TaskDetailDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Completion Details',
-          style: TextStyle(
+        Text(
+          'completion_details'.tr(),
+          style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
             color: Color(0xFF1F2937),
@@ -380,7 +380,7 @@ class _TaskDetailDialogState extends State<TaskDetailDialog> {
         const SizedBox(height: 12),
         if (widget.task.completedAt != null)
           _buildInfoRow(
-            'Completed on',
+            'completed_on'.tr(),
             DateFormat('MMM dd, yyyy HH:mm').format(widget.task.completedAt!),
             Icons.check_circle_outline,
             const Color(0xFF10B981),
@@ -403,7 +403,7 @@ class _TaskDetailDialogState extends State<TaskDetailDialog> {
                     Icon(Icons.notes, size: 16, color: Colors.grey[600]),
                     const SizedBox(width: 6),
                     Text(
-                      'Note',
+                      'note'.tr(),
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -428,9 +428,9 @@ class _TaskDetailDialogState extends State<TaskDetailDialog> {
         if (widget.task.completionAttachments != null &&
             widget.task.completionAttachments!.isNotEmpty) ...[
           const SizedBox(height: 12),
-          const Text(
-            'Submitted Files',
-            style: TextStyle(
+          Text(
+            'submitted_files'.tr(),
+            style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
               color: Color(0xFF1F2937),
@@ -500,9 +500,9 @@ class _TaskDetailDialogState extends State<TaskDetailDialog> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Uploading files...',
-                    style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+                  Text(
+                    'uploading_files'.tr(),
+                    style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
                   ),
                   Text(
                     '${(_uploadProgress * 100).toInt()}%',
@@ -542,15 +542,15 @@ class _TaskDetailDialogState extends State<TaskDetailDialog> {
             ),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: const Center(
+          child: Center(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.check_circle, color: Colors.white, size: 20),
-                SizedBox(width: 8),
+                const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
                 Text(
-                  'Task Completed',
-                  style: TextStyle(
+                  'task_completed_button'.tr(),
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
@@ -596,15 +596,15 @@ class _TaskDetailDialogState extends State<TaskDetailDialog> {
           ),
           child: Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.info_outline,
-                color: const Color(0xFF6366F1),
+                color: Color(0xFF6366F1),
                 size: 20,
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Ready to start? Click the button below to begin working on this task',
+                  'start_task_ready_text'.tr(),
                   style: TextStyle(
                     fontSize: 13,
                     color: Colors.grey[700],
@@ -639,14 +639,14 @@ class _TaskDetailDialogState extends State<TaskDetailDialog> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: const Row(
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.play_arrow_rounded, color: Colors.white, size: 24),
-                SizedBox(width: 8),
+                const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 24),
+                const SizedBox(width: 8),
                 Text(
-                  'Start Task',
-                  style: TextStyle(
+                  'start_task_button'.tr(),
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
@@ -671,15 +671,15 @@ class _TaskDetailDialogState extends State<TaskDetailDialog> {
           ),
           child: Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.celebration_outlined,
-                color: const Color(0xFF10B981),
+                color: Color(0xFF10B981),
                 size: 20,
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Finished? Mark this task as complete and add your notes',
+                  'complete_task_finished_text'.tr(),
                   style: TextStyle(
                     fontSize: 13,
                     color: Colors.grey[700],
@@ -714,14 +714,14 @@ class _TaskDetailDialogState extends State<TaskDetailDialog> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: const Row(
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.check_circle_outline, color: Colors.white, size: 24),
-                SizedBox(width: 8),
+                const Icon(Icons.check_circle_outline, color: Colors.white, size: 24),
+                const SizedBox(width: 8),
                 Text(
-                  'Complete Task',
-                  style: TextStyle(
+                  'complete_task_button'.tr(),
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
@@ -740,7 +740,7 @@ class _TaskDetailDialogState extends State<TaskDetailDialog> {
 
     final uid = _localStorage.getUid();
     if (uid == null) {
-      _showError('User not found');
+      _showError('error_user_not_found'.tr());
       setState(() => _isLoading = false);
       return;
     }
@@ -758,11 +758,11 @@ class _TaskDetailDialogState extends State<TaskDetailDialog> {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Row(
+            content: Row(
               children: [
-                Icon(Icons.check_circle, color: Colors.white),
-                SizedBox(width: 12),
-                Text('Task started successfully!'),
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 12),
+                Text('task_started_success'.tr()),
               ],
             ),
             backgroundColor: const Color(0xFF10B981),
@@ -772,12 +772,11 @@ class _TaskDetailDialogState extends State<TaskDetailDialog> {
         );
       }
     } else {
-      _showError('Failed to start task');
+      _showError('error_start_task'.tr());
     }
   }
 
   Future<void> _handleCompleteTask() async {
-    // Tamamlama dialog'unu göster
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (context) => const CompleteTaskDialog(),
@@ -789,12 +788,11 @@ class _TaskDetailDialogState extends State<TaskDetailDialog> {
 
     final uid = _localStorage.getUid();
     if (uid == null) {
-      _showError('User not found');
+      _showError('error_user_not_found'.tr());
       setState(() => _isLoading = false);
       return;
     }
 
-    // Dosyaları yükle
     List<String>? uploadedUrls;
     if (result['files'] != null && (result['files'] as List).isNotEmpty) {
       uploadedUrls = [];
@@ -836,11 +834,11 @@ class _TaskDetailDialogState extends State<TaskDetailDialog> {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Row(
+            content: Row(
               children: [
-                Icon(Icons.celebration, color: Colors.white),
-                SizedBox(width: 12),
-                Text('Task completed! Great job!'),
+                const Icon(Icons.celebration, color: Colors.white),
+                const SizedBox(width: 12),
+                Text('task_completed_success'.tr()),
               ],
             ),
             backgroundColor: const Color(0xFF10B981),
@@ -850,18 +848,11 @@ class _TaskDetailDialogState extends State<TaskDetailDialog> {
         );
       }
     } else {
-      _showError('Failed to complete task');
+      _showError('error_complete_task'.tr());
     }
   }
 
   Future<void> _openAttachment(String url) async {
-    // Dosyayı açmak için url_launcher paketi gerekiyor
-    // final uri = Uri.parse(url);
-    // if (await canLaunchUrl(uri)) {
-    //   await launchUrl(uri, mode: LaunchMode.externalApplication);
-    // } else {
-    //   _showError('Could not open file');
-    // }
     _showError('File download feature will be implemented');
   }
 
@@ -884,7 +875,6 @@ class _TaskDetailDialogState extends State<TaskDetailDialog> {
   }
 }
 
-// Tamamlama Dialog'u
 class CompleteTaskDialog extends StatefulWidget {
   const CompleteTaskDialog({super.key});
 
@@ -926,10 +916,10 @@ class _CompleteTaskDialogState extends State<CompleteTaskDialog> {
                   child: const Icon(Icons.check_circle_outline, color: Colors.white, size: 28),
                 ),
                 const SizedBox(width: 16),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'Complete Task',
-                    style: TextStyle(
+                    'complete_task_button'.tr(),
+                    style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF1F2937),
@@ -939,9 +929,9 @@ class _CompleteTaskDialogState extends State<CompleteTaskDialog> {
               ],
             ),
             const SizedBox(height: 20),
-            const Text(
-              'Add a note (optional)',
-              style: TextStyle(
+            Text(
+              'add_note_optional'.tr(),
+              style: const TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
                 color: Color(0xFF1F2937),
@@ -952,7 +942,7 @@ class _CompleteTaskDialogState extends State<CompleteTaskDialog> {
               controller: _noteController,
               maxLines: 4,
               decoration: InputDecoration(
-                hintText: 'Share your thoughts about completing this task...',
+                hintText: 'share_thoughts_hint'.tr(),
                 hintStyle: TextStyle(color: Colors.grey[400]),
                 filled: true,
                 fillColor: Colors.grey[50],
@@ -974,9 +964,9 @@ class _CompleteTaskDialogState extends State<CompleteTaskDialog> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'Attach files (optional)',
-                  style: TextStyle(
+                Text(
+                  'attach_files_optional'.tr(),
+                  style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
                     color: Color(0xFF1F2937),
@@ -985,7 +975,7 @@ class _CompleteTaskDialogState extends State<CompleteTaskDialog> {
                 TextButton.icon(
                   onPressed: _pickFiles,
                   icon: const Icon(Icons.attach_file, size: 18),
-                  label: const Text('Add'),
+                  label: Text('add'.tr()),
                   style: TextButton.styleFrom(
                     foregroundColor: const Color(0xFF6366F1),
                   ),
@@ -1013,7 +1003,7 @@ class _CompleteTaskDialogState extends State<CompleteTaskDialog> {
                       ),
                       side: BorderSide(color: Colors.grey[300]!),
                     ),
-                    child: const Text('Cancel'),
+                    child: Text('cancel'.tr()),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -1036,9 +1026,9 @@ class _CompleteTaskDialogState extends State<CompleteTaskDialog> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text(
-                        'Submit',
-                        style: TextStyle(
+                      child: Text(
+                        'submit'.tr(),
+                        style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                         ),

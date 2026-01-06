@@ -1,4 +1,5 @@
 // lib/pages/communication/chat_room/chat_room_view_model.dart
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:mykoc/pages/communication/messages/message_model.dart';
 import 'package:mykoc/firebase/messaging/messaging_service.dart';
@@ -37,6 +38,14 @@ class ChatRoomViewModel extends ChangeNotifier {
   // Chat room ID'sini sakla
   String? _currentChatRoomId;
 
+  @override
+  void dispose() {
+    _updateActiveChatRoom(null); // Odadan çıkınca temizle
+    _isDisposed = true;
+    _messagesSubscription?.cancel();
+    super.dispose();
+  }
+
   void initialize(String chatRoomId, {String? otherUserName, String? otherUserImageUrl}) {
     _currentUserId = _localStorage.getUid();
     final userData = _localStorage.getUserData();
@@ -45,11 +54,21 @@ class ChatRoomViewModel extends ChangeNotifier {
 
     // Chat room ID'sini sakla
     _currentChatRoomId = chatRoomId;
-
+    // Odaya girince aktif odayı işaretle
+    _updateActiveChatRoom(chatRoomId);
     // YENİ: userId parametresi ile mesajları dinle (deletedAt filtresi için)
     _listenToMessages(chatRoomId, _currentUserId!);
     _markMessagesAsRead(chatRoomId);
     _loadChatRoomData(chatRoomId, otherUserName: otherUserName, otherUserImageUrl: otherUserImageUrl);
+  }
+
+  Future<void> _updateActiveChatRoom(String? roomId) async {
+    final uid = _localStorage.getUid();
+    if (uid != null) {
+      await FirebaseFirestore.instance.collection('users').doc(uid).update({
+        'activeChatRoomId': roomId, // Odaya girince ID, çıkınca null
+      });
+    }
   }
 
   Future<void> _loadChatRoomData(String chatRoomId, {String? otherUserName, String? otherUserImageUrl}) async {
@@ -280,10 +299,5 @@ class ChatRoomViewModel extends ChangeNotifier {
     return currentDate != nextDate;
   }
 
-  @override
-  void dispose() {
-    _isDisposed = true;
-    _messagesSubscription?.cancel();
-    super.dispose();
-  }
+
 }

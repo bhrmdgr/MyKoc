@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:mykoc/pages/home/homeModel.dart';
 import 'package:mykoc/pages/home/homeViewModel.dart';
@@ -52,9 +53,9 @@ class StudentHomeView extends StatelessWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'My Tasks',
-                          style: TextStyle(
+                        Text(
+                          'my_tasks'.tr(),
+                          style: const TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF1F2937),
@@ -71,7 +72,7 @@ class StudentHomeView extends StatelessWidget {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
-                              '${viewModel.studentTasks.length} tasks',
+                              'tasks_count'.tr(args: [viewModel.studentTasks.length.toString()]),
                               style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
@@ -146,7 +147,7 @@ class StudentHomeView extends StatelessWidget {
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            'Loading ${viewModel.activeClass?.className}...',
+                            'loading_class'.tr(args: [viewModel.activeClass?.className ?? '']),
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
@@ -175,10 +176,10 @@ class StudentHomeView extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           Text(
-            'Loading tasks...',
-            style: TextStyle(
+            'loading_tasks'.tr(),
+            style: const TextStyle(
               fontSize: 14,
-              color: Colors.grey[600],
+              color: Color(0xFF4B5563), // grey[600]
             ),
           ),
         ],
@@ -213,9 +214,9 @@ class StudentHomeView extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Hello,',
-                          style: TextStyle(
+                        Text(
+                          'hello_user'.tr(),
+                          style: const TextStyle(
                             fontSize: 20,
                             color: Colors.white70,
                             fontWeight: FontWeight.w300,
@@ -300,9 +301,9 @@ class StudentHomeView extends StatelessWidget {
                               size: 20,
                             ),
                             const SizedBox(width: 8),
-                            const Text(
-                              'Your Progress',
-                              style: TextStyle(
+                            Text(
+                              'your_progress'.tr(),
+                              style: const TextStyle(
                                 fontSize: 16,
                                 color: Colors.white,
                                 fontWeight: FontWeight.w600,
@@ -348,7 +349,7 @@ class StudentHomeView extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      '${_getCompletedTasksCount()} of ${viewModel.studentTasks.length} tasks completed',
+                      'tasks_completed_count'.tr(args: [_getCompletedTasksCount().toString(), viewModel.studentTasks.length.toString()]),
                       style: TextStyle(
                         fontSize: 13,
                         color: Colors.white.withOpacity(0.8),
@@ -370,9 +371,9 @@ class StudentHomeView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'My Classes',
-            style: TextStyle(
+          Text(
+            'my_classes'.tr(),
+            style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
               color: Color(0xFF1F2937),
@@ -483,7 +484,7 @@ class StudentHomeView extends StatelessWidget {
                                   fontSize: 12,
                                   color: isActive
                                       ? Colors.white.withOpacity(0.9)
-                                      : Colors.grey[600],
+                                      : const Color(0xFF4B5563), // grey[600]
                                   height: 1.2,
                                 ),
                                 maxLines: 1,
@@ -508,11 +509,11 @@ class StudentHomeView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(20, 20, 20, 12),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
           child: Text(
-            'Announcements',
-            style: TextStyle(
+            'announcements'.tr(),
+            style: const TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
               color: Color(0xFF1F2937),
@@ -638,15 +639,15 @@ class StudentHomeView extends StatelessWidget {
 
     String dueText;
     if (taskStatus == 'completed') {
-      dueText = 'Completed';
+      dueText = 'completed'.tr();
     } else if (isOverdue) {
-      dueText = 'Overdue';
+      dueText = 'overdue'.tr();
     } else if (daysUntilDue == 0) {
-      dueText = 'Due today';
+      dueText = 'due_today'.tr();
     } else if (daysUntilDue == 1) {
-      dueText = 'Due tomorrow';
+      dueText = 'due_tomorrow'.tr();
     } else {
-      dueText = 'Due in $daysUntilDue days';
+      dueText = 'due_in_days'.tr(args: [daysUntilDue.toString()]);
     }
 
     Color priorityColor;
@@ -671,17 +672,17 @@ class StudentHomeView extends StatelessWidget {
 
     switch (taskStatus) {
       case 'in_progress':
-        statusText = 'In Progress';
+        statusText = 'in_progress'.tr();
         statusColor = const Color(0xFFF59E0B);
         statusIcon = Icons.pending_outlined;
         break;
       case 'completed':
-        statusText = 'Completed';
+        statusText = 'completed'.tr();
         statusColor = const Color(0xFF10B981);
         statusIcon = Icons.check_circle;
         break;
       default:
-        statusText = 'Not Started';
+        statusText = 'not_started'.tr();
         statusColor = const Color(0xFF6B7280);
         statusIcon = Icons.radio_button_unchecked;
     }
@@ -742,7 +743,7 @@ class StudentHomeView extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    task.priority.toUpperCase(),
+                    'priority_${task.priority.toLowerCase()}'.tr().toUpperCase(),
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
@@ -755,9 +756,9 @@ class StudentHomeView extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               task.description,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 14,
-                color: Colors.grey[600],
+                color: Color(0xFF4B5563), // grey[600]
               ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
@@ -797,7 +798,7 @@ class StudentHomeView extends StatelessWidget {
                       ? const Color(0xFFEF4444)
                       : isUrgent
                       ? const Color(0xFFF59E0B)
-                      : Colors.grey[600],
+                      : const Color(0xFF4B5563), // grey[600]
                 ),
                 const SizedBox(width: 4),
                 Text(
@@ -811,7 +812,7 @@ class StudentHomeView extends StatelessWidget {
                         ? const Color(0xFFEF4444)
                         : isUrgent
                         ? const Color(0xFFF59E0B)
-                        : Colors.grey[600],
+                        : const Color(0xFF4B5563), // grey[600]
                   ),
                 ),
               ],
@@ -859,21 +860,21 @@ class StudentHomeView extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            'No Tasks Yet',
-            style: TextStyle(
+            'no_tasks_yet'.tr(),
+            style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Colors.grey[700],
+              color: Color(0xFF374151), // grey[700]
             ),
           ),
           const SizedBox(height: 8),
           Text(
             viewModel.activeClass != null
-                ? 'No tasks assigned in ${viewModel.activeClass!.className} yet'
-                : 'Your mentor hasn\'t assigned any tasks yet',
-            style: TextStyle(
+                ? 'no_tasks_class'.tr(args: [viewModel.activeClass!.className])
+                : 'no_tasks_mentor'.tr(),
+            style: const TextStyle(
               fontSize: 14,
-              color: Colors.grey[500],
+              color: Color(0xFF6B7280), // grey[500]
             ),
             textAlign: TextAlign.center,
           ),

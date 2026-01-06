@@ -1,4 +1,5 @@
 // lib/pages/communication/messages/messages_view_model.dart
+import 'package:easy_localization/easy_localization.dart'; // ← EKLENDİ
 import 'package:flutter/material.dart';
 import 'package:mykoc/pages/communication/messages/message_model.dart';
 import 'package:mykoc/firebase/messaging/messaging_service.dart';
@@ -131,7 +132,7 @@ class MessagesViewModel extends ChangeNotifier {
     String? otherUserImageUrl,
   }) async {
     final userData = _localStorage.getUserData();
-    final currentUserName = userData?['name'] ?? 'User';
+    final currentUserName = userData?['name'] ?? 'user_placeholder'.tr(); // ← GÜNCELLENDİ
     final currentUserImageUrl = userData?['profileImage'];
 
     String mentorId, mentorName, studentId, studentName;
@@ -207,10 +208,10 @@ class MessagesViewModel extends ChangeNotifier {
 
     for (var participantId in chatRoom.participantIds) {
       if (participantId != _currentUserId) {
-        return chatRoom.participantDetails[participantId]?['name'] ?? 'User';
+        return chatRoom.participantDetails[participantId]?['name'] ?? 'user_placeholder'.tr(); // ← GÜNCELLENDİ
       }
     }
-    return 'Chat';
+    return 'chat_placeholder'.tr(); // ← GÜNCELLENDİ
   }
 
   String? getOtherParticipantImage(ChatRoomModel chatRoom) {
@@ -236,22 +237,22 @@ class MessagesViewModel extends ChangeNotifier {
 
   String getRelativeTime(DateTime? dateTime) {
     if (dateTime == null) {
-      return 'No messages yet';
+      return 'no_messages_yet'.tr(); // ← GÜNCELLENDİ
     }
 
     final now = DateTime.now();
     final difference = now.difference(dateTime);
 
     if (difference.inMinutes < 1) {
-      return 'Just now';
+      return 'just_now'.tr(); // ← GÜNCELLENDİ
     } else if (difference.inMinutes < 60) {
-      return '${difference.inMinutes} min ago';
+      return 'minutes_ago'.tr(args: [difference.inMinutes.toString()]); // ← GÜNCELLENDİ
     } else if (difference.inHours < 24) {
-      return '${difference.inHours} hour${difference.inHours > 1 ? 's' : ''} ago';
+      return 'hours_ago'.tr(args: [difference.inHours.toString()]); // ← GÜNCELLENDİ
     } else if (difference.inDays == 1) {
-      return 'Yesterday';
+      return 'yesterday'.tr(); // ← GÜNCELLENDİ
     } else if (difference.inDays < 7) {
-      return '${difference.inDays} days ago';
+      return 'days_ago'.tr(args: [difference.inDays.toString()]); // ← GÜNCELLENDİ
     } else {
       return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
     }

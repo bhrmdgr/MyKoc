@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart' show StringTranslateExtension;
 import 'package:flutter/material.dart';
 import 'package:mykoc/routers/appRouter.dart';
 import 'package:mykoc/firebase/auth/firebaseSignIn.dart';
@@ -107,12 +108,12 @@ class _SigninState extends State<Signin> {
 
   Future<void> _handleSignIn() async {
     if (_emailController.text.trim().isEmpty) {
-      _showError('Lütfen e-posta adresinizi girin');
+      _showError('error_empty_email'.tr());
       return;
     }
 
     if (_passwordController.text.isEmpty) {
-      _showError('Lütfen şifrenizi girin');
+      _showError('error_empty_password'.tr());
       return;
     }
 
@@ -215,9 +216,9 @@ class _SigninState extends State<Signin> {
           ),
         ),
         const SizedBox(height: 8),
-        const Text(
-          'Mentörlük Platformu',
-          style: TextStyle(
+        Text(
+          'mentorship_platform'.tr(),
+          style: const TextStyle(
             fontSize: 14,
             color: Color(0xFF6B7280),
           ),
@@ -231,8 +232,8 @@ class _SigninState extends State<Signin> {
       controller: _emailController,
       keyboardType: TextInputType.emailAddress,
       decoration: InputDecoration(
-        labelText: 'E-posta',
-        hintText: 'ornek@email.com',
+        labelText: 'email'.tr(),
+        hintText: 'email_hint'.tr(),
         prefixIcon: const Icon(Icons.email_outlined),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -248,7 +249,7 @@ class _SigninState extends State<Signin> {
       controller: _passwordController,
       obscureText: !_isPasswordVisible,
       decoration: InputDecoration(
-        labelText: 'Şifre',
+        labelText: 'password'.tr(),
         hintText: '••••••••',
         prefixIcon: const Icon(Icons.lock_outline),
         suffixIcon: IconButton(
@@ -289,9 +290,9 @@ class _SigninState extends State<Signin> {
           valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
         ),
       )
-          : const Text(
-        'Giriş Yap',
-        style: TextStyle(
+          : Text(
+        'login_button'.tr(),
+        style: const TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w600,
         ),
@@ -303,16 +304,16 @@ class _SigninState extends State<Signin> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Text(
-          'Hesabınız yok mu? ',
+        Text(
+          'no_account'.tr(),
           style: TextStyle(color: Color(0xFF6B7280)),
         ),
         TextButton(
           onPressed: () {
             navigateToSignUp(context);
           },
-          child: const Text(
-            'Kayıt Ol',
+          child: Text(
+            'register_now'.tr(),
             style: TextStyle(
               color: Color(0xFF6366F1),
               fontWeight: FontWeight.w600,

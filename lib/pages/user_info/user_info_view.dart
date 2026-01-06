@@ -1,9 +1,9 @@
+import 'package:easy_localization/easy_localization.dart'; // ← Eklendi
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:mykoc/pages/user_info/user_info_view_model.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 
@@ -30,7 +30,6 @@ class _UserInfoViewState extends State<UserInfoView> {
     _nameController = TextEditingController();
     _phoneController = TextEditingController();
 
-    // ViewModel'den veri geldiğinde controller'ları güncelle
     _viewModel.addListener(_updateControllers);
   }
 
@@ -63,7 +62,7 @@ class _UserInfoViewState extends State<UserInfoView> {
             }
 
             if (viewModel.userInfo == null) {
-              return const Center(child: Text('No user data available'));
+              return Center(child: Text('no_user_data'.tr())); // ✅ GÜNCELLENDİ
             }
 
             return SingleChildScrollView(
@@ -111,9 +110,9 @@ class _UserInfoViewState extends State<UserInfoView> {
                 onPressed: () => Navigator.pop(context),
               ),
               const SizedBox(width: 12),
-              const Text(
-                'User Information',
-                style: TextStyle(
+              Text(
+                'user_info_title'.tr(), // ✅ GÜNCELLENDİ
+                style: const TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
@@ -162,13 +161,12 @@ class _UserInfoViewState extends State<UserInfoView> {
                   ],
                 ),
                 child: (viewModel.userInfo!.profileImageUrl != null &&
-                    viewModel.userInfo!.profileImageUrl!.isNotEmpty) // ← FIX
+                    viewModel.userInfo!.profileImageUrl!.isNotEmpty)
                     ? ClipOval(
                   child: Image.network(
                     viewModel.userInfo!.profileImageUrl!,
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) {
-                      // Hata durumunda initials göster
                       return Center(
                         child: Text(
                           viewModel.userInfo!.userInitials,
@@ -241,8 +239,7 @@ class _UserInfoViewState extends State<UserInfoView> {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
-                'Member since ${DateFormat('MMM yyyy').format(
-                    viewModel.userInfo!.createdAt!)}',
+                'member_since'.tr(args: [DateFormat('MMM yyyy').format(viewModel.userInfo!.createdAt!)]), // ✅ GÜNCELLENDİ
                 style: const TextStyle(
                   fontSize: 12,
                   color: Color(0xFF6366F1),
@@ -276,13 +273,13 @@ class _UserInfoViewState extends State<UserInfoView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
-                Icon(Icons.person_outline, color: Color(0xFF6366F1), size: 20),
-                SizedBox(width: 8),
+                const Icon(Icons.person_outline, color: Color(0xFF6366F1), size: 20),
+                const SizedBox(width: 8),
                 Text(
-                  'Personal Information',
-                  style: TextStyle(
+                  'personal_information'.tr(), // ✅ GÜNCELLENDİ
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF1F2937),
@@ -294,17 +291,15 @@ class _UserInfoViewState extends State<UserInfoView> {
             TextFormField(
               controller: _nameController,
               decoration: InputDecoration(
-                labelText: 'Full Name',
+                labelText: 'full_name_label'.tr(), // ✅ GÜNCELLENDİ
                 prefixIcon: const Icon(Icons.person_outline),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
               validator: (value) {
-                if (value == null || value
-                    .trim()
-                    .isEmpty) {
-                  return 'Please enter your name';
+                if (value == null || value.trim().isEmpty) {
+                  return 'error_name_empty'.tr(); // ✅ GÜNCELLENDİ
                 }
                 return null;
               },
@@ -313,7 +308,7 @@ class _UserInfoViewState extends State<UserInfoView> {
             TextFormField(
               controller: _phoneController,
               decoration: InputDecoration(
-                labelText: 'Phone Number',
+                labelText: 'phone_number_label'.tr(), // ✅ GÜNCELLENDİ
                 hintText: '+90 5XX XXX XX XX',
                 prefixIcon: const Icon(Icons.phone_outlined),
                 border: OutlineInputBorder(
@@ -346,9 +341,9 @@ class _UserInfoViewState extends State<UserInfoView> {
                     valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                   ),
                 )
-                    : const Text(
-                  'Save Changes',
-                  style: TextStyle(
+                    : Text(
+                  'save_changes'.tr(), // ✅ GÜNCELLENDİ
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
@@ -378,15 +373,15 @@ class _UserInfoViewState extends State<UserInfoView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(20, 20, 20, 12),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
             child: Row(
               children: [
-                Icon(Icons.lock_outline, color: Color(0xFF6366F1), size: 20),
-                SizedBox(width: 8),
+                const Icon(Icons.lock_outline, color: Color(0xFF6366F1), size: 20),
+                const SizedBox(width: 8),
                 Text(
-                  'Security',
-                  style: TextStyle(
+                  'security'.tr(), // ✅ GÜNCELLENDİ
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF1F2937),
@@ -398,24 +393,24 @@ class _UserInfoViewState extends State<UserInfoView> {
           InkWell(
             onTap: () => _showChangePasswordDialog(),
             borderRadius: BorderRadius.circular(20),
-            child: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               child: Row(
                 children: [
-                  Icon(Icons.vpn_key_outlined, color: Color(0xFF6B7280),
+                  const Icon(Icons.vpn_key_outlined, color: Color(0xFF6B7280),
                       size: 24),
-                  SizedBox(width: 16),
+                  const SizedBox(width: 16),
                   Expanded(
                     child: Text(
-                      'Change Password',
-                      style: TextStyle(
+                      'change_password'.tr(), // ✅ GÜNCELLENDİ
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
                         color: Color(0xFF1F2937),
                       ),
                     ),
                   ),
-                  Icon(Icons.chevron_right, color: Color(0xFF9CA3AF), size: 20),
+                  const Icon(Icons.chevron_right, color: Color(0xFF9CA3AF), size: 20),
                 ],
               ),
             ),
@@ -440,7 +435,6 @@ class _UserInfoViewState extends State<UserInfoView> {
           return true;
         }
 
-        // Android 13+ için photos izni yoksa storage dene
         final storageStatus = await Permission.storage.request();
         return storageStatus.isGranted;
       }
@@ -463,19 +457,18 @@ class _UserInfoViewState extends State<UserInfoView> {
                 ListTile(
                   leading: const Icon(
                       Icons.camera_alt, color: Color(0xFF6366F1)),
-                  title: const Text('Take Photo'),
+                  title: Text('take_photo'.tr()), // ✅ GÜNCELLENDİ
                   onTap: () async {
                     Navigator.pop(context);
 
-                    // İzin kontrolü
                     final hasPermission = await _checkPermissions(
                         isCamera: true);
                     if (!hasPermission) {
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Camera permission is required'),
-                            backgroundColor: Color(0xFFEF4444),
+                          SnackBar(
+                            content: Text('camera_permission_required'.tr()), // ✅ GÜNCELLENDİ
+                            backgroundColor: const Color(0xFFEF4444),
                           ),
                         );
                       }
@@ -498,9 +491,9 @@ class _UserInfoViewState extends State<UserInfoView> {
                       debugPrint('❌ Camera error: $e');
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Failed to take photo'),
-                            backgroundColor: Color(0xFFEF4444),
+                          SnackBar(
+                            content: Text('failed_take_photo'.tr()), // ✅ GÜNCELLENDİ
+                            backgroundColor: const Color(0xFFEF4444),
                           ),
                         );
                       }
@@ -510,19 +503,18 @@ class _UserInfoViewState extends State<UserInfoView> {
                 ListTile(
                   leading: const Icon(
                       Icons.photo_library, color: Color(0xFF6366F1)),
-                  title: const Text('Choose from Gallery'),
+                  title: Text('choose_gallery'.tr()), // ✅ GÜNCELLENDİ
                   onTap: () async {
                     Navigator.pop(context);
 
-                    // İzin kontrolü
                     final hasPermission = await _checkPermissions(
                         isCamera: false);
                     if (!hasPermission) {
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Storage permission is required'),
-                            backgroundColor: Color(0xFFEF4444),
+                          SnackBar(
+                            content: Text('storage_permission_required'.tr()), // ✅ GÜNCELLENDİ
+                            backgroundColor: const Color(0xFFEF4444),
                           ),
                         );
                       }
@@ -545,9 +537,9 @@ class _UserInfoViewState extends State<UserInfoView> {
                       debugPrint('❌ Gallery error: $e');
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Failed to pick image'),
-                            backgroundColor: Color(0xFFEF4444),
+                          SnackBar(
+                            content: Text('failed_pick_image'.tr()), // ✅ GÜNCELLENDİ
+                            backgroundColor: const Color(0xFFEF4444),
                           ),
                         );
                       }
@@ -580,8 +572,8 @@ class _UserInfoViewState extends State<UserInfoView> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(success
-              ? 'Profile image updated successfully'
-              : 'Failed to update profile image'),
+              ? 'profile_image_updated'.tr() // ✅ GÜNCELLENDİ
+              : 'profile_image_failed'.tr()), // ✅ GÜNCELLENDİ
           backgroundColor: success ? const Color(0xFF10B981) : const Color(
               0xFFEF4444),
           behavior: SnackBarBehavior.floating,
@@ -605,8 +597,8 @@ class _UserInfoViewState extends State<UserInfoView> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(success
-              ? 'Information updated successfully'
-              : 'Failed to update information'),
+              ? 'info_updated_success'.tr() // ✅ GÜNCELLENDİ
+              : 'info_updated_failed'.tr()), // ✅ GÜNCELLENDİ
           backgroundColor: success ? const Color(0xFF10B981) : const Color(
               0xFFEF4444),
           behavior: SnackBarBehavior.floating,
@@ -634,11 +626,11 @@ class _UserInfoViewState extends State<UserInfoView> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
             ),
-            title: const Row(
+            title: Row(
               children: [
-                Icon(Icons.lock_outline, color: Color(0xFF6366F1)),
-                SizedBox(width: 12),
-                Text('Change Password'),
+                const Icon(Icons.lock_outline, color: Color(0xFF6366F1)),
+                const SizedBox(width: 12),
+                Text('change_password'.tr()), // ✅ GÜNCELLENDİ
               ],
             ),
             content: SingleChildScrollView(
@@ -649,7 +641,7 @@ class _UserInfoViewState extends State<UserInfoView> {
                     controller: currentPasswordController,
                     obscureText: !isCurrentPasswordVisible,
                     decoration: InputDecoration(
-                      labelText: 'Current Password',
+                      labelText: 'current_password'.tr(), // ✅ GÜNCELLENDİ
                       prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
                         icon: Icon(isCurrentPasswordVisible
@@ -668,7 +660,7 @@ class _UserInfoViewState extends State<UserInfoView> {
                     controller: newPasswordController,
                     obscureText: !isNewPasswordVisible,
                     decoration: InputDecoration(
-                      labelText: 'New Password',
+                      labelText: 'new_password'.tr(), // ✅ GÜNCELLENDİ
                       prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
                         icon: Icon(isNewPasswordVisible
@@ -687,7 +679,7 @@ class _UserInfoViewState extends State<UserInfoView> {
                     controller: confirmPasswordController,
                     obscureText: !isConfirmPasswordVisible,
                     decoration: InputDecoration(
-                      labelText: 'Confirm New Password',
+                      labelText: 'confirm_new_password'.tr(), // ✅ GÜNCELLENDİ
                       prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
                         icon: Icon(isConfirmPasswordVisible
@@ -707,15 +699,15 @@ class _UserInfoViewState extends State<UserInfoView> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext),
-                child: const Text('Cancel'),
+                child: Text('cancel'.tr()), // ✅ GÜNCELLENDİ
               ),
               ElevatedButton(
                 onPressed: () async {
                   if (newPasswordController.text.length < 6) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Password must be at least 6 characters'),
-                        backgroundColor: Color(0xFFEF4444),
+                      SnackBar(
+                        content: Text('error_password_length'.tr()), // ✅ Mevcut key kullanıldı
+                        backgroundColor: const Color(0xFFEF4444),
                       ),
                     );
                     return;
@@ -723,18 +715,16 @@ class _UserInfoViewState extends State<UserInfoView> {
 
                   if (newPasswordController.text != confirmPasswordController.text) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Passwords do not match'),
-                        backgroundColor: Color(0xFFEF4444),
+                      SnackBar(
+                        content: Text('error_password_mismatch'.tr()), // ✅ Mevcut key kullanıldı
+                        backgroundColor: const Color(0xFFEF4444),
                       ),
                     );
                     return;
                   }
 
-                  // İlk dialog'u kapat
                   Navigator.pop(dialogContext);
 
-                  // Loading göster
                   if (!mounted) return;
                   showDialog(
                     context: this.context,
@@ -752,15 +742,13 @@ class _UserInfoViewState extends State<UserInfoView> {
 
                     if (!mounted) return;
 
-                    // Loading'i kapat
                     Navigator.of(this.context).pop();
 
-                    // Sonucu göster
                     ScaffoldMessenger.of(this.context).showSnackBar(
                       SnackBar(
                         content: Text(success
-                            ? 'Password changed successfully'
-                            : 'Failed to change password'),
+                            ? 'password_changed_success'.tr() // ✅ GÜNCELLENDİ
+                            : 'password_changed_failed'.tr()), // ✅ GÜNCELLENDİ
                         backgroundColor: success
                             ? const Color(0xFF10B981)
                             : const Color(0xFFEF4444),
@@ -773,13 +761,11 @@ class _UserInfoViewState extends State<UserInfoView> {
                   } catch (e) {
                     if (!mounted) return;
 
-                    // Loading'i kapat
                     Navigator.of(this.context).pop();
 
-                    // Hatayı göster
                     ScaffoldMessenger.of(this.context).showSnackBar(
                       SnackBar(
-                        content: Text(e.toString()),
+                        content: Text('error_with_message'.tr(args: [e.toString()])), // ✅ GÜNCELLENDİ
                         backgroundColor: const Color(0xFFEF4444),
                         behavior: SnackBarBehavior.floating,
                         shape: RoundedRectangleBorder(
@@ -793,7 +779,7 @@ class _UserInfoViewState extends State<UserInfoView> {
                   backgroundColor: const Color(0xFF6366F1),
                   foregroundColor: Colors.white,
                 ),
-                child: const Text('Change Password'),
+                child: Text('change_password'.tr()), // ✅ GÜNCELLENDİ
               ),
             ],
           );

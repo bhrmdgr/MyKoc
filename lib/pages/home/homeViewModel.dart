@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mykoc/pages/home/homeModel.dart';
@@ -17,7 +18,6 @@ class HomeViewModel extends ChangeNotifier {
   final LocalStorageService _localStorage = LocalStorageService();
 
   bool _isDisposed = false;
-
 
   HomeModel? _homeData;
   HomeModel? get homeData => _homeData;
@@ -39,34 +39,136 @@ class HomeViewModel extends ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
-  // YENİ: Sınıf değiştirme loading state'i
+  // Sınıf değiştirme loading state'i
   bool _isSwitchingClass = false;
   bool get isSwitchingClass => _isSwitchingClass;
 
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
-  // YENİ: Her sınıf için task ve announcement cache'i
+  // Her sınıf için task ve announcement cache'i
   final Map<String, List<TaskModel>> _tasksCache = {};
   final Map<String, List<AnnouncementModel>> _announcementsCache = {};
 
   Future<void> initialize() async {
-    _setLoading(true);
+    if (_isDisposed) return;
     _errorMessage = null;
+    _setLoading(true);
 
     try {
+      // 1. SharedPreferences'ın diske yazılma süresi için kısa bir bekleme
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      // 2. Önce local'den yüklemeyi dene (Hızlı tepki için)
       await _loadFromLocalStorage();
-      notifyListeners();
-      await _loadFromFirestore();
+
+      // 3. UID Kontrolü ve Firestore Senkronizasyonu
+      String? uid = _localStorage.getUid();
+
+      // Eğer SharedPreferences'ta yoksa Auth'dan alıp kaydet
+      if (uid == null) {
+        final currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser != null) {
+          uid = currentUser.uid;
+          await _localStorage.saveUid(uid);
+        }
+      }
+
+      if (uid != null) {
+        debugPrint('🚀 HomeViewModel: Syncing for UID: $uid');
+        await _loadFromFirestore();
+      } else {
+        _errorMessage = 'Oturum bilgisi bulunamadı.';
+      }
     } catch (e) {
       _errorMessage = 'Veri yüklenirken bir hata oluştu';
-      debugPrint('HomeViewModel Error: $e');
+      debugPrint('❌ HomeViewModel Error: $e');
     } finally {
       _setLoading(false);
+      _safeNotifyListeners();
+    }
+  }
+
+  Future<void> _loadFromFirestore() async {
+    final uid = _localStorage.getUid();
+    if (uid == null || _isDisposed) return;
+
+    try {
+      // 1. Kullanıcı dökümanını taze olarak çek
+      final userDoc = await _firestore.collection('users').doc(uid).get();
+
+      if (!userDoc.exists) {
+        debugPrint('⚠️ User doc not found in Firestore');
+        return;
+      }
+
+      final userData = userDoc.data()!;
+      final name = userData['name'] ?? 'User';
+      final role = userData['role'] ?? 'student';
+
+      // 2. Veriyi hemen yerel depolamaya yaz (Yarış durumunu önlemek için)
+      await _localStorage.saveUserData({
+        'uid': uid,
+        'name': name,
+        'role': role,
+        'profileImage': userData['profileImage'],
+      });
+
+      // 3. Rol bazlı sınıf verilerini çek
+      if (role == 'mentor') {
+        _classes = await _classroomService.getMentorClasses(uid);
+        final classesData = _classes.map((c) => c.toMap()).toList();
+        await _localStorage.saveClassesList(classesData);
+      } else {
+        _classes = await _classroomService.getStudentClasses(uid);
+        if (_classes.isNotEmpty) {
+          await _localStorage.saveStudentClasses(
+            _classes.map((c) => c.toMap()).toList(),
+          );
+
+          // Aktif sınıfı belirle
+          final activeClassId = _localStorage.getActiveClassId();
+          _activeClass = _classes.firstWhere(
+                (c) => c.id == activeClassId,
+            orElse: () => _classes.first,
+          );
+
+          if (_localStorage.getActiveClassId() == null) {
+            await _localStorage.saveActiveClassId(_activeClass!.id);
+          }
+
+          // Görevleri ve duyuruları yükle
+          await _loadStudentTasksAndAnnouncements(uid, _activeClass!.id);
+        }
+      }
+
+      // 4. İstatistikleri ve HomeModel'i güncelle
+      final sessions = await _fetchUpcomingSessions(uid, role);
+      final completedTasksCount = _studentTasks
+          .where((task) => (task.status ?? 'not_started') == 'completed')
+          .length;
+
+      _homeData = HomeModel(
+        userName: name,
+        userInitials: _getInitials(name),
+        userRole: role,
+        profileImageUrl: userData['profileImage'],
+        completedTasks: completedTasksCount,
+        totalTasks: _studentTasks.isNotEmpty ? _studentTasks.length : 5,
+        upcomingSessions: sessions,
+      );
+
+      debugPrint('✅ Firestore sync completed');
+      _safeNotifyListeners();
+
+    } catch (e) {
+      debugPrint('❌ Firestore load failed: $e');
+      rethrow;
     }
   }
 
   Future<void> _loadFromLocalStorage() async {
+    if (_isDisposed) return;
     final userData = _localStorage.getUserData();
     if (userData == null) return;
 
@@ -83,162 +185,45 @@ class HomeViewModel extends ChangeNotifier {
       upcomingSessions: _getDummySessions(),
     );
 
-    // Local'den sınıfları yükle
     if (role == 'mentor') {
       final localClasses = _localStorage.getClassesList();
-      if (localClasses != null && localClasses.isNotEmpty) {
-        _classes = localClasses
-            .map((data) => ClassModel.fromMap(data))
-            .toList();
-        debugPrint('📦 Local\'den ${_classes.length} sınıf yüklendi');
+      if (localClasses != null) {
+        _classes = localClasses.map((data) => ClassModel.fromMap(data)).toList();
       }
     } else {
-      // Öğrenci için birden fazla sınıf
       final localClasses = _localStorage.getStudentClasses();
-      if (localClasses != null && localClasses.isNotEmpty) {
+      if (localClasses != null) {
         _classes = localClasses.map((data) => ClassModel.fromMap(data)).toList();
-        debugPrint('📦 Local\'den ${_classes.length} öğrenci sınıfı yüklendi');
-
-        // Aktif sınıfı belirle
         final activeClassId = _localStorage.getActiveClassId();
-        if (activeClassId != null) {
+        if (_classes.isNotEmpty) {
           _activeClass = _classes.firstWhere(
                 (c) => c.id == activeClassId,
             orElse: () => _classes.first,
           );
-        } else {
-          _activeClass = _classes.first;
-        }
-        debugPrint('🎯 Aktif sınıf: ${_activeClass?.className}');
-      }
-    }
-  }
-
-  Future<void> _loadFromFirestore() async {
-    final uid = _localStorage.getUid();
-    if (uid == null) {
-      _errorMessage = 'Kullanıcı bulunamadı';
-      return;
-    }
-
-    try {
-      final userDoc = await _firestore.collection('users').doc(uid).get();
-
-      if (!userDoc.exists) {
-        _errorMessage = 'Kullanıcı kaydı bulunamadı';
-        return;
-      }
-
-      final userData = userDoc.data()!;
-      final name = userData['name'] ?? 'User';
-      final role = userData['role'] ?? 'student';
-
-      debugPrint('👤 User: $name, Role: $role');
-
-      if (role == 'mentor') {
-        debugPrint('📚 Firestore\'dan mentör sınıfları çekiliyor...');
-        _classes = await _classroomService.getMentorClasses(uid);
-
-        final classesData = _classes.map((c) => c.toMap()).toList();
-        await _localStorage.saveClassesList(classesData);
-
-        debugPrint('✅ Firestore\'dan ${_classes.length} sınıf yüklendi');
-      } else {
-        debugPrint('📚 Firestore\'dan öğrenci sınıfları çekiliyor...');
-        _classes = await _classroomService.getStudentClasses(uid);
-
-        if (_classes.isNotEmpty) {
-          // Sınıfları local'e kaydet
-          await _localStorage.saveStudentClasses(
-            _classes.map((c) => c.toMap()).toList(),
-          );
-
-          // Aktif sınıfı belirle
-          final activeClassId = _localStorage.getActiveClassId();
-          if (activeClassId != null) {
-            _activeClass = _classes.firstWhere(
-                  (c) => c.id == activeClassId,
-              orElse: () => _classes.first,
-            );
-          } else {
-            _activeClass = _classes.first;
-            await _localStorage.saveActiveClassId(_activeClass!.id);
-          }
-
-          debugPrint('✅ ${_classes.length} sınıf yüklendi');
-          debugPrint('🎯 Aktif sınıf: ${_activeClass?.className}');
-
-          // Aktif sınıf için task ve duyuruları çek
-          await _loadStudentTasksAndAnnouncements(uid, _activeClass!.id);
         }
       }
-
-      final sessions = await _fetchUpcomingSessions(uid, role);
-
-      // Completed tasks sayısını hesapla
-      final completedTasksCount = _studentTasks
-          .where((task) => (task.status ?? 'not_started') == 'completed')
-          .length;
-
-      _homeData = HomeModel(
-        userName: name,
-        userInitials: _getInitials(name),
-        userRole: role,
-        profileImageUrl: userData['profileImage'],
-        completedTasks: completedTasksCount,
-        totalTasks: _studentTasks.length > 0 ? _studentTasks.length : 5,
-        upcomingSessions: sessions,
-      );
-
-      // Timestamp'leri temizle
-      final userDataToSave = Map<String, dynamic>.from(userData);
-      userDataToSave.removeWhere((key, value) => value is Timestamp);
-
-      await _localStorage.saveUserData(userDataToSave);
-      notifyListeners();
-    } catch (e) {
-      _errorMessage = 'Veri yüklenirken hata oluştu';
-      debugPrint('❌ Error loading from Firestore: $e');
     }
+    _safeNotifyListeners();
   }
 
-  /// Aktif sınıfı değiştir - OPTIMIZE EDİLDİ
   Future<void> switchActiveClass(String classId) async {
-    // Aynı sınıfa geçiş yapılıyorsa işlem yapma
-    if (_activeClass?.id == classId) {
-      debugPrint('⚠️ Zaten aktif sınıf: $classId');
-      return;
-    }
+    if (_activeClass?.id == classId || _isDisposed) return;
 
-    final targetClass = _classes.firstWhere(
+    _activeClass = _classes.firstWhere(
           (c) => c.id == classId,
       orElse: () => _classes.first,
     );
-
-    _activeClass = targetClass;
     await _localStorage.saveActiveClassId(classId);
 
-    debugPrint('🔄 Sınıf değiştirildi: ${_activeClass?.className}');
-
-    // Loading animasyonunu başlat
     _isSwitchingClass = true;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
-      // CACHE KONTROLÜ: Eğer bu sınıfın verileri cache'de varsa, hemen kullan
       if (_tasksCache.containsKey(classId) && _announcementsCache.containsKey(classId)) {
-        debugPrint('💨 Cache\'den yükleniyor: $classId');
-
         _studentTasks = _tasksCache[classId]!;
         _studentAnnouncements = _announcementsCache[classId]!;
-
-        // Hızlı geçiş için kısa bir delay
-        await Future.delayed(const Duration(milliseconds: 300));
-
-        debugPrint('✅ Cache\'den ${_studentTasks.length} task ve ${_studentAnnouncements.length} duyuru yüklendi');
+        await Future.delayed(const Duration(milliseconds: 200));
       } else {
-        // Cache'de yoksa Firestore'dan çek
-        debugPrint('🔥 Firestore\'dan yükleniyor: $classId');
         final uid = _localStorage.getUid();
         if (uid != null) {
           await _loadStudentTasksAndAnnouncements(uid, classId);
@@ -246,35 +231,26 @@ class HomeViewModel extends ChangeNotifier {
       }
     } finally {
       _isSwitchingClass = false;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
   Future<void> _loadStudentTasksAndAnnouncements(String studentId, String classId) async {
     try {
-      debugPrint('📋 Öğrenci task\'ları çekiliyor...');
+      if (_isDisposed) return;
 
       final allTasks = await _taskService.getStudentTasks(studentId);
       _studentTasks = allTasks.where((task) => task.classId == classId).toList();
-
-      debugPrint('✅ ${_studentTasks.length} task yüklendi (classId: $classId)');
       _studentTasks.sort((a, b) => a.dueDate.compareTo(b.dueDate));
       _tasksCache[classId] = List.from(_studentTasks);
 
-      debugPrint('📢 Sınıf duyuruları çekiliyor...');
-      _studentAnnouncements = await _announcementService.getClassAnnouncements(classId);
-      debugPrint('✅ ${_studentAnnouncements.length} duyuru yüklendi');
-
-      if (_studentAnnouncements.length > 5) {
-        _studentAnnouncements = _studentAnnouncements.take(5).toList();
-      }
-
+      final announcements = await _announcementService.getClassAnnouncements(classId);
+      _studentAnnouncements = announcements.take(5).toList();
       _announcementsCache[classId] = List.from(_studentAnnouncements);
 
-      // ← BU SATIRDA
-      _safeNotifyListeners(); // notifyListeners() yerine
+      _safeNotifyListeners();
     } catch (e) {
-      debugPrint('❌ Error loading student tasks and announcements: $e');
+      debugPrint('❌ Error loading tasks and announcements: $e');
     }
   }
 
@@ -283,39 +259,33 @@ class HomeViewModel extends ChangeNotifier {
       notifyListeners();
     }
   }
-  /// Cache'i temizle - Yeni task eklendiğinde veya güncelleme yapıldığında kullanılır
+
   void clearCache({String? classId}) {
     if (classId != null) {
       _tasksCache.remove(classId);
       _announcementsCache.remove(classId);
-      debugPrint('🗑️ Cache temizlendi: $classId');
     } else {
       _tasksCache.clear();
       _announcementsCache.clear();
-      debugPrint('🗑️ Tüm cache temizlendi');
     }
   }
 
-  /// Yenileme - Cache'i temizler ve yeniden yükler
   Future<void> refresh() async {
     clearCache();
     await _loadFromFirestore();
   }
 
-  /// Spesifik sınıf için yenileme
   Future<void> refreshClass(String classId) async {
     clearCache(classId: classId);
-
     final uid = _localStorage.getUid();
     if (uid != null) {
       _isSwitchingClass = true;
-      notifyListeners();
-
+      _safeNotifyListeners();
       try {
         await _loadStudentTasksAndAnnouncements(uid, classId);
       } finally {
         _isSwitchingClass = false;
-        notifyListeners();
+        _safeNotifyListeners();
       }
     }
   }
@@ -324,7 +294,6 @@ class HomeViewModel extends ChangeNotifier {
     try {
       return _getDummySessions();
     } catch (e) {
-      debugPrint('Error fetching sessions: $e');
       return _getDummySessions();
     }
   }
@@ -333,12 +302,12 @@ class HomeViewModel extends ChangeNotifier {
     final parts = name.trim().split(' ');
     if (parts.isEmpty) return 'U';
     if (parts.length == 1) return parts[0][0].toUpperCase();
-    return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    return '${parts[0][0]}${parts[parts.length - 1][0]}'.toUpperCase();
   }
 
   void _setLoading(bool value) {
     _isLoading = value;
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   List<SessionModel> _getDummySessions() {
@@ -362,7 +331,7 @@ class HomeViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
-    // Cache'i temizle
+    _isDisposed = true;
     _tasksCache.clear();
     _announcementsCache.clear();
     super.dispose();

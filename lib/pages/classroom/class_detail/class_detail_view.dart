@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -239,8 +240,8 @@ class _ClassDetailViewState extends State<ClassDetailView>
           },
           backgroundColor: const Color(0xFF6366F1),
           icon: const Icon(Icons.add, color: Colors.white),
-          label: const Text(
-            'New Task',
+          label: Text(
+            'new_task'.tr(),
             style: TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.w600,
@@ -270,7 +271,7 @@ class _ClassDetailViewState extends State<ClassDetailView>
               icon: Icons.groups_rounded,
               iconColor: const Color(0xFF6366F1), // Mor
               value: studentCount,
-              label: 'Students',
+              label: 'students'.tr(),
             ),
           ),
           const SizedBox(width: 12),
@@ -281,7 +282,7 @@ class _ClassDetailViewState extends State<ClassDetailView>
               icon: Icons.assignment_rounded,
               iconColor: const Color(0xFFF59E0B), // Turuncu
               value: totalTasks,
-              label: 'Total Tasks',
+              label: 'total_tasks'.tr(),
             ),
           ),
           const SizedBox(width: 12),
@@ -292,7 +293,7 @@ class _ClassDetailViewState extends State<ClassDetailView>
               icon: Icons.pie_chart_rounded,
               iconColor: const Color(0xFF10B981), // Yeşil
               value: '%$progressPercent',
-              label: 'Completion',
+              label: 'completion'.tr(),
             ),
           ),
         ],
@@ -423,14 +424,14 @@ class _ClassDetailViewState extends State<ClassDetailView>
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Students',
+              Text(
+                'students'.tr(),
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1F2937)),
               ),
               OutlinedButton.icon(
                 onPressed: () => _showInviteCodeDialog(),
                 icon: const Icon(Icons.person_add_outlined, size: 18),
-                label: const Text('Add Student'),
+                label: Text('add_student'.tr()),
                 // ... style aynı
               ),
             ],
@@ -570,20 +571,20 @@ class _ClassDetailViewState extends State<ClassDetailView>
           Tab(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
+              children: [
                 Icon(Icons.assignment_outlined, size: 20),
                 SizedBox(width: 8),
-                Text('Tasks'),
+                Text('tasks'.tr()),
               ],
             ),
           ),
           Tab(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
+              children: [
                 Icon(Icons.people_outline_rounded, size: 20),
                 SizedBox(width: 8),
-                Text('Students'),
+                Text('students'.tr()),
               ],
             ),
           ),
@@ -607,7 +608,7 @@ class _ClassDetailViewState extends State<ClassDetailView>
           ),
           const SizedBox(height: 16),
           Text(
-            'No Students Yet',
+            'no_students_yet'.tr(),
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -616,7 +617,7 @@ class _ClassDetailViewState extends State<ClassDetailView>
           ),
           const SizedBox(height: 8),
           Text(
-            'Share your class code to invite students',
+            'share_code_invite'.tr(),
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey[500],
@@ -712,12 +713,12 @@ class _ClassDetailViewState extends State<ClassDetailView>
 
           if (success && mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
+              SnackBar(
                 content: Row(
                   children: [
                     Icon(Icons.check_circle, color: Colors.white),
                     SizedBox(width: 12),
-                    Text('Announcement created successfully'),
+                    Text('success_announcement_created'.tr()),
                   ],
                 ),
                 backgroundColor: Color(0xFF10B981),
@@ -744,12 +745,12 @@ class _ClassDetailViewState extends State<ClassDetailView>
 
           if (success && mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
+              SnackBar(
                 content: Row(
                   children: [
                     Icon(Icons.check_circle, color: Colors.white),
                     SizedBox(width: 12),
-                    Text('Announcement updated successfully'),
+                    Text('success_announcement_updated'.tr()),
                   ],
                 ),
                 backgroundColor: Color(0xFF10B981),
@@ -763,12 +764,12 @@ class _ClassDetailViewState extends State<ClassDetailView>
 
           if (success && mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
+              SnackBar(
                 content: Row(
                   children: [
                     Icon(Icons.check_circle, color: Colors.white),
                     SizedBox(width: 12),
-                    Text('Announcement deleted successfully'),
+                    Text('success_announcement_deleted'.tr()),
                   ],
                 ),
                 backgroundColor: Color(0xFFEF4444),
@@ -807,8 +808,8 @@ class _ClassDetailViewState extends State<ClassDetailView>
                 ),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Class Code',
+              Text(
+                'class_code'.tr(),
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -817,7 +818,7 @@ class _ClassDetailViewState extends State<ClassDetailView>
               ),
               const SizedBox(height: 8),
               Text(
-                'Ask your students to use this code during sign up',
+                'ask_students_code'.tr(),
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.grey[600],
@@ -862,8 +863,8 @@ class _ClassDetailViewState extends State<ClassDetailView>
                     _copyCodeToClipboard(widget.classData.classCode);
                   },
                   icon: const Icon(Icons.copy_rounded, size: 20),
-                  label: const Text(
-                    'Copy Code',
+                  label: Text(
+                    'copy_code'.tr(),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -881,8 +882,8 @@ class _ClassDetailViewState extends State<ClassDetailView>
               const SizedBox(height: 12),
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text(
-                  'Close',
+                child: Text(
+                  'close'.tr(),
                   style: TextStyle(
                     fontSize: 16,
                     color: Color(0xFF6B7280),
@@ -902,10 +903,10 @@ class _ClassDetailViewState extends State<ClassDetailView>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
-          children: const [
-            Icon(Icons.check_circle, color: Colors.white, size: 20),
-            SizedBox(width: 12),
-            Text('Code copied to clipboard!'),
+          children: [
+            const Icon(Icons.check_circle, color: Colors.white, size: 20),
+            const SizedBox(width: 12),
+            Text('code_copied'.tr()),
           ],
         ),
         backgroundColor: const Color(0xFF10B981),

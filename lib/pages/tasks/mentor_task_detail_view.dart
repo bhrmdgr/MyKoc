@@ -1,11 +1,12 @@
 import 'dart:io';
+import 'package:easy_localization/easy_localization.dart'; // ← Eklendi
 import 'package:flutter/material.dart';
 import 'package:mykoc/pages/tasks/task_model.dart';
 import 'package:mykoc/firebase/tasks/task_service.dart';
 import 'package:intl/intl.dart';
-import 'package:dio/dio.dart'; // YENİ: İndirme için
-import 'package:path_provider/path_provider.dart'; // YENİ: Klasör yolu için
-import 'package:open_filex/open_filex.dart'; // YENİ: Dosya açmak için
+import 'package:dio/dio.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:open_filex/open_filex.dart';
 
 class MentorTaskDetailView extends StatefulWidget {
   final String taskId;
@@ -45,34 +46,29 @@ class _MentorTaskDetailViewState extends State<MentorTaskDetailView> {
     }
   }
 
-  // --- DOSYA AÇMA MANTIĞI (GÜNCELLENDİ) ---
   Future<void> _openFile(BuildContext context, String url) async {
     if (_isImageFile(url)) {
-      // 1. Resim ise: Uygulama içi Image Viewer aç
       _showImagePreview(context, url);
     } else {
-      // 2. PDF/Doc vb. ise: İndir ve Native Viewer ile aç
       await _downloadAndOpenFile(context, url);
     }
   }
 
-  // Dosyayı indirip açan fonksiyon
   Future<void> _downloadAndOpenFile(BuildContext context, String url) async {
-    // İndirme işlemi başladığını gösteren bir yükleniyor dialogu
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(
+      builder: (context) => Center(
         child: Card(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(16))),
+          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(16))),
           child: Padding(
-            padding: EdgeInsets.all(24.0),
+            padding: const EdgeInsets.all(24.0),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text("Downloading document...", style: TextStyle(fontWeight: FontWeight.bold)),
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                Text("downloading_document".tr(), style: const TextStyle(fontWeight: FontWeight.bold)), // ✅ GÜNCELLENDİ
               ],
             ),
           ),
@@ -81,33 +77,26 @@ class _MentorTaskDetailViewState extends State<MentorTaskDetailView> {
     );
 
     try {
-      // Dosya ismini URL'den çıkar (örn: file.pdf)
       final fileName = url.split('/').last.split('?').first;
-
-      // Geçici dizini al
       final dir = await getTemporaryDirectory();
       final savePath = "${dir.path}/$fileName";
 
-      // Dosyayı indir
       await Dio().download(url, savePath);
 
-      // Dialogu kapat
       if (context.mounted) Navigator.pop(context);
 
-      // Dosyayı aç
       final result = await OpenFilex.open(savePath);
 
       if (result.type != ResultType.done) {
-        throw "Could not open file: ${result.message}";
+        throw result.message;
       }
 
     } catch (e) {
-      // Hata durumunda dialogu kapat ve uyarı ver
       if (context.mounted) {
-        Navigator.pop(context); // Dialogu kapat
+        if (Navigator.canPop(context)) Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error opening file: $e'),
+            content: Text('error_opening_file'.tr(args: [e.toString()])), // ✅ GÜNCELLENDİ
             backgroundColor: Colors.red,
           ),
         );
@@ -146,12 +135,12 @@ class _MentorTaskDetailViewState extends State<MentorTaskDetailView> {
                       child: CircularProgressIndicator(color: Colors.white),
                     );
                   },
-                  errorBuilder: (context, error, stackTrace) => const Column(
+                  errorBuilder: (context, error, stackTrace) => Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.broken_image, color: Colors.white, size: 50),
-                      SizedBox(height: 8),
-                      Text("Image could not be loaded", style: TextStyle(color: Colors.white)),
+                      const Icon(Icons.broken_image, color: Colors.white, size: 50),
+                      const SizedBox(height: 8),
+                      Text("image_load_error".tr(), style: const TextStyle(color: Colors.white)), // ✅ GÜNCELLENDİ
                     ],
                   ),
                 ),
@@ -170,7 +159,6 @@ class _MentorTaskDetailViewState extends State<MentorTaskDetailView> {
       ),
     );
   }
-  // ----------------------------------------
 
   @override
   Widget build(BuildContext context) {
@@ -253,7 +241,7 @@ class _MentorTaskDetailViewState extends State<MentorTaskDetailView> {
                       const SizedBox(width: 12),
                       _buildHeaderBadge(
                         _getPriorityIcon(_taskDetail!.task.priority),
-                        _taskDetail!.task.priority.toUpperCase(),
+                        'priority_${_taskDetail!.task.priority.toLowerCase()}'.tr().toUpperCase(), // ✅ GÜNCELLENDİ
                       ),
                     ],
                   ),
@@ -313,7 +301,7 @@ class _MentorTaskDetailViewState extends State<MentorTaskDetailView> {
               icon: Icons.check_circle_outline,
               iconColor: const Color(0xFF10B981),
               value: _taskDetail!.completedCount.toString(),
-              label: 'Completed',
+              label: 'completed'.tr(), // ✅ GÜNCELLENDİ
             ),
           ),
           const SizedBox(width: 12),
@@ -322,7 +310,7 @@ class _MentorTaskDetailViewState extends State<MentorTaskDetailView> {
               icon: Icons.pending_outlined,
               iconColor: const Color(0xFFF59E0B),
               value: _taskDetail!.inProgressCount.toString(),
-              label: 'In Progress',
+              label: 'in_progress'.tr(), // ✅ GÜNCELLENDİ
             ),
           ),
           const SizedBox(width: 12),
@@ -331,7 +319,7 @@ class _MentorTaskDetailViewState extends State<MentorTaskDetailView> {
               icon: Icons.radio_button_unchecked,
               iconColor: const Color(0xFF6B7280),
               value: _taskDetail!.notStartedCount.toString(),
-              label: 'Not Started',
+              label: 'not_started'.tr(), // ✅ GÜNCELLENDİ
             ),
           ),
         ],
@@ -429,9 +417,9 @@ class _MentorTaskDetailViewState extends State<MentorTaskDetailView> {
                 ),
               ),
               const SizedBox(width: 12),
-              const Text(
-                'Description',
-                style: TextStyle(
+              Text(
+                'description'.tr(), // ✅ GÜNCELLENDİ
+                style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: Color(0xFF1F2937),
@@ -451,7 +439,7 @@ class _MentorTaskDetailViewState extends State<MentorTaskDetailView> {
             child: Text(
               task.description.isNotEmpty
                   ? task.description
-                  : 'No description provided',
+                  : 'no_description'.tr(), // ✅ GÜNCELLENDİ
               style: TextStyle(
                 fontSize: 15,
                 color: task.description.isNotEmpty
@@ -479,7 +467,7 @@ class _MentorTaskDetailViewState extends State<MentorTaskDetailView> {
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  'Attachments (${task.attachments!.length})',
+                  '${'attachments'.tr()} (${task.attachments!.length})', // ✅ GÜNCELLENDİ
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -571,9 +559,9 @@ class _MentorTaskDetailViewState extends State<MentorTaskDetailView> {
                 ),
               ),
               const SizedBox(width: 12),
-              const Text(
-                'Students',
-                style: TextStyle(
+              Text(
+                'students'.tr(), // ✅ GÜNCELLENDİ
+                style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: Color(0xFF1F2937),
@@ -592,7 +580,7 @@ class _MentorTaskDetailViewState extends State<MentorTaskDetailView> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  '${_taskDetail!.studentStatuses.length} Total',
+                  'total_count'.tr(args: [_taskDetail!.studentStatuses.length.toString()]), // ✅ GÜNCELLENDİ
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -623,17 +611,17 @@ class _MentorTaskDetailViewState extends State<MentorTaskDetailView> {
       case 'completed':
         statusColor = const Color(0xFF10B981);
         statusIcon = Icons.check_circle;
-        statusText = 'Completed';
+        statusText = 'completed'.tr(); // ✅ GÜNCELLENDİ
         break;
       case 'in_progress':
         statusColor = const Color(0xFFF59E0B);
         statusIcon = Icons.pending_outlined;
-        statusText = 'In Progress';
+        statusText = 'in_progress'.tr(); // ✅ GÜNCELLENDİ
         break;
       default:
         statusColor = const Color(0xFF6B7280);
         statusIcon = Icons.radio_button_unchecked;
-        statusText = 'Not Started';
+        statusText = 'not_started'.tr(); // ✅ GÜNCELLENDİ
     }
 
     return GestureDetector(
@@ -753,7 +741,7 @@ class _MentorTaskDetailViewState extends State<MentorTaskDetailView> {
           ),
           const SizedBox(height: 16),
           Text(
-            'Task not found',
+            'task_not_found'.tr(), // ✅ GÜNCELLENDİ
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -762,7 +750,7 @@ class _MentorTaskDetailViewState extends State<MentorTaskDetailView> {
           ),
           const SizedBox(height: 8),
           Text(
-            'This task may have been deleted',
+            'task_deleted_info'.tr(), // ✅ GÜNCELLENDİ
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey[500],
@@ -778,7 +766,7 @@ class _MentorTaskDetailViewState extends State<MentorTaskDetailView> {
               ),
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             ),
-            child: const Text('Go Back'),
+            child: Text('go_back'.tr()), // ✅ GÜNCELLENDİ
           ),
         ],
       ),
@@ -802,23 +790,23 @@ class _MentorTaskDetailViewState extends State<MentorTaskDetailView> {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
         ),
-        title: const Text(
-          'Delete Task',
-          style: TextStyle(
+        title: Text(
+          'delete_task_title'.tr(), // ✅ GÜNCELLENDİ
+          style: const TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
         ),
-        content: const Text(
-          'Are you sure you want to delete this task? This action cannot be undone.',
-          style: TextStyle(fontSize: 15),
+        content: Text(
+          'delete_task_confirm'.tr(), // ✅ GÜNCELLENDİ
+          style: const TextStyle(fontSize: 15),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: Color(0xFF6B7280)),
+            child: Text(
+              'cancel'.tr(), // ✅ GÜNCELLENDİ
+              style: const TextStyle(color: Color(0xFF6B7280)),
             ),
           ),
           ElevatedButton(
@@ -829,7 +817,7 @@ class _MentorTaskDetailViewState extends State<MentorTaskDetailView> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: const Text('Delete'),
+            child: Text('delete'.tr()), // ✅ GÜNCELLENDİ
           ),
         ],
       ),
@@ -849,11 +837,11 @@ class _MentorTaskDetailViewState extends State<MentorTaskDetailView> {
         Navigator.pop(context, true);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Row(
+            content: Row(
               children: [
-                Icon(Icons.check_circle, color: Colors.white),
-                SizedBox(width: 12),
-                Text('Task deleted successfully'),
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 12),
+                Text('task_deleted_success'.tr()), // ✅ GÜNCELLENDİ
               ],
             ),
             backgroundColor: const Color(0xFF10B981),
@@ -866,11 +854,11 @@ class _MentorTaskDetailViewState extends State<MentorTaskDetailView> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Row(
+            content: Row(
               children: [
-                Icon(Icons.error_outline, color: Colors.white),
-                SizedBox(width: 12),
-                Text('Failed to delete task'),
+                const Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 12),
+                Text('task_deleted_failed'.tr()), // ✅ GÜNCELLENDİ
               ],
             ),
             backgroundColor: const Color(0xFFEF4444),
@@ -935,17 +923,17 @@ class StudentSubmissionDialog extends StatelessWidget {
       case 'completed':
         statusColor = const Color(0xFF10B981);
         statusIcon = Icons.check_circle;
-        statusText = 'Completed';
+        statusText = 'completed'.tr(); // ✅ GÜNCELLENDİ
         break;
       case 'in_progress':
         statusColor = const Color(0xFFF59E0B);
         statusIcon = Icons.pending_outlined;
-        statusText = 'In Progress';
+        statusText = 'in_progress'.tr(); // ✅ GÜNCELLENDİ
         break;
       default:
         statusColor = const Color(0xFF6B7280);
         statusIcon = Icons.radio_button_unchecked;
-        statusText = 'Not Started';
+        statusText = 'not_started'.tr(); // ✅ GÜNCELLENDİ
     }
 
     return Container(
@@ -1026,7 +1014,7 @@ class StudentSubmissionDialog extends StatelessWidget {
       children: [
         if (status.completedAt != null) ...[
           _buildInfoRow(
-            'Completed on',
+            'completed_on'.tr(), // ✅ GÜNCELLENDİ
             DateFormat('MMM dd, yyyy HH:mm').format(status.completedAt!),
             Icons.check_circle_outline,
             const Color(0xFF10B981),
@@ -1034,9 +1022,9 @@ class StudentSubmissionDialog extends StatelessWidget {
           const SizedBox(height: 16),
         ],
         if (status.completionNote != null) ...[
-          const Text(
-            'Student Note',
-            style: TextStyle(
+          Text(
+            'student_note'.tr(), // ✅ GÜNCELLENDİ
+            style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
               color: Color(0xFF1F2937),
@@ -1064,9 +1052,9 @@ class StudentSubmissionDialog extends StatelessWidget {
         ],
         if (status.completionAttachments != null &&
             status.completionAttachments!.isNotEmpty) ...[
-          const Text(
-            'Submitted Files',
-            style: TextStyle(
+          Text(
+            'submitted_files'.tr(), // ✅ GÜNCELLENDİ
+            style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
               color: Color(0xFF1F2937),
@@ -1113,7 +1101,7 @@ class StudentSubmissionDialog extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    Icon(Icons.download, color: Colors.grey[400], size: 20),
+                    const Icon(Icons.download, color: Color(0xFF9CA3AF), size: 20), // grey[400]
                   ],
                 ),
               ),
@@ -1131,12 +1119,12 @@ class StudentSubmissionDialog extends StatelessWidget {
 
     switch (status.status) {
       case 'in_progress':
-        message = 'Student is currently working on this task';
+        message = 'student_working_msg'.tr(); // ✅ GÜNCELLENDİ
         icon = Icons.pending_outlined;
         color = const Color(0xFFF59E0B);
         break;
       default:
-        message = 'Student hasn\'t started this task yet';
+        message = 'student_not_started_msg'.tr(); // ✅ GÜNCELLENDİ
         icon = Icons.info_outline;
         color = const Color(0xFF6B7280);
     }
@@ -1157,9 +1145,9 @@ class StudentSubmissionDialog extends StatelessWidget {
           const SizedBox(height: 20),
           Text(
             message,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 16,
-              color: Colors.grey[600],
+              color: Color(0xFF4B5563), // grey[600]
             ),
             textAlign: TextAlign.center,
           ),
@@ -1186,9 +1174,9 @@ class StudentSubmissionDialog extends StatelessWidget {
             children: [
               Text(
                 label,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 12,
-                  color: Colors.grey[600],
+                  color: Color(0xFF4B5563), // grey[600]
                 ),
               ),
               Text(

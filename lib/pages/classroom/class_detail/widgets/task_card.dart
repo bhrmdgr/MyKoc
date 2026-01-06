@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:mykoc/pages/tasks/task_model.dart';
 import 'package:intl/intl.dart';
@@ -8,7 +9,7 @@ class TaskCard extends StatelessWidget {
   final int? notStartedCount;
   final int? inProgressCount;
   final int? completedCount;
-  final String assigneeLabel; // YENİ: "Ahmet Yılmaz" veya "3 Students" yazısı buraya gelecek
+  final String assigneeLabel;
 
   const TaskCard({
     super.key,
@@ -17,7 +18,7 @@ class TaskCard extends StatelessWidget {
     this.notStartedCount,
     this.inProgressCount,
     this.completedCount,
-    required this.assigneeLabel, // Zorunlu alan
+    required this.assigneeLabel,
   });
 
   @override
@@ -60,7 +61,8 @@ class TaskCard extends StatelessWidget {
                       const Icon(Icons.flag_rounded, color: Colors.white, size: 14),
                       const SizedBox(width: 6),
                       Text(
-                        task.priority.toUpperCase(),
+                        // ✅ GÜNCELLEME: Öncelik metni dile göre çevrilir
+                        'priority_${task.priority.toLowerCase()}'.tr(),
                         style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
@@ -83,6 +85,7 @@ class TaskCard extends StatelessWidget {
                       Icon(Icons.calendar_today_rounded, size: 14, color: Colors.grey[600]),
                       const SizedBox(width: 6),
                       Text(
+                        // ✅ GÜNCELLEME: Tarih formatı metodu aşağıda güncellendi
                         _formatDueDate(),
                         style: TextStyle(
                           fontSize: 12,
@@ -120,12 +123,13 @@ class TaskCard extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            // --- STATS SECTION (HER ZAMAN GÖRÜNÜR - ZIPLAMAYI ENGELLER) ---
+            // --- STATS SECTION ---
             Row(
               children: [
                 Expanded(
                   child: _buildCompactStat(
-                    label: 'Done',
+                    // ✅ GÜNCELLEME: Çeviri anahtarları JSON ile eşleşti
+                    label: 'done'.tr(),
                     count: completedCount,
                     color: const Color(0xFF10B981),
                     icon: Icons.check_circle_rounded,
@@ -134,7 +138,7 @@ class TaskCard extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: _buildCompactStat(
-                    label: 'Working',
+                    label: 'working'.tr(),
                     count: inProgressCount,
                     color: const Color(0xFFF59E0B),
                     icon: Icons.access_time_filled_rounded,
@@ -143,7 +147,7 @@ class TaskCard extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: _buildCompactStat(
-                    label: 'Todo',
+                    label: 'todo'.tr(),
                     count: notStartedCount,
                     color: const Color(0xFF6B7280),
                     icon: Icons.radio_button_unchecked,
@@ -154,7 +158,7 @@ class TaskCard extends StatelessWidget {
 
             const SizedBox(height: 12),
 
-            // --- FOOTER (ÖĞRENCİ İSMİ / SAYISI) ---
+            // --- FOOTER ---
             Row(
               children: [
                 Container(
@@ -168,7 +172,7 @@ class TaskCard extends StatelessWidget {
                       const Icon(Icons.person_outline_rounded, size: 16, color: Color(0xFF6366F1)),
                       const SizedBox(width: 6),
                       Text(
-                        assigneeLabel, // Hesaplanan isim veya sayı burada
+                        assigneeLabel,
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
@@ -194,7 +198,6 @@ class TaskCard extends StatelessWidget {
     required Color color,
     required IconData icon,
   }) {
-    // Veri yoksa '-' göstererek yer tutuyoruz
     final displayValue = count != null ? count.toString() : '-';
 
     return Container(
@@ -223,20 +226,31 @@ class TaskCard extends StatelessWidget {
   }
 
   Color _getPriorityColor() {
-    switch (task.priority) {
-      case 'high': return const Color(0xFFEF4444);
-      case 'medium': return const Color(0xFFF59E0B);
-      default: return const Color(0xFF10B981);
+    // ✅ MANTIK: Kontrol her zaman ham veri (English) üzerinden yapılır
+    switch (task.priority.toLowerCase()) {
+      case 'high':
+        return const Color(0xFFEF4444);
+      case 'medium':
+        return const Color(0xFFF59E0B);
+      case 'low':
+      default:
+        return const Color(0xFF10B981);
     }
   }
 
   String _formatDueDate() {
     final now = DateTime.now();
-    final difference = task.dueDate.difference(now).inDays;
-    if (difference < 0) return 'Overdue';
-    if (difference == 0) return 'Today';
-    if (difference == 1) return 'Tomorrow';
-    if (difference <= 7) return '$difference days';
+    final normalizedNow = DateTime(now.year, now.month, now.day);
+    final normalizedDue = DateTime(task.dueDate.year, task.dueDate.month, task.dueDate.day);
+
+    final difference = normalizedDue.difference(normalizedNow).inDays;
+
+    // ✅ GÜNCELLEME: Zaman ifadeleri args ve tr() ile dile duyarlı hale getirildi
+    if (difference < 0) return 'overdue'.tr();
+    if (difference == 0) return 'today'.tr();
+    if (difference == 1) return 'tomorrow'.tr();
+    if (difference <= 7) return 'days_left'.tr(args: [difference.toString()]);
+
     return DateFormat('MMM dd').format(task.dueDate);
   }
 }

@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart'; // ← Eklendi
 import 'package:flutter/material.dart';
 import 'package:mykoc/pages/profile/profile_model.dart';
 import 'package:mykoc/pages/profile/profile_view_model.dart';
@@ -10,8 +11,6 @@ import 'package:intl/intl.dart';
 import 'package:mykoc/pages/settings/settings_view.dart';
 import 'package:mykoc/firebase/messaging/messaging_service.dart';
 import 'package:mykoc/pages/communication/chat_room/chat_room_view.dart';
-
-
 
 class StudentProfileView extends StatelessWidget {
   final ProfileModel profileData;
@@ -35,7 +34,6 @@ class StudentProfileView extends StatelessWidget {
             _buildStatsCards(),
             const SizedBox(height: 16),
 
-            // Join Class Button - Sadece öğrenci kendi profilinde görür
             if (!viewModel.isMentorViewing)
               _buildJoinClassButton(context),
 
@@ -52,7 +50,6 @@ class StudentProfileView extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            // Menu Options - Sadece öğrenci kendi profilinde görür
             if (!viewModel.isMentorViewing)
               _buildMenuOptions(context),
 
@@ -83,7 +80,6 @@ class StudentProfileView extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
           child: Column(
             children: [
-              // Avatar with Profile Image Support
               Container(
                 width: 100,
                 height: 100,
@@ -140,27 +136,25 @@ class StudentProfileView extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'Student',
+                'profile_student'.tr(), // ✅ GÜNCELLENDİ
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.white.withOpacity(0.8),
                 ),
               ),
 
-              // Message button (sadece mentör görür)
               if (viewModel.isMentorViewing) ...[
                 const SizedBox(height: 20),
                 SizedBox(
                   height: 45,
                   child: ElevatedButton.icon(
                     onPressed: () async {
-                      // Mesajlaşma başlat
                       await _openDirectChat(context);
                     },
                     icon: const Icon(Icons.chat_bubble_outline_rounded, size: 20),
-                    label: const Text(
-                      "Send Message",
-                      style: TextStyle(fontWeight: FontWeight.w600),
+                    label: Text(
+                      "send_message".tr(), // ✅ GÜNCELLENDİ
+                      style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
@@ -195,7 +189,7 @@ class StudentProfileView extends StatelessWidget {
               onTap: () => viewModel.switchTab('classes'),
               child: _buildStatCard(
                 icon: Icons.school_outlined,
-                label: 'Classes',
+                label: 'stats_classes'.tr(), // ✅ GÜNCELLENDİ
                 value: '${profileData.totalClasses ?? 0}',
                 color: const Color(0xFF6366F1),
               ),
@@ -207,7 +201,7 @@ class StudentProfileView extends StatelessWidget {
               onTap: () => viewModel.switchTab('tasks'),
               child: _buildStatCard(
                 icon: Icons.assignment_outlined,
-                label: 'Tasks',
+                label: 'stats_tasks'.tr(), // ✅ GÜNCELLENDİ
                 value: '${profileData.totalTasks ?? 0}',
                 color: const Color(0xFF8B5CF6),
               ),
@@ -218,7 +212,7 @@ class StudentProfileView extends StatelessWidget {
             child: GestureDetector(
               child: _buildStatCard(
                 icon: Icons.check_circle_outline,
-                label: 'Completed',
+                label: 'stats_completed'.tr(), // ✅ GÜNCELLENDİ
                 value: '${profileData.completedTasks ?? 0}',
                 color: const Color(0xFF10B981),
               ),
@@ -303,16 +297,16 @@ class StudentProfileView extends StatelessWidget {
           child: InkWell(
             onTap: () => _showJoinClassDialog(context),
             borderRadius: BorderRadius.circular(16),
-            child: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.add_circle_outline, color: Colors.white, size: 24),
-                  SizedBox(width: 12),
+                  const Icon(Icons.add_circle_outline, color: Colors.white, size: 24),
+                  const SizedBox(width: 12),
                   Text(
-                    'Join New Class',
-                    style: TextStyle(
+                    'join_new_class'.tr(), // ✅ GÜNCELLENDİ
+                    style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
@@ -349,7 +343,7 @@ class StudentProfileView extends StatelessWidget {
         children: [
           Expanded(
             child: _buildTabButton(
-              label: 'Classes',
+              label: 'tab_classes'.tr(), // ✅ GÜNCELLENDİ
               icon: Icons.school_outlined,
               isSelected: viewModel.selectedTab == 'classes',
               onTap: () => viewModel.switchTab('classes'),
@@ -357,7 +351,7 @@ class StudentProfileView extends StatelessWidget {
           ),
           Expanded(
             child: _buildTabButton(
-              label: 'Tasks',
+              label: 'tab_tasks'.tr(), // ✅ GÜNCELLENDİ
               icon: Icons.assignment_outlined,
               isSelected: viewModel.selectedTab == 'tasks',
               onTap: () => viewModel.switchTab('tasks'),
@@ -418,10 +412,10 @@ class StudentProfileView extends StatelessWidget {
         offset: Offset(0, offsetY),
         child: _buildEmptyState(
           icon: Icons.school_outlined,
-          title: 'No Classes Yet',
+          title: 'no_classes_joined'.tr(), // ✅ GÜNCELLENDİ
           subtitle: viewModel.isMentorViewing
-              ? 'This student hasn\'t joined any classes'
-              : 'Join a class using the button above',
+              ? 'no_classes_mentor_view'.tr() // ✅ GÜNCELLENDİ
+              : 'no_classes_joined_subtitle'.tr(), // ✅ GÜNCELLENDİ
         ),
       );
     }
@@ -502,7 +496,7 @@ class StudentProfileView extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Mentor: ${classItem.mentorName}',
+                    'mentor_label'.tr(args: [classItem.mentorName]), // ✅ GÜNCELLENDİ
                     style: TextStyle(
                       fontSize: 13,
                       color: Colors.grey[600],
@@ -514,7 +508,7 @@ class StudentProfileView extends StatelessWidget {
                       Icon(Icons.people_outline, size: 14, color: Colors.grey[500]),
                       const SizedBox(width: 4),
                       Text(
-                        '${classItem.studentCount} students',
+                        'students_count'.tr(args: [classItem.studentCount.toString()]), // ✅ GÜNCELLENDİ
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.grey[500],
@@ -539,13 +533,13 @@ class StudentProfileView extends StatelessWidget {
                             () => _showLeaveClassDialog(context, classItem),
                       );
                     },
-                    child: const Row(
+                    child: Row(
                       children: [
-                        Icon(Icons.exit_to_app, color: Color(0xFFEF4444), size: 20),
-                        SizedBox(width: 12),
+                        const Icon(Icons.exit_to_app, color: Color(0xFFEF4444), size: 20),
+                        const SizedBox(width: 12),
                         Text(
-                          'Leave Class',
-                          style: TextStyle(color: Color(0xFFEF4444)),
+                          'leave_class'.tr(), // ✅ GÜNCELLENDİ
+                          style: const TextStyle(color: Color(0xFFEF4444)),
                         ),
                       ],
                     ),
@@ -566,10 +560,10 @@ class StudentProfileView extends StatelessWidget {
         offset: Offset(0, offsetY),
         child: _buildEmptyState(
           icon: Icons.assignment_outlined,
-          title: 'No Tasks Yet',
+          title: 'no_tasks_student'.tr(), // ✅ GÜNCELLENDİ
           subtitle: viewModel.isMentorViewing
-              ? 'This student has no tasks assigned'
-              : 'Your mentors haven\'t assigned any tasks yet',
+              ? 'no_tasks_mentor_view'.tr() // ✅ GÜNCELLENDİ
+              : 'no_tasks_student_subtitle'.tr(), // ✅ GÜNCELLENDİ
         ),
       );
     }
@@ -585,17 +579,17 @@ class StudentProfileView extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (notStarted.isNotEmpty) ...[
-            _buildTaskSectionHeader('Not Started', notStarted.length, const Color(0xFF6B7280)),
+            _buildTaskSectionHeader('task_status_todo'.tr(), notStarted.length, const Color(0xFF6B7280)), // ✅ GÜNCELLENDİ
             ...notStarted.map((task) => _buildTaskCard(task)),
             const SizedBox(height: 16),
           ],
           if (inProgress.isNotEmpty) ...[
-            _buildTaskSectionHeader('In Progress', inProgress.length, const Color(0xFFF59E0B)),
+            _buildTaskSectionHeader('task_status_progress'.tr(), inProgress.length, const Color(0xFFF59E0B)), // ✅ GÜNCELLENDİ
             ...inProgress.map((task) => _buildTaskCard(task)),
             const SizedBox(height: 16),
           ],
           if (completed.isNotEmpty) ...[
-            _buildTaskSectionHeader('Completed', completed.length, const Color(0xFF10B981)),
+            _buildTaskSectionHeader('task_status_done'.tr(), completed.length, const Color(0xFF10B981)), // ✅ GÜNCELLENDİ
             ...completed.map((task) => _buildTaskCard(task)),
           ],
         ],
@@ -693,7 +687,6 @@ class StudentProfileView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // --- Class Name Badge ---
           Container(
             margin: const EdgeInsets.only(bottom: 8),
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -785,9 +778,9 @@ class StudentProfileView extends StatelessWidget {
                     color: const Color(0xFFEF4444).withOpacity(0.1),
                     borderRadius: BorderRadius.circular(4),
                   ),
-                  child: const Text(
-                    'OVERDUE',
-                    style: TextStyle(
+                  child: Text(
+                    'overdue_label'.tr(), // ✅ GÜNCELLENDİ
+                    style: const TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFFEF4444),
@@ -802,7 +795,6 @@ class StudentProfileView extends StatelessWidget {
     );
   }
 
-  // EKLENEN METOD
   Widget _buildEmptyState({
     required IconData icon,
     required String title,
@@ -880,7 +872,7 @@ class StudentProfileView extends StatelessWidget {
         children: [
           _buildMenuItem(
             icon: Icons.settings_outlined,
-            title: 'Settings',
+            title: 'settings'.tr(), // ✅ GÜNCELLENDİ
             onTap: () {
               Navigator.push(
                 context,
@@ -889,11 +881,9 @@ class StudentProfileView extends StatelessWidget {
             },
           ),
           _buildDivider(),
-
-          _buildDivider(),
           _buildMenuItem(
             icon: Icons.logout_rounded,
-            title: 'Log Out',
+            title: 'logout'.tr(), // ✅ GÜNCELLENDİ
             isDestructive: true,
             onTap: () {
               _showLogoutDialog(context);
@@ -944,12 +934,7 @@ class StudentProfileView extends StatelessWidget {
     );
   }
 
-  // student_profile_view.dart içinde _openDirectChat metodunu güncelle:
-
-  /// Direkt mesajlaşma başlat (Student Profile için)
-  /// Bu metodu StudentProfileView widget'ında kullanın
   Future<void> _openDirectChat(BuildContext context) async {
-    // Loading göster
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -970,23 +955,19 @@ class StudentProfileView extends StatelessWidget {
         throw Exception('User not logged in');
       }
 
-      // Profil sahibinin bilgileri (Student)
       final studentId = viewModel.viewedStudentId!;
       final studentName = profileData.userName;
       final studentImageUrl = profileData.profileImageUrl;
 
-      // Mesaj servisini çağır
       final messagingService = MessagingService();
       String? chatRoomId;
 
       if (currentUserRole == 'mentor') {
-        // Mentor -> Student
         chatRoomId = await messagingService.getOrCreateDirectChatRoomId(
           mentorId: currentUserId,
           studentId: studentId,
         );
       } else {
-        // Student -> Student
         final ids = [currentUserId, studentId]..sort();
         chatRoomId = await messagingService.getOrCreateDirectChatRoomId(
           mentorId: ids[0],
@@ -995,10 +976,9 @@ class StudentProfileView extends StatelessWidget {
       }
 
       if (!context.mounted) return;
-      Navigator.pop(context); // Loading kapat
+      Navigator.pop(context);
 
       if (chatRoomId != null) {
-        // Temporary ID ise otherUser bilgilerini aktar
         final isTemporary = chatRoomId.startsWith('direct_');
 
         Navigator.push(
@@ -1008,7 +988,6 @@ class StudentProfileView extends StatelessWidget {
               chatRoomId: chatRoomId!,
               chatRoomName: studentName,
               isGroup: false,
-              // Sadece temporary ise otherUser bilgilerini ver
               otherUserName: isTemporary ? studentName : null,
               otherUserImageUrl: isTemporary ? studentImageUrl : null,
             ),
@@ -1016,9 +995,9 @@ class StudentProfileView extends StatelessWidget {
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to start chat'),
-            backgroundColor: Color(0xFFEF4444),
+          SnackBar(
+            content: Text('failed_start_chat'.tr()), // ✅ GÜNCELLENDİ
+            backgroundColor: const Color(0xFFEF4444),
           ),
         );
       }
@@ -1028,7 +1007,7 @@ class StudentProfileView extends StatelessWidget {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to start chat: ${e.toString()}'),
+            content: Text('failed_start_chat'.tr() + ': ${e.toString()}'), // ✅ GÜNCELLENDİ
             backgroundColor: const Color(0xFFEF4444),
           ),
         );
@@ -1061,9 +1040,9 @@ class StudentProfileView extends StatelessWidget {
                   child: const Icon(Icons.school_outlined, color: Colors.white, size: 20),
                 ),
                 const SizedBox(width: 12),
-                const Text(
-                  'Join Class',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                Text(
+                  'join_class_title'.tr(), // ✅ GÜNCELLENDİ
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -1071,9 +1050,9 @@ class StudentProfileView extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Enter the class code provided by your mentor',
-                  style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+                Text(
+                  'join_class_subtitle'.tr(), // ✅ GÜNCELLENDİ
+                  style: const TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
                 ),
                 const SizedBox(height: 16),
                 TextField(
@@ -1101,7 +1080,7 @@ class StudentProfileView extends StatelessWidget {
             actions: [
               TextButton(
                 onPressed: isLoading ? null : () => Navigator.pop(context),
-                child: const Text('Cancel'),
+                child: Text('cancel'.tr()), // ✅ GÜNCELLENDİ
               ),
               Container(
                 decoration: BoxDecoration(
@@ -1117,9 +1096,9 @@ class StudentProfileView extends StatelessWidget {
                     final code = classCodeController.text.trim();
                     if (code.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Please enter a class code'),
-                          backgroundColor: Color(0xFFEF4444),
+                        SnackBar(
+                          content: Text('enter_class_code'.tr()), // ✅ GÜNCELLENDİ
+                          backgroundColor: const Color(0xFFEF4444),
                         ),
                       );
                       return;
@@ -1143,8 +1122,8 @@ class StudentProfileView extends StatelessWidget {
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Text(success
-                                    ? 'Successfully joined class!'
-                                    : 'Failed to join class. Please check the code.'),
+                                    ? 'join_class_success'.tr() // ✅ GÜNCELLENDİ
+                                    : 'join_class_failed'.tr()), // ✅ GÜNCELLENDİ
                               ),
                             ],
                           ),
@@ -1168,9 +1147,9 @@ class StudentProfileView extends StatelessWidget {
                       valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                     ),
                   )
-                      : const Text(
-                    'Join',
-                    style: TextStyle(
+                      : Text(
+                    'join_class_button'.tr(), // ✅ GÜNCELLENDİ
+                    style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                     ),
@@ -1191,14 +1170,14 @@ class StudentProfileView extends StatelessWidget {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
         ),
-        title: const Text('Leave Class'),
+        title: Text('leave_class_title'.tr()), // ✅ GÜNCELLENDİ
         content: Text(
-          'Are you sure you want to leave "${classItem.className}"? You will lose access to all class materials and tasks.',
+          'leave_class_confirm'.tr(args: [classItem.className]), // ✅ GÜNCELLENDİ
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text('cancel'.tr()), // ✅ GÜNCELLENDİ
           ),
           TextButton(
             onPressed: () async {
@@ -1218,8 +1197,8 @@ class StudentProfileView extends StatelessWidget {
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(success
-                              ? 'Successfully left the class'
-                              : 'Failed to leave class. Please try again.'),
+                              ? 'leave_class_success'.tr() // ✅ GÜNCELLENDİ
+                              : 'leave_class_failed'.tr()), // ✅ GÜNCELLENDİ
                         ),
                       ],
                     ),
@@ -1234,9 +1213,9 @@ class StudentProfileView extends StatelessWidget {
                 );
               }
             },
-            child: const Text(
-              'Leave',
-              style: TextStyle(color: Color(0xFFEF4444)),
+            child: Text(
+              'leave_class'.tr(), // ✅ GÜNCELLENDİ (Görsel tutarlılık için)
+              style: const TextStyle(color: Color(0xFFEF4444)),
             ),
           ),
         ],
@@ -1247,24 +1226,22 @@ class StudentProfileView extends StatelessWidget {
   void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(  // ← Farklı context kullan
-        title: const Text('Log Out'),
-        content: const Text('Are you sure you want to log out?'),
+      builder: (dialogContext) => AlertDialog(
+        title: Text('logout_confirm_title'.tr()), // ✅ GÜNCELLENDİ
+        content: Text('logout_confirm_desc'.tr()), // ✅ GÜNCELLENDİ
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext),  // ← dialogContext
-            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text('cancel'.tr()), // ✅ GÜNCELLENDİ
           ),
           TextButton(
             onPressed: () {
-              Navigator.pop(dialogContext);  // ← İlk dialog'u kapat
-
-              // Logout'u ana context ile çağır
-              viewModel.logout(context);  // ← context (ana sayfa context'i)
+              Navigator.pop(dialogContext);
+              viewModel.logout(context);
             },
-            child: const Text(
-              'Log Out',
-              style: TextStyle(color: Color(0xFFEF4444)),
+            child: Text(
+              'logout'.tr(), // ✅ GÜNCELLENDİ
+              style: const TextStyle(color: Color(0xFFEF4444)),
             ),
           ),
         ],

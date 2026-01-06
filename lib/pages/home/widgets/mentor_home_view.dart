@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:mykoc/pages/home/homeModel.dart';
 import 'package:mykoc/pages/home/homeViewModel.dart';
@@ -31,9 +32,9 @@ class MentorHomeView extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'My Classes',
-                          style: TextStyle(
+                        Text(
+                          'my_classes'.tr(),
+                          style: const TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF1F2937),
@@ -120,19 +121,19 @@ class MentorHomeView extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            'No Classes Yet',
-            style: TextStyle(
+            'no_classes_yet'.tr(),
+            style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Colors.grey[700],
+              color: Color(0xFF1F2937),
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            'Create your first class to get started',
-            style: TextStyle(
+            'create_first_class'.tr(),
+            style: const TextStyle(
               fontSize: 14,
-              color: Colors.grey[500],
+              color: Colors.grey,
             ),
             textAlign: TextAlign.center,
           ),
@@ -209,7 +210,7 @@ class MentorHomeView extends StatelessWidget {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        '${classItem.studentCount} students',
+                        '${classItem.studentCount} ${'students'.tr()}',
                         style: TextStyle(
                           fontSize: 14,
                           color: Colors.grey[600],
@@ -223,7 +224,7 @@ class MentorHomeView extends StatelessWidget {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        '${classItem.taskCount} tasks',
+                        '${classItem.taskCount} ${'tasks'.tr()}',
                         style: TextStyle(
                           fontSize: 14,
                           color: Colors.grey[600],
@@ -267,9 +268,9 @@ class MentorHomeView extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Welcome back,',
-                          style: TextStyle(
+                        Text(
+                          'welcome_back'.tr(),
+                          style: const TextStyle(
                             fontSize: 20,
                             color: Colors.white70,
                             fontWeight: FontWeight.w300,
@@ -328,7 +329,6 @@ class MentorHomeView extends StatelessWidget {
                   ),
                 ],
               ),
-              // ... stats cards aynı kalıyor
             ],
           ),
         ),

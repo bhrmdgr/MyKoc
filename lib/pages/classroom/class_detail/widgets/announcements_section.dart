@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:mykoc/pages/classroom/class_detail/announcement_model.dart';
 import 'package:intl/intl.dart';
@@ -24,8 +25,8 @@ class AnnouncementsSection extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Announcements',
+              Text(
+                'announcements'.tr(),
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -104,8 +105,8 @@ class AnnouncementsSection extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'No Announcements',
+                  Text(
+                    'no_announcements'.tr(),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -114,7 +115,7 @@ class AnnouncementsSection extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Create your first announcement',
+                    'create_first_announcement'.tr(),
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey[600],

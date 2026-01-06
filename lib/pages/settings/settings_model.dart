@@ -1,5 +1,4 @@
 // lib/pages/settings/settings_model.dart
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SettingsModel {
@@ -9,6 +8,7 @@ class SettingsModel {
   final String? profileImageUrl;
   final String appVersion;
   final String currentLanguage;
+  final bool isNotificationsEnabled; // ✅ EKLENDİ
 
   SettingsModel({
     required this.userName,
@@ -17,6 +17,7 @@ class SettingsModel {
     this.profileImageUrl,
     required this.appVersion,
     required this.currentLanguage,
+    required this.isNotificationsEnabled, // ✅ EKLENDİ
   });
 
   String get userInitials {
@@ -38,26 +39,12 @@ class SettingsModel {
   }
 }
 
-// Delete Reason Enum
-enum DeleteReason {
-  notUseful,
-  foundAlternative,
-  privacyConcerns,
-  tooManyNotifications,
-  technicalIssues,
-  other,
-}
-
-// Delete Account Reason Class
+// Delete Reason Enum ve Delete Account Reason Class olduğu gibi kaldı...
+enum DeleteReason { notUseful, foundAlternative, privacyConcerns, tooManyNotifications, technicalIssues, other }
 class DeleteAccountReason {
   final DeleteReason reason;
   final String? additionalFeedback;
-
-  DeleteAccountReason({
-    required this.reason,
-    this.additionalFeedback,
-  });
-
+  DeleteAccountReason({required this.reason, this.additionalFeedback});
   Map<String, dynamic> toMap() {
     return {
       'reason': reason.toString().split('.').last,

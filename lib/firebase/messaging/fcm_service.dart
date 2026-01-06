@@ -89,6 +89,21 @@ class FCMService {
     debugPrint('✅ FCM Service initialized');
   }
 
+  /// Token al ve gerekiyorsa kaydet (✅ Yeni Eklendi)
+  Future<String?> getToken() async {
+    try {
+      _fcmToken = await _fcm.getToken();
+      final userId = _localStorage.getUid();
+      if (userId != null && _fcmToken != null) {
+        await saveToken(userId);
+      }
+      return _fcmToken;
+    } catch (e) {
+      debugPrint('❌ Error getting token: $e');
+      return null;
+    }
+  }
+
   /// Local notifications başlat
   Future<void> _initializeLocalNotifications() async {
     const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -116,12 +131,12 @@ class FCMService {
   /// Foreground'da local notification göster
   Future<void> _showLocalNotification(RemoteMessage message) async {
     const androidDetails = AndroidNotificationDetails(
-      'mykoc_channel',
+      'mykoc_channel', // Functions kodundaki channelId ile birebir AYNI olmalı
       'MyKoc Notifications',
-      channelDescription: 'Notifications for MyKoc app',
-      importance: Importance.high,
-      priority: Priority.high,
-      showWhen: true,
+      importance: Importance.max, // En yüksek önem
+      priority: Priority.high,    // Öncelikli
+      enableVibration: true,     // Titreşim açık
+      playSound: true,           // Ses açık
     );
 
     const iosDetails = DarwinNotificationDetails(

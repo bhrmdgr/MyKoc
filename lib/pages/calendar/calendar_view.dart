@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
@@ -91,8 +92,8 @@ class _CalendarViewContentState extends State<_CalendarViewContent> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Calendar',
+              Text(
+                'calendar_title'.tr(),
                 style: TextStyle(
                   fontSize: 32,
                   color: Colors.white,
@@ -101,7 +102,7 @@ class _CalendarViewContentState extends State<_CalendarViewContent> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Track your deadlines & notes',
+                'calendar_subtitle'.tr(),
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.white.withOpacity(0.8),
@@ -291,7 +292,7 @@ class _CalendarViewContentState extends State<_CalendarViewContent> {
                   Icon(Icons.edit_note_rounded, color: Colors.purple.shade400),
                   const SizedBox(width: 8),
                   Text(
-                    'Daily Note',
+                    'daily_note'.tr(),
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -317,7 +318,7 @@ class _CalendarViewContentState extends State<_CalendarViewContent> {
               controller: _noteController,
               maxLines: 3,
               decoration: InputDecoration(
-                hintText: 'Add a note for this day...',
+                hintText: 'add_note_hint'.tr(),
                 filled: true,
                 fillColor: const Color(0xFFF9FAFB),
                 border: OutlineInputBorder(
@@ -336,7 +337,7 @@ class _CalendarViewContentState extends State<_CalendarViewContent> {
                     _noteController.text = viewModel.currentDayNoteContent;
                     viewModel.toggleEditingNote();
                   },
-                  child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                  child: Text('cancel'.tr(), style: TextStyle(color: Colors.grey)),
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton(
@@ -345,7 +346,7 @@ class _CalendarViewContentState extends State<_CalendarViewContent> {
                     if (success && context.mounted) {
                       FocusScope.of(context).unfocus();
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Note saved'), backgroundColor: Color(0xFF10B981)),
+                        SnackBar(content: Text('note_saved_success'.tr()), backgroundColor: Color(0xFF10B981)),
                       );
                     }
                   },
@@ -353,7 +354,7 @@ class _CalendarViewContentState extends State<_CalendarViewContent> {
                     backgroundColor: const Color(0xFF6366F1),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
-                  child: const Text('Save', style: TextStyle(color: Colors.white)),
+                  child: Text('save'.tr(), style: TextStyle(color: Colors.white)),
                 ),
               ],
             ),
@@ -365,7 +366,7 @@ class _CalendarViewContentState extends State<_CalendarViewContent> {
               )
             else
               Text(
-                'No notes for this day.',
+                'no_note_today'.tr(),
                 style: TextStyle(fontSize: 14, color: Colors.grey.shade400, fontStyle: FontStyle.italic),
               ),
           ],
@@ -383,7 +384,11 @@ class _CalendarViewContentState extends State<_CalendarViewContent> {
           Padding(
             padding: const EdgeInsets.only(left: 4, bottom: 12),
             child: Text(
-              'Tasks Due ${viewModel.selectedDay != null ? DateFormat('MMM dd').format(viewModel.selectedDay!) : ''}',
+              'tasks_due_date'.tr(args: [
+                viewModel.selectedDay != null
+                    ? DateFormat('MMM dd').format(viewModel.selectedDay!)
+                    : ''
+              ]),
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -405,7 +410,7 @@ class _CalendarViewContentState extends State<_CalendarViewContent> {
                   Icon(Icons.event_available, size: 48, color: Colors.grey.shade300),
                   const SizedBox(height: 8),
                   Text(
-                    'No tasks due this day',
+                    'no_tasks_due_today'.tr(),
                     style: TextStyle(color: Colors.grey.shade500),
                   ),
                 ],

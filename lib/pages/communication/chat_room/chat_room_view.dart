@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -168,7 +169,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              'Group Chat',
+                              'group_chat'.tr(),
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Colors.white.withOpacity(0.8),
@@ -262,8 +263,8 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     final chatRoomData = _viewModel.chatRoomData;
     if (chatRoomData == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Loading group info...'),
+        SnackBar(
+          content: Text('loading_group_info'.tr()),
           duration: Duration(seconds: 1),
         ),
       );
@@ -294,8 +295,8 @@ class _ChatRoomViewState extends State<ChatRoomView> {
 
       if (!classDoc.exists) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Class not found'),
+          SnackBar(
+            content: Text('class_not_found'.tr()),
             backgroundColor: Color(0xFFEF4444),
           ),
         );
@@ -327,8 +328,8 @@ class _ChatRoomViewState extends State<ChatRoomView> {
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to load group info'),
+          SnackBar(
+            content: Text('failed_load_group_info'.tr()),
             backgroundColor: Color(0xFFEF4444),
           ),
         );
@@ -412,7 +413,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          '$studentCount members',
+                          'members_count'.tr(args: [studentCount.toString()]),
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.white.withOpacity(0.8),
@@ -433,8 +434,8 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                 ),
                 child: Row(
                   children: [
-                    const Text(
-                      'Mentor',
+                    Text(
+                      'mentor_label'.tr(),
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -585,8 +586,8 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                                   color: const Color(0xFF6366F1).withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
-                                child: const Text(
-                                  'Mentor',
+                                child:  Text(
+                                  'mentor_label'.tr(),
                                   style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
@@ -632,8 +633,8 @@ class _ChatRoomViewState extends State<ChatRoomView> {
             ),
           ),
           const SizedBox(height: 24),
-          const Text(
-            'No messages yet',
+          Text(
+            'no_messages_yet'.tr(),
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w600,
@@ -642,7 +643,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Start the conversation!',
+            'start_conversation'.tr(),
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey[600],
@@ -896,7 +897,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    message.fileName ?? 'File',
+                    message.fileName ?? 'document'.tr(),
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
@@ -907,7 +908,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    message.fileType?.toUpperCase() ?? 'FILE',
+                    message.fileType?.toUpperCase() ?? 'file'.tr().toUpperCase(),
                     style: TextStyle(
                       fontSize: 11,
                       color: isMe
@@ -974,8 +975,8 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                 child: TextField(
                   controller: _messageController,
                   focusNode: _focusNode,
-                  decoration: const InputDecoration(
-                    hintText: 'Type a message...',
+                  decoration: InputDecoration(
+                    hintText: 'type_message_hint'.tr(),
                     border: InputBorder.none,
                     hintStyle: TextStyle(
                       color: Color(0xFF9CA3AF),
@@ -1033,7 +1034,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
           children: [
             ListTile(
               leading: const Icon(Icons.photo, color: Color(0xFF6366F1)),
-              title: const Text('Photo'),
+              title: Text('photo'.tr()),
               onTap: () {
                 Navigator.pop(context);
                 _pickImage();
@@ -1041,7 +1042,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
             ),
             ListTile(
               leading: const Icon(Icons.camera_alt, color: Color(0xFF6366F1)),
-              title: const Text('Camera'),
+              title: Text('camera'.tr()),
               onTap: () {
                 Navigator.pop(context);
                 _takePhoto();
@@ -1049,7 +1050,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
             ),
             ListTile(
               leading: const Icon(Icons.description, color: Color(0xFF6366F1)),
-              title: const Text('Document'),
+              title: Text('document'.tr()),
               onTap: () {
                 Navigator.pop(context);
                 _pickDocument();
@@ -1076,7 +1077,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
       }
     } catch (e) {
       debugPrint('❌ Error picking image: $e');
-      _showErrorSnackBar('Failed to pick image');
+      _showErrorSnackBar('failed_load_image'.tr());
     }
   }
 
@@ -1095,7 +1096,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
       }
     } catch (e) {
       debugPrint('❌ Error taking photo: $e');
-      _showErrorSnackBar('Failed to take photo');
+      _showErrorSnackBar('failed_load_image'.tr());
     }
   }
 
@@ -1111,7 +1112,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
       }
     } catch (e) {
       debugPrint('❌ Error picking document: $e');
-      _showErrorSnackBar('Failed to pick document');
+      _showErrorSnackBar('failed_send_file'.tr());
     }
   }
 
@@ -1127,7 +1128,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     );
 
     if (!success && mounted) {
-      _showErrorSnackBar('Failed to send message');
+      _showErrorSnackBar('failed_send_message'.tr());
     }
   }
 
@@ -1138,7 +1139,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
     );
 
     if (!success && mounted) {
-      _showErrorSnackBar('Failed to send file');
+      _showErrorSnackBar('failed_send_file'.tr());
     }
   }
 
@@ -1178,14 +1179,14 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                   );
                 },
                 errorBuilder: (context, error, stackTrace) {
-                  return const Center(
+                  return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(Icons.broken_image, color: Colors.white, size: 64),
                         SizedBox(height: 16),
                         Text(
-                          'Failed to load image',
+                          'failed_load_image'.tr(),
                           style: TextStyle(color: Colors.white),
                         ),
                       ],
@@ -1243,13 +1244,13 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
-                    children: const [
+                    children: [
                       Text(
-                        'Image saved successfully',
+                        'image_saved'.tr(),
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                       Text(
-                        'Download folder',
+                        'download_folder'.tr(),
                         style: TextStyle(fontSize: 12),
                       ),
                     ],
@@ -1270,7 +1271,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
         Navigator.pop(context);
       }
 
-      _showErrorSnackBar('Failed to save image: ${e.toString()}');
+      _showErrorSnackBar('failed_download_image'.tr(args: [e.toString()]));
     }
   }
 
@@ -1326,13 +1327,13 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
-                    children: const [
+                    children: [
                       Text(
-                        'File downloaded successfully',
+                        'file_downloaded'.tr(),
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                       Text(
-                        'Download folder',
+                        'download_folder'.tr(),
                         style: TextStyle(fontSize: 12),
                       ),
                     ],
@@ -1344,12 +1345,12 @@ class _ChatRoomViewState extends State<ChatRoomView> {
             behavior: SnackBarBehavior.floating,
             duration: const Duration(seconds: 4),
             action: SnackBarAction(
-              label: 'Open',
+              label: 'open'.tr(),
               textColor: Colors.white,
               onPressed: () async {
                 final result = await OpenFilex.open(filePath);
                 if (result.type != ResultType.done) {
-                  _showErrorSnackBar('Cannot open this file type');
+                  _showErrorSnackBar('cannot_open_file'.tr());
                 }
               },
             ),
@@ -1363,7 +1364,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
         Navigator.pop(context);
       }
 
-      _showErrorSnackBar('Failed to download file: ${e.toString()}');
+      _showErrorSnackBar('${'failed_download_file'.tr()}: ${e.toString()}');
     }
   }
 

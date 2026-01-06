@@ -1,4 +1,5 @@
 // lib/pages/communication/messages/messages_view.dart
+import 'package:easy_localization/easy_localization.dart'; // Eklendi
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:mykoc/pages/communication/messages/messages_view_model.dart';
@@ -98,9 +99,9 @@ class _MessagesViewState extends State<MessagesView> {
         bottom: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
-          child: const Text(
-            'Messages',
-            style: TextStyle(
+          child: Text(
+            'messages'.tr(), // ✅ GÜNCELLENDİ
+            style: const TextStyle(
               fontSize: 32,
               color: Colors.white,
               fontWeight: FontWeight.bold,
@@ -129,9 +130,9 @@ class _MessagesViewState extends State<MessagesView> {
             ),
           ),
           const SizedBox(height: 24),
-          const Text(
-            'No messages yet',
-            style: TextStyle(
+          Text(
+            'no_messages_yet'.tr(), // ✅ GÜNCELLENDİ
+            style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w600,
               color: Color(0xFF1F2937),
@@ -139,7 +140,7 @@ class _MessagesViewState extends State<MessagesView> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Start chatting with your class or mentor',
+            'start_chatting_hint'.tr(), // ✅ GÜNCELLENDİ
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey[600],
@@ -151,8 +152,6 @@ class _MessagesViewState extends State<MessagesView> {
     );
   }
 
-  // messages_view.dart içinde _buildConversationItem metodunu güncelle:
-
   Widget _buildConversationItem(chatRoom, MessagesViewModel viewModel) {
     final isGroup = chatRoom.type == 'class_group';
     final displayName = viewModel.getOtherParticipantName(chatRoom);
@@ -160,13 +159,11 @@ class _MessagesViewState extends State<MessagesView> {
     final initials = viewModel.getOtherParticipantInitials(chatRoom);
     final unreadCount = chatRoom.getUnreadCountForUser(viewModel.currentUserId ?? '');
     final timeText = viewModel.getRelativeTime(chatRoom.lastMessageTime);
-    final lastMessageText = chatRoom.lastMessage ?? 'No messages yet';
+    final lastMessageText = chatRoom.lastMessage ?? 'no_messages_yet'.tr(); // ✅ GÜNCELLENDİ
 
-    // DEĞİŞİKLİK: Herkes direkt mesajları silebilir
     final isDirect = chatRoom.type == 'direct';
-    final canDelete = isDirect; // ← Mentor kontrolü kaldırıldı
+    final canDelete = isDirect;
 
-    // Chat kartı widget'ı (aynı kalıyor)
     final chatCard = Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
@@ -198,7 +195,6 @@ class _MessagesViewState extends State<MessagesView> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             children: [
-              // Avatar
               Stack(
                 children: [
                   Container(
@@ -242,7 +238,6 @@ class _MessagesViewState extends State<MessagesView> {
                       ),
                     ),
                   ),
-                  // Unread badge
                   if (unreadCount > 0)
                     Positioned(
                       top: 0,
@@ -272,7 +267,6 @@ class _MessagesViewState extends State<MessagesView> {
                 ],
               ),
               const SizedBox(width: 12),
-              // Content
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -320,7 +314,6 @@ class _MessagesViewState extends State<MessagesView> {
                 ),
               ),
               const SizedBox(width: 8),
-              // Time
               Text(
                 timeText,
                 style: TextStyle(
@@ -328,7 +321,6 @@ class _MessagesViewState extends State<MessagesView> {
                   color: Colors.grey[500],
                 ),
               ),
-              // Delete hint için ikon (direkt mesajlar için)
               if (canDelete) ...[
                 const SizedBox(width: 8),
                 Icon(
@@ -343,7 +335,6 @@ class _MessagesViewState extends State<MessagesView> {
       ),
     );
 
-    // Direkt mesaj ise Dismissible ile sarmala
     if (canDelete) {
       return Dismissible(
         key: Key(chatRoom.id),
@@ -361,14 +352,14 @@ class _MessagesViewState extends State<MessagesView> {
             ),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: const Column(
+          child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.delete_outline, color: Colors.white, size: 28),
-              SizedBox(height: 4),
+              const Icon(Icons.delete_outline, color: Colors.white, size: 28),
+              const SizedBox(height: 4),
               Text(
-                'Delete',
-                style: TextStyle(
+                'delete'.tr(), // ✅ GÜNCELLENDİ
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
@@ -381,11 +372,8 @@ class _MessagesViewState extends State<MessagesView> {
       );
     }
 
-    // Grup sohbeti ise direkt kartı döndür
     return chatCard;
   }
-
-  // _showDeleteChatDialog metodunu güncelle (aynı dosyada):
 
   Future<bool> _showDeleteChatDialog(chatRoom, MessagesViewModel viewModel) async {
     final displayName = viewModel.getOtherParticipantName(chatRoom);
@@ -409,10 +397,10 @@ class _MessagesViewState extends State<MessagesView> {
               ),
             ),
             const SizedBox(width: 12),
-            const Expanded(
+            Expanded(
               child: Text(
-                'Delete Chat?',
-                style: TextStyle(fontSize: 18),
+                'delete_chat'.tr(), // ✅ JSON'daki 'delete_chat' anahtarıyla eşleştirildi
+                style: const TextStyle(fontSize: 18),
               ),
             ),
           ],
@@ -422,7 +410,7 @@ class _MessagesViewState extends State<MessagesView> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Delete chat with $displayName?',
+              'delete_chat_confirm'.tr(args: [displayName]), // ✅ GÜNCELLENDİ (Parametreli)
               style: const TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w500,
@@ -449,7 +437,7 @@ class _MessagesViewState extends State<MessagesView> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'This chat will be removed from your list, but $displayName will still be able to see it.',
+                      'delete_chat_info'.tr(), // ✅ GÜNCELLENDİ
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.blue[700],
@@ -466,7 +454,7 @@ class _MessagesViewState extends State<MessagesView> {
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
             child: Text(
-              'Cancel',
+              'cancel'.tr(), // ✅ GÜNCELLENDİ
               style: TextStyle(
                 color: Colors.grey[600],
                 fontWeight: FontWeight.w600,
@@ -475,9 +463,8 @@ class _MessagesViewState extends State<MessagesView> {
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.of(dialogContext).pop(false); // Dialog kapat önce
+              Navigator.of(dialogContext).pop(false);
 
-              // Ana context'i kullanarak loading göster
               if (!mounted) return;
               showDialog(
                 context: context,
@@ -492,18 +479,15 @@ class _MessagesViewState extends State<MessagesView> {
                 ),
               );
 
-              // Silme işlemi
               final success = await viewModel.deleteChatRoom(
                 chatRoom.id,
                 chatRoom.type,
               );
 
-              // Loading kapat
               if (mounted) {
                 Navigator.of(context, rootNavigator: true).pop();
               }
 
-              // Sonuç mesajı
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -517,8 +501,8 @@ class _MessagesViewState extends State<MessagesView> {
                         Expanded(
                           child: Text(
                             success
-                                ? 'Chat with $displayName deleted'
-                                : 'Failed to delete chat',
+                                ? 'chat_deleted_success'.tr(args: [displayName]) // ✅ GÜNCELLENDİ
+                                : 'chat_deleted_failed'.tr(), // ✅ GÜNCELLENDİ
                           ),
                         ),
                       ],
@@ -541,9 +525,9 @@ class _MessagesViewState extends State<MessagesView> {
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            child: const Text(
-              'Delete',
-              style: TextStyle(fontWeight: FontWeight.w600),
+            child: Text(
+              'delete'.tr(), // ✅ GÜNCELLENDİ
+              style: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
         ],

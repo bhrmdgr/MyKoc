@@ -21,6 +21,7 @@ class LocalStorageService {
   static const String _keyStudentData = 'student_data';
   static const String _keySettings = 'app_settings';
   static const String _keyLastSync = 'last_sync_time';
+  static const String _keyNotificationsEnabled = 'notifications_enabled'; // ✅ Eklendi
 
   /// Initialize storage
   Future<void> init() async {
@@ -295,6 +296,17 @@ class LocalStorageService {
     final timeString = _prefs?.getString(_keyLastSync);
     if (timeString == null) return null;
     return DateTime.parse(timeString);
+  }
+
+  /// Bildirim tercihini kaydet (✅ Eklendi)
+  Future<void> saveNotificationsEnabled(bool enabled) async {
+    await _prefs?.setBool(_keyNotificationsEnabled, enabled);
+    if (kDebugMode) print('✅ Bildirim tercihi kaydedildi: $enabled');
+  }
+
+  /// Bildirim tercihini oku (✅ Eklendi)
+  bool? getNotificationsEnabled() {
+    return _prefs?.getBool(_keyNotificationsEnabled);
   }
 
   // ==================== HELPER METHODS ====================

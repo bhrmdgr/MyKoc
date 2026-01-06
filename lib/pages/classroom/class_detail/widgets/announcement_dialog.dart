@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:mykoc/pages/classroom/class_detail/announcement_model.dart';
 
@@ -61,7 +62,7 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e'),
+            content: Text('${'error'.tr()}: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -80,21 +81,21 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),
-        title: const Text('Delete Announcement'),
-        content: const Text(
-          'Are you sure you want to delete this announcement? This action cannot be undone.',
+        title: Text('delete_announcement'.tr()),
+        content: Text(
+          'delete_announcement_confirm'.tr(),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text('cancel'.tr()),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(
               foregroundColor: Colors.red,
             ),
-            child: const Text('Delete'),
+            child: Text('delete'.tr()),
           ),
         ],
       ),
@@ -112,7 +113,7 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Error: $e'),
+              content: Text('${'error'.tr()}: $e'),
               backgroundColor: Colors.red,
             ),
           );
@@ -163,7 +164,7 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        isEditing ? 'Edit Announcement' : 'New Announcement',
+                        isEditing ? 'edit_announcement'.tr() : 'new_announcement'.tr(),
                         style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -186,8 +187,8 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
                   controller: _titleController,
                   enabled: !_isLoading,
                   decoration: InputDecoration(
-                    labelText: 'Title',
-                    hintText: 'Enter announcement title',
+                    labelText: 'title'.tr(),
+                    hintText: 'enter_title'.tr(),
                     prefixIcon: const Icon(Icons.title),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -206,10 +207,10 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'Please enter a title';
+                      return 'enter_title'.tr();
                     }
                     if (value.trim().length < 3) {
-                      return 'Title must be at least 3 characters';
+                      return 'error_title_short'.tr();
                     }
                     return null;
                   },
@@ -220,8 +221,8 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
                   controller: _descriptionController,
                   enabled: !_isLoading,
                   decoration: InputDecoration(
-                    labelText: 'Description',
-                    hintText: 'Enter announcement details',
+                    labelText: 'description'.tr(),
+                    hintText: 'enter_description'.tr(),
                     prefixIcon: const Icon(Icons.description),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -243,10 +244,10 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
                   maxLength: 500,
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'Please enter a description';
+                      return 'enter_description'.tr();
                     }
                     if (value.trim().length < 10) {
-                      return 'Description must be at least 10 characters';
+                      return 'error_desc_short'.tr();
                     }
                     return null;
                   },
@@ -266,8 +267,8 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
                           ),
                           side: const BorderSide(color: Color(0xFFE5E7EB)),
                         ),
-                        child: const Text(
-                          'Cancel',
+                        child: Text(
+                          'cancel'.tr(),
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -299,7 +300,7 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
                           ),
                         )
                             : Text(
-                          isEditing ? 'Update' : 'Create',
+                          isEditing ? 'update'.tr() : 'create'.tr(),
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,

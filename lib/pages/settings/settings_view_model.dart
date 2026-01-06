@@ -47,6 +47,9 @@ class SettingsViewModel extends ChangeNotifier {
   /// Kullanıcı verilerini yükle
   Future<void> _loadUserData() async {
     final userData = _localStorage.getUserData();
+    // Bildirim tercihini local storage'dan oku (varsayılan true)
+    final bool notificationsEnabled = _localStorage.getNotificationsEnabled() ?? true;
+
     if (userData == null) {
       debugPrint('⚠️ User data not found in local storage');
       return;
@@ -59,17 +62,42 @@ class SettingsViewModel extends ChangeNotifier {
       profileImageUrl: userData['profileImage'],
       appVersion: '1.0.0',
       currentLanguage: 'English',
+      isNotificationsEnabled: notificationsEnabled, // Bildirim durumu eklendi
     );
 
     debugPrint('✅ Settings data loaded');
     _safeNotifyListeners();
   }
 
-  /// Dil değiştir (Gelecekte implement edilecek)
+  /// Bildirimleri Aç/Kapat (Yeni eklendi)
+  Future<void> toggleNotifications(bool value) async {
+    try {
+      await _localStorage.saveNotificationsEnabled(value);
+      if (_settingsData != null) {
+        _settingsData = SettingsModel(
+          userName: _settingsData!.userName,
+          userEmail: _settingsData!.userEmail,
+          userRole: _settingsData!.userRole,
+          profileImageUrl: _settingsData!.profileImageUrl,
+          appVersion: _settingsData!.appVersion,
+          currentLanguage: _settingsData!.currentLanguage,
+          isNotificationsEnabled: value,
+        );
+
+        if (value) {
+          await FCMService().getToken(); // Bildirim açıldıysa token yenile
+        }
+        _safeNotifyListeners();
+      }
+    } catch (e) {
+      debugPrint('❌ Error toggling notifications: $e');
+    }
+  }
+
+  /// Dil değiştir (Easy Localization ile uyumlu hale getirildi)
   Future<void> changeLanguage(String language) async {
     try {
-      // TODO: Implement language change
-      debugPrint('🌐 Language changed to: $language');
+      debugPrint('🌐 Language internal state updated to: $language');
 
       if (_settingsData != null) {
         _settingsData = SettingsModel(
@@ -79,11 +107,12 @@ class SettingsViewModel extends ChangeNotifier {
           profileImageUrl: _settingsData!.profileImageUrl,
           appVersion: _settingsData!.appVersion,
           currentLanguage: language,
+          isNotificationsEnabled: _settingsData!.isNotificationsEnabled, // Durum korundu
         );
         _safeNotifyListeners();
       }
     } catch (e) {
-      debugPrint('❌ Error changing language: $e');
+      debugPrint('❌ Error updating language state: $e');
     }
   }
 

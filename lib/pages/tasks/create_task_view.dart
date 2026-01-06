@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:easy_localization/easy_localization.dart'; // ← Eklendi
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:mykoc/pages/tasks/create_task_view_model.dart';
@@ -80,22 +81,22 @@ class _CreateTaskViewState extends State<CreateTaskView>
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _buildSectionTitle('📝 Task Details', 'What needs to be done?'),
+                              _buildSectionTitle('task_details_title'.tr(), 'task_details_subtitle'.tr()),
                               const SizedBox(height: 16),
                               _buildTaskInfoCard(viewModel),
                               const SizedBox(height: 32),
 
-                              _buildSectionTitle('📎 Files', 'Attach helpful materials'),
+                              _buildSectionTitle('files_title'.tr(), 'files_subtitle'.tr()),
                               const SizedBox(height: 16),
                               _buildAttachmentsSection(viewModel),
                               const SizedBox(height: 32),
 
-                              _buildSectionTitle('⏰ Due Date & Priority', 'When and how important?'),
+                              _buildSectionTitle('due_priority_title'.tr(), 'due_priority_subtitle'.tr()),
                               const SizedBox(height: 16),
                               _buildDateAndPriorityCard(viewModel),
                               const SizedBox(height: 32),
 
-                              _buildSectionTitle('👥 Assignment', 'Who should complete this?'),
+                              _buildSectionTitle('assignment_title'.tr(), 'assignment_subtitle'.tr()),
                               const SizedBox(height: 16),
                               _buildAssignmentCard(viewModel),
 
@@ -156,16 +157,16 @@ class _CreateTaskViewState extends State<CreateTaskView>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Create New Task',
-                  style: TextStyle(
+                Text(
+                  'create_new_task'.tr(),
+                  style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF1F2937),
                   ),
                 ),
                 Text(
-                  'Assign work to your students',
+                  'assign_work_students'.tr(),
                   style: TextStyle(
                     fontSize: 13,
                     color: Colors.grey[600],
@@ -220,15 +221,15 @@ class _CreateTaskViewState extends State<CreateTaskView>
       child: Column(
         children: [
           _buildGlassTextField(
-            label: 'Task Title',
-            hint: 'e.g., Read Chapter 5: Shakespearean Sonnets',
+            label: 'task_title_label'.tr(),
+            hint: 'task_title_hint'.tr(),
             controller: viewModel.titleController,
             icon: Icons.title_rounded,
           ),
           const SizedBox(height: 20),
           _buildGlassTextField(
-            label: 'Description',
-            hint: 'Add detailed instructions and expectations...',
+            label: 'description_label'.tr(),
+            hint: 'description_hint'.tr(),
             controller: viewModel.descriptionController,
             icon: Icons.description_outlined,
             maxLines: 4,
@@ -327,49 +328,60 @@ class _CreateTaskViewState extends State<CreateTaskView>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          const Color(0xFFF59E0B).withOpacity(0.1),
-                          const Color(0xFFEF4444).withOpacity(0.1),
+              // ÇÖZÜM: Başlık kısmını Expanded içine alarak butonun alanını koruyoruz
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            const Color(0xFFF59E0B).withOpacity(0.1),
+                            const Color(0xFFEF4444).withOpacity(0.1),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.attach_file_rounded,
+                        color: Color(0xFFF59E0B),
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Metinleri bir Column içinde tutup daralabilir hale getiriyoruz
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'attachments'.tr(),
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1F2937),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'optional_files'.tr(),
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: Color(0xFF6B7280),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ],
                       ),
-                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(
-                      Icons.attach_file_rounded,
-                      color: Color(0xFFF59E0B),
-                      size: 22,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Attachments',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1F2937),
-                        ),
-                      ),
-                      SizedBox(height: 2),
-                      Text(
-                        'Optional files for students',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Color(0xFF6B7280),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                  ],
+                ),
               ),
+              const SizedBox(width: 8), // Buton ile metin arasında minimum boşluk
               InkWell(
                 onTap: viewModel.pickFiles,
                 child: Container(
@@ -381,12 +393,13 @@ class _CreateTaskViewState extends State<CreateTaskView>
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
-                    children: const [
-                      Icon(Icons.add, color: Colors.white, size: 18),
-                      SizedBox(width: 6),
+                    mainAxisSize: MainAxisSize.min, // Butonun sadece içeriği kadar yer kaplamasını sağlar
+                    children: [
+                      const Icon(Icons.add, color: Colors.white, size: 18),
+                      const SizedBox(width: 6),
                       Text(
-                        'Add',
-                        style: TextStyle(
+                        'add'.tr(),
+                        style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w600,
                           fontSize: 14,
@@ -415,6 +428,7 @@ class _CreateTaskViewState extends State<CreateTaskView>
           ] else ...[
             const SizedBox(height: 16),
             Container(
+              width: double.infinity, // Kutu genişliğini sabitle
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 color: Colors.grey[50],
@@ -430,7 +444,7 @@ class _CreateTaskViewState extends State<CreateTaskView>
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'No files attached yet',
+                    'no_files_attached'.tr(),
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey[600],
@@ -595,9 +609,9 @@ class _CreateTaskViewState extends State<CreateTaskView>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Due Date',
-                          style: TextStyle(
+                        Text(
+                          'due_date'.tr(),
+                          style: const TextStyle(
                             fontSize: 13,
                             color: Color(0xFF6B7280),
                             fontWeight: FontWeight.w500,
@@ -650,9 +664,9 @@ class _CreateTaskViewState extends State<CreateTaskView>
                     ),
                   ),
                   const SizedBox(width: 10),
-                  const Text(
-                    'Priority Level',
-                    style: TextStyle(
+                  Text(
+                    'priority_level'.tr(),
+                    style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
                       color: Color(0xFF1F2937),
@@ -663,11 +677,11 @@ class _CreateTaskViewState extends State<CreateTaskView>
               const SizedBox(height: 16),
               Row(
                 children: [
-                  _buildPriorityChip('🟢 Low', 'low', const Color(0xFF10B981), viewModel),
+                  _buildPriorityChip('priority_low'.tr(), 'low', const Color(0xFF10B981), viewModel),
                   const SizedBox(width: 10),
-                  _buildPriorityChip('🟡 Medium', 'medium', const Color(0xFFF59E0B), viewModel),
+                  _buildPriorityChip('priority_medium'.tr(), 'medium', const Color(0xFFF59E0B), viewModel),
                   const SizedBox(width: 10),
-                  _buildPriorityChip('🔴 High', 'high', const Color(0xFFEF4444), viewModel),
+                  _buildPriorityChip('priority_high'.tr(), 'high', const Color(0xFFEF4444), viewModel),
                 ],
               ),
             ],
@@ -740,9 +754,9 @@ class _CreateTaskViewState extends State<CreateTaskView>
         children: [
           Expanded(
             child: _buildAssignOption(
-              'All Students',
+              'all_students'.tr(),
               Icons.groups_rounded,
-              '${widget.students.length} students',
+              'students_count'.tr(args: [widget.students.length.toString()]),
               viewModel.assignToAllStudents,
                   () => viewModel.setAssignToAll(true),
               const LinearGradient(
@@ -753,9 +767,9 @@ class _CreateTaskViewState extends State<CreateTaskView>
           const SizedBox(width: 12),
           Expanded(
             child: _buildAssignOption(
-              'Specific',
+              'specific_students'.tr(),
               Icons.person_add_outlined,
-              'Select students',
+              'select_students'.tr(),
               !viewModel.assignToAllStudents,
                   () => viewModel.setAssignToAll(false),
               const LinearGradient(
@@ -870,9 +884,9 @@ class _CreateTaskViewState extends State<CreateTaskView>
                     ),
                   ),
                   const SizedBox(width: 10),
-                  const Text(
-                    'Select Students',
-                    style: TextStyle(
+                  Text(
+                    'select_students'.tr(),
+                    style: const TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF1F2937),
@@ -889,7 +903,7 @@ class _CreateTaskViewState extends State<CreateTaskView>
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  '${viewModel.selectedStudents.length} selected',
+                  'selected_count'.tr(args: [viewModel.selectedStudents.length.toString()]),
                   style: const TextStyle(
                     fontSize: 12,
                     color: Colors.white,
@@ -1028,9 +1042,9 @@ class _CreateTaskViewState extends State<CreateTaskView>
                   ),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Text(
-                  'Assigned',
-                  style: TextStyle(
+                child: Text(
+                  'assigned_label'.tr(),
+                  style: const TextStyle(
                     fontSize: 11,
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -1068,9 +1082,9 @@ class _CreateTaskViewState extends State<CreateTaskView>
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'Uploading files...',
-                            style: TextStyle(
+                          Text(
+                            'uploading_files'.tr(),
+                            style: const TextStyle(
                               fontSize: 13,
                               color: Color(0xFF6B7280),
                             ),
@@ -1138,16 +1152,16 @@ class _CreateTaskViewState extends State<CreateTaskView>
                     )
                         : Row(
                       mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        Icon(
+                      children: [
+                        const Icon(
                           Icons.check_circle_outline,
                           color: Colors.white,
                           size: 22,
                         ),
-                        SizedBox(width: 10),
+                        const SizedBox(width: 10),
                         Text(
-                          'Create Task',
-                          style: TextStyle(
+                          'create_task_button'.tr(),
+                          style: const TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
@@ -1194,19 +1208,18 @@ class _CreateTaskViewState extends State<CreateTaskView>
   }
 
   String _formatDate(DateTime date) {
-    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final locale = context.locale.toString(); // easy_localization locale
     final day = date.day;
-    final month = months[date.month - 1];
+    final month = DateFormat.MMM(locale).format(date);
     final year = date.year;
 
     final now = DateTime.now();
     final tomorrow = DateTime.now().add(const Duration(days: 1));
 
     if (date.year == now.year && date.month == now.month && date.day == now.day) {
-      return 'Today, $month $day';
+      return 'today_at'.tr(args: [month, day.toString()]);
     } else if (date.year == tomorrow.year && date.month == tomorrow.month && date.day == tomorrow.day) {
-      return 'Tomorrow, $month $day';
+      return 'tomorrow_at'.tr(args: [month, day.toString()]);
     }
 
     return '$month $day, $year';
@@ -1214,12 +1227,12 @@ class _CreateTaskViewState extends State<CreateTaskView>
 
   Future<void> _handleCreateTask(CreateTaskViewModel viewModel) async {
     if (viewModel.titleController.text.trim().isEmpty) {
-      _showError('Please enter a task title');
+      _showError('error_enter_title'.tr());
       return;
     }
 
     if (!viewModel.assignToAllStudents && viewModel.selectedStudents.isEmpty) {
-      _showError('Please select at least one student');
+      _showError('error_select_student'.tr());
       return;
     }
 
@@ -1231,10 +1244,10 @@ class _CreateTaskViewState extends State<CreateTaskView>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
-              children: const [
-                Icon(Icons.check_circle, color: Colors.white),
-                SizedBox(width: 12),
-                Text('Task created successfully!'),
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 12),
+                Text('success_task_created'.tr()),
               ],
             ),
             backgroundColor: const Color(0xFF10B981),
@@ -1245,7 +1258,7 @@ class _CreateTaskViewState extends State<CreateTaskView>
           ),
         );
       } else {
-        _showError('Failed to create task');
+        _showError('failed_task_created'.tr());
       }
     }
   }

@@ -1,4 +1,5 @@
-  import 'package:flutter/material.dart';
+  import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/material.dart';
   import 'package:mykoc/pages/tasks/task_model.dart';
   import 'package:mykoc/pages/classroom/class_detail/widgets/task_card.dart';
   import 'package:mykoc/pages/classroom/class_detail/class_detail_view.dart'; // Enum için import
@@ -75,10 +76,10 @@
                     ),
                   ),
                   itemBuilder: (context) => [
-                    _buildPopupItem(TaskSortOption.upcoming, 'Upcoming', Icons.calendar_today_rounded),
-                    _buildPopupItem(TaskSortOption.newest, 'Newest First', Icons.access_time_rounded),
-                    _buildPopupItem(TaskSortOption.oldest, 'Oldest First', Icons.history_rounded),
-                    _buildPopupItem(TaskSortOption.priority, 'Priority (High)', Icons.flag_rounded),
+                    _buildPopupItem(TaskSortOption.upcoming, 'sort_upcoming'.tr(), Icons.calendar_today_rounded),
+                    _buildPopupItem(TaskSortOption.newest, 'sort_newest'.tr(), Icons.access_time_rounded),
+                    _buildPopupItem(TaskSortOption.oldest, 'sort_oldest'.tr(), Icons.history_rounded),
+                    _buildPopupItem(TaskSortOption.priority, 'sort_priority'.tr(), Icons.flag_rounded),
                   ],
                 ),
               ],
@@ -100,8 +101,7 @@
                 final assignedStudents = task.assignedStudents ?? []; // Null ise boş liste
 
                 if (assignedStudents.isEmpty) {
-                  assigneeLabel = 'No Students';
-                } else if (assignedStudents.length == 1) {
+                  assigneeLabel = 'no_students_assigned'.tr(); // veya student['name'] veya plural (çokul) yapı.                } else if (assignedStudents.length == 1) {
                   final studentId = assignedStudents.first;
                   final studentMap = students.firstWhere(
                         (s) => (s['uid'] == studentId) || (s['id'] == studentId),
@@ -154,10 +154,10 @@
 
     String _getSortText(TaskSortOption option) {
       switch (option) {
-        case TaskSortOption.upcoming: return 'Upcoming';
-        case TaskSortOption.newest: return 'Newest';
-        case TaskSortOption.oldest: return 'Oldest';
-        case TaskSortOption.priority: return 'Priority';
+        case TaskSortOption.upcoming: return 'sort_upcoming'.tr();
+        case TaskSortOption.newest: return 'sort_newest'.tr();
+        case TaskSortOption.oldest: return 'sort_oldest'.tr();
+        case TaskSortOption.priority: return 'sort_priority'.tr();
       }
     }
 
@@ -169,9 +169,9 @@
           children: [
             Icon(Icons.assignment_outlined, size: 80, color: Colors.grey[300]),
             const SizedBox(height: 16),
-            Text('No Tasks Yet', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.grey[700])),
+            Text('no_tasks_yet'.tr(), style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.grey[700])),
             const SizedBox(height: 8),
-            Text('Create your first task to get started', style: TextStyle(fontSize: 14, color: Colors.grey[500]), textAlign: TextAlign.center),
+            Text('create_first_task'.tr(), style: TextStyle(fontSize: 14, color: Colors.grey[500]), textAlign: TextAlign.center),
           ],
         ),
       );

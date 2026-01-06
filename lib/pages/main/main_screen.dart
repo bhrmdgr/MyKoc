@@ -1,5 +1,7 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:mykoc/pages/home/homeView.dart'; // ← Değişti
+import 'dart:ui';
+import 'package:mykoc/pages/home/homeView.dart';
 import 'package:mykoc/pages/calendar/calendar_view.dart';
 import 'package:mykoc/pages/communication/messages/messages_view.dart';
 import 'package:mykoc/pages/profile/profile_view.dart';
@@ -24,97 +26,115 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _pages[_currentIndex],
-      bottomNavigationBar: Container(
+      extendBody: true, // İçeriğin şeffaf kısımlardan görünmesi için açık kalmalı
+      body: Stack(
+        children: [
+          // Sayfa içeriklerini sarıyoruz
+          Padding(
+            padding: const EdgeInsets.only(bottom: 100), // TabBar yüksekliği + boşluk
+            child: _pages[_currentIndex],
+          ),
+          _buildHighContrastTabBar(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHighContrastTabBar() {
+    return Positioned(
+      bottom: 24,
+      left: 16,
+      right: 16,
+      child: Container(
+        height: 80,
         decoration: BoxDecoration(
           color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          // Beyaz sayfada belirginlik için daha keskin bir border ve gölge
+          border: Border.all(
+            color: const Color(0xFF6366F1).withOpacity(0.1),
+            width: 1.5,
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 25,
+              offset: const Offset(0, 8),
+            ),
+            BoxShadow(
+              color: const Color(0xFF6366F1).withOpacity(0.05),
               blurRadius: 10,
-              offset: const Offset(0, -5),
+              spreadRadius: -2,
             ),
           ],
         ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4), // ← 8'den 4'e düştü
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildNavItem(
-                  icon: Icons.home_rounded,
-                  label: 'Home',
-                  index: 0,
-                ),
-                _buildNavItem(
-                  icon: Icons.calendar_today_rounded,
-                  label: 'Calendar',
-                  index: 1,
-                ),
-                _buildNavItem(
-                  icon: Icons.chat_bubble_outline_rounded,
-                  label: 'Messages',
-                  index: 2,
-                ),
-                _buildNavItem(
-                  icon: Icons.person_outline_rounded,
-                  label: 'Profile',
-                  index: 3,
-                ),
-              ],
-            ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildEliteNavItem(Icons.home_rounded, 'nav_home'.tr(), 0),
+              _buildEliteNavItem(Icons.calendar_today_rounded, 'nav_calendar'.tr(), 1),
+              _buildEliteNavItem(Icons.chat_bubble_rounded, 'nav_messages'.tr(), 2),
+              _buildEliteNavItem(Icons.person_rounded, 'nav_profile'.tr(), 3),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildNavItem({
-    required IconData icon,
-    required String label,
-    required int index,
-  }) {
+  Widget _buildEliteNavItem(IconData icon, String label, int index) {
     final isSelected = _currentIndex == index;
 
     return GestureDetector(
       onTap: () => setState(() => _currentIndex = index),
       behavior: HitTestBehavior.opaque,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), // ← Padding azaltıldı
+      child: SizedBox(
+        width: 70,
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Active indicator
-            Container(
-              height: 2, // ← 3'ten 2'ye düştü
-              width: 32, // ← 40'tan 32'ye düştü
+            // Mor Çizgi (Üstte)
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              height: 4,
+              width: isSelected ? 24 : 0,
               decoration: BoxDecoration(
-                color: isSelected
-                    ? const Color(0xFF6366F1)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(2),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                ),
+                borderRadius: BorderRadius.circular(10),
+                boxShadow: isSelected
+                    ? [
+                  BoxShadow(
+                    color: const Color(0xFF6366F1).withOpacity(0.4),
+                    blurRadius: 8,
+                  ),
+                ]
+                    : [],
               ),
             ),
-            const SizedBox(height: 6), // ← 8'den 6'ya düştü
-            // Icon
+
+            const SizedBox(height: 8),
+
+            // İkon
             Icon(
               icon,
-              size: 26, // ← 26'dan 24'e düştü
-              color: isSelected
-                  ? const Color(0xFF6366F1)
-                  : const Color(0xFF9CA3AF),
+              size: 26,
+              color: isSelected ? const Color(0xFF6366F1) : const Color(0xFF9CA3AF),
             ),
-            const SizedBox(height: 2), // ← 4'ten 2'ye düştü
-            // Label
+
+            const SizedBox(height: 4),
+
+            // Yazı (Her zaman görünür)
             Text(
               label,
+              textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 11, // ← 12'den 11'e düştü
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                color: isSelected
-                    ? const Color(0xFF6366F1)
-                    : const Color(0xFF9CA3AF),
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                color: isSelected ? const Color(0xFF6366F1) : const Color(0xFF9CA3AF),
               ),
             ),
           ],

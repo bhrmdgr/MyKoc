@@ -1,11 +1,10 @@
+import 'package:easy_localization/easy_localization.dart'; // ← Eklendi
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:mykoc/pages/settings/settings_view_model.dart';
 import 'package:mykoc/pages/settings/settings_model.dart';
 import 'package:mykoc/pages/user_info/user_info_view.dart';
 import 'package:mykoc/pages/user_info/user_info_view_model.dart';
-
-
 
 class SettingsView extends StatefulWidget {
   const SettingsView({super.key});
@@ -43,7 +42,7 @@ class _SettingsViewState extends State<SettingsView> {
             }
 
             if (viewModel.settingsData == null) {
-              return const Center(child: Text('No data available'));
+              return Center(child: Text('no_data_available'.tr())); // ✅ GÜNCELLENDİ
             }
 
             return SingleChildScrollView(
@@ -93,9 +92,9 @@ class _SettingsViewState extends State<SettingsView> {
                 onPressed: () => Navigator.pop(context),
               ),
               const SizedBox(width: 12),
-              const Text(
-                'Settings',
-                style: TextStyle(
+              Text(
+                'settings_title'.tr(), // ✅ GÜNCELLENDİ
+                style: const TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
@@ -139,9 +138,9 @@ class _SettingsViewState extends State<SettingsView> {
                 const Icon(
                     Icons.person_outline, color: Color(0xFF6366F1), size: 20),
                 const SizedBox(width: 8),
-                const Text(
-                  'User Information',
-                  style: TextStyle(
+                Text(
+                  'user_information'.tr(), // ✅ GÜNCELLENDİ
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF1F2937),
@@ -164,7 +163,7 @@ class _SettingsViewState extends State<SettingsView> {
                     shape: BoxShape.circle,
                   ),
                   child: (settingsData.profileImageUrl != null &&
-                      settingsData.profileImageUrl!.isNotEmpty) // ← FIX
+                      settingsData.profileImageUrl!.isNotEmpty)
                       ? ClipOval(
                     child: Image.network(
                       settingsData.profileImageUrl!,
@@ -267,7 +266,7 @@ class _SettingsViewState extends State<SettingsView> {
                 Icon(Icons.tune_outlined, color: Colors.grey[700], size: 20),
                 const SizedBox(width: 8),
                 Text(
-                  'Preferences',
+                  'preferences'.tr(), // ✅ GÜNCELLENDİ
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -279,16 +278,46 @@ class _SettingsViewState extends State<SettingsView> {
           ),
           _buildSettingItem(
             icon: Icons.language_outlined,
-            title: 'Language',
-            subtitle: 'English',
+            title: 'language'.tr(), // ✅ GÜNCELLENDİ
+            subtitle: context.locale.languageCode == 'tr' ? 'Türkçe' : 'English',
             onTap: () => _showLanguageDialog(context),
           ),
           _buildDivider(),
-          _buildSettingItem(
-            icon: Icons.notifications_outlined,
-            title: 'Notifications',
-            subtitle: 'Manage notification preferences',
-            onTap: () => _showComingSoonDialog(context, 'Notifications'),
+          // ✅ BİLDİRİM SWITCH ÖĞESİ EKLENDİ
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            child: Row(
+              children: [
+                const Icon(Icons.notifications_active_outlined, color: Color(0xFF6B7280), size: 24),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'notifications'.tr(),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF1F2937),
+                        ),
+                      ),
+                      Text(
+                        'manage_notifications'.tr(),
+                        style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                      ),
+                    ],
+                  ),
+                ),
+                Switch.adaptive(
+                  value: _viewModel.settingsData?.isNotificationsEnabled ?? true,
+                  activeColor: const Color(0xFF6366F1),
+                  onChanged: (bool value) {
+                    _viewModel.toggleNotifications(value);
+                  },
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -319,7 +348,7 @@ class _SettingsViewState extends State<SettingsView> {
                 Icon(Icons.help_outline, color: Colors.grey[700], size: 20),
                 const SizedBox(width: 8),
                 Text(
-                  'Support & Legal',
+                  'support_legal'.tr(), // ✅ GÜNCELLENDİ
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -331,27 +360,27 @@ class _SettingsViewState extends State<SettingsView> {
           ),
           _buildSettingItem(
             icon: Icons.privacy_tip_outlined,
-            title: 'Privacy Policy',
-            onTap: () => _showComingSoonDialog(context, 'Privacy Policy'),
+            title: 'privacy_policy'.tr(), // ✅ GÜNCELLENDİ
+            onTap: () => _showComingSoonDialog(context, 'privacy_policy'.tr()),
           ),
           _buildDivider(),
           _buildSettingItem(
             icon: Icons.description_outlined,
-            title: 'Terms of Service',
-            onTap: () => _showComingSoonDialog(context, 'Terms of Service'),
+            title: 'terms_of_service'.tr(), // ✅ GÜNCELLENDİ
+            onTap: () => _showComingSoonDialog(context, 'terms_of_service'.tr()),
           ),
           _buildDivider(),
           _buildSettingItem(
             icon: Icons.info_outline,
-            title: 'About',
-            subtitle: 'Version 1.0.0',
+            title: 'about'.tr(), // ✅ GÜNCELLENDİ
+            subtitle: 'version'.tr(args: ['1.0.0']), // ✅ GÜNCELLENDİ
             onTap: () => _showAboutDialog(context),
           ),
           _buildDivider(),
           _buildSettingItem(
             icon: Icons.support_agent_outlined,
-            title: 'Help & Support',
-            onTap: () => _showComingSoonDialog(context, 'Help & Support'),
+            title: 'help_support'.tr(), // ✅ GÜNCELLENDİ
+            onTap: () => _showComingSoonDialog(context, 'help_support'.tr()),
           ),
         ],
       ),
@@ -381,8 +410,8 @@ class _SettingsViewState extends State<SettingsView> {
         children: [
           _buildSettingItem(
             icon: Icons.delete_forever_outlined,
-            title: 'Delete Account',
-            subtitle: 'Permanently delete your account and all data',
+            title: 'delete_account'.tr(), // ✅ GÜNCELLENDİ
+            subtitle: 'delete_account_subtitle'.tr(), // ✅ GÜNCELLENDİ
             onTap: () => _showDeleteAccountDialog(context),
             isDestructive: true,
           ),
@@ -457,8 +486,6 @@ class _SettingsViewState extends State<SettingsView> {
     );
   }
 
-  // ==================== DIALOGS ====================
-
   void _showLanguageDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -467,13 +494,12 @@ class _SettingsViewState extends State<SettingsView> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
             ),
-            title: const Text('Select Language'),
+            title: Text('select_language'.tr()), // ✅ GÜNCELLENDİ
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildLanguageOption(context, 'English', '🇬🇧'),
-                _buildLanguageOption(context, 'Türkçe', '🇹🇷'),
-                _buildLanguageOption(context, 'Español', '🇪🇸'),
+                _buildLanguageOption(context, 'English', '🇬🇧', const Locale('en', 'US')),
+                _buildLanguageOption(context, 'Türkçe', '🇹🇷', const Locale('tr', 'TR')),
               ],
             ),
           ),
@@ -481,16 +507,17 @@ class _SettingsViewState extends State<SettingsView> {
   }
 
   Widget _buildLanguageOption(BuildContext context, String language,
-      String flag) {
+      String flag, Locale locale) {
     return ListTile(
       leading: Text(flag, style: const TextStyle(fontSize: 28)),
       title: Text(language),
       onTap: () {
         Navigator.pop(context);
+        context.setLocale(locale); // easy_localization ile dil değişimi (Aktif edildi)
         _viewModel.changeLanguage(language);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Language changed to $language'),
+            content: Text('language_changed'.tr(args: [language])), // ✅ GÜNCELLENDİ
             backgroundColor: const Color(0xFF10B981),
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
@@ -525,15 +552,15 @@ class _SettingsViewState extends State<SettingsView> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                const Text('Coming Soon'),
+                Text('coming_soon'.tr()), // ✅ GÜNCELLENDİ
               ],
             ),
             content: Text(
-                '$feature feature will be available in the next update!'),
+                'feature_coming_soon'.tr(args: [feature])), // ✅ GÜNCELLENDİ
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
+                child: Text('ok'.tr()), // ✅ GÜNCELLENDİ
               ),
             ],
           ),
@@ -565,50 +592,47 @@ class _SettingsViewState extends State<SettingsView> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                const Text('About MyKoc'),
+                Text('about_title'.tr()), // ✅ GÜNCELLENDİ
               ],
             ),
-            content: const Column(
+            content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'MyKoc - Educational Platform',
-                  style: TextStyle(
+                  'app_description'.tr(), // ✅ GÜNCELLENDİ
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                SizedBox(height: 12),
-                Text('Version: 1.0.0'),
-                SizedBox(height: 8),
+                const SizedBox(height: 12),
+                Text('version'.tr(args: ['1.0.0'])), // ✅ GÜNCELLENDİ
+                const SizedBox(height: 8),
                 Text(
-                  'A modern platform connecting mentors and students for effective learning.',
-                  style: TextStyle(fontSize: 14, height: 1.5),
+                  'platform_summary'.tr(), // ✅ GÜNCELLENDİ
+                  style: const TextStyle(fontSize: 14, height: 1.5),
                 ),
-                SizedBox(height: 12),
+                const SizedBox(height: 12),
                 Text(
-                  '© 2024 MyKoc. All rights reserved.',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                  'all_rights_reserved'.tr(), // ✅ GÜNCELLENDİ
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
               ],
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Close'),
+                child: Text('close'.tr()), // ✅ GÜNCELLENDİ
               ),
             ],
           ),
     );
   }
 
-  // lib/pages/settings/settings_view.dart
-// Sadece _showDeleteAccountDialog metodunu değiştir:
-
   void _showDeleteAccountDialog(BuildContext context) {
     final reasonController = TextEditingController();
-    DeleteReason? selectedReason; // ← String? yerine DeleteReason?
+    DeleteReason? selectedReason;
 
     showDialog(
       context: context,
@@ -634,7 +658,7 @@ class _SettingsViewState extends State<SettingsView> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    const Text('Delete Account'),
+                    Text('delete_account'.tr()), // ✅ GÜNCELLENDİ
                   ],
                 ),
                 content: SingleChildScrollView(
@@ -651,25 +675,21 @@ class _SettingsViewState extends State<SettingsView> {
                             color: const Color(0xFFEF4444).withOpacity(0.2),
                           ),
                         ),
-                        child: const Column(
+                        child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'This action cannot be undone!',
-                              style: TextStyle(
+                              'delete_account_warning'.tr(), // ✅ GÜNCELLENDİ
+                              style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
                                 color: Color(0xFFEF4444),
                               ),
                             ),
-                            SizedBox(height: 8),
+                            const SizedBox(height: 8),
                             Text(
-                              'All your data including:\n'
-                                  '• Classes and enrollments\n'
-                                  '• Tasks and submissions\n'
-                                  '• Profile information\n'
-                                  'will be permanently deleted.',
-                              style: TextStyle(
+                              'delete_account_data_loss'.tr(), // ✅ GÜNCELLENDİ
+                              style: const TextStyle(
                                 fontSize: 12,
                                 color: Color(0xFF6B7280),
                                 height: 1.5,
@@ -679,9 +699,9 @@ class _SettingsViewState extends State<SettingsView> {
                         ),
                       ),
                       const SizedBox(height: 20),
-                      const Text(
-                        'Why are you deleting your account?',
-                        style: TextStyle(
+                      Text(
+                        'delete_reason_question'.tr(), // ✅ GÜNCELLENDİ
+                        style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                         ),
@@ -710,7 +730,7 @@ class _SettingsViewState extends State<SettingsView> {
                           controller: reasonController,
                           maxLines: 3,
                           decoration: InputDecoration(
-                            hintText: 'Please tell us why...',
+                            hintText: 'delete_reason_hint'.tr(), // ✅ GÜNCELLENDİ
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -724,7 +744,7 @@ class _SettingsViewState extends State<SettingsView> {
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancel'),
+                    child: Text('cancel'.tr()), // ✅ GÜNCELLENDİ
                   ),
                   Container(
                     decoration: BoxDecoration(
@@ -737,7 +757,6 @@ class _SettingsViewState extends State<SettingsView> {
                           : () async {
                         Navigator.pop(context);
 
-                        // Show loading
                         showDialog(
                           context: context,
                           barrierDismissible: false,
@@ -768,17 +787,16 @@ class _SettingsViewState extends State<SettingsView> {
 
                           if (!success) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                    'Failed to delete account. Please try again.'),
-                                backgroundColor: Color(0xFFEF4444),
+                              SnackBar(
+                                content: Text('failed_delete_account'.tr()), // ✅ GÜNCELLENDİ
+                                backgroundColor: const Color(0xFFEF4444),
                               ),
                             );
                           }
                         }
                       },
                       child: Text(
-                        'Delete My Account',
+                        'delete_my_account_button'.tr(), // ✅ GÜNCELLENDİ
                         style: TextStyle(
                           color: selectedReason == null
                               ? Colors.white54
@@ -795,21 +813,20 @@ class _SettingsViewState extends State<SettingsView> {
     );
   }
 
-// Helper method ekle - class içinde
   String _getReasonDisplayText(DeleteReason reason) {
     switch (reason) {
       case DeleteReason.notUseful:
-        return 'I no longer need the service';
+        return 'delete_reason_not_useful'.tr(); // ✅ GÜNCELLENDİ
       case DeleteReason.foundAlternative:
-        return 'Found a better alternative';
+        return 'delete_reason_alternative'.tr(); // ✅ GÜNCELLENDİ
       case DeleteReason.privacyConcerns:
-        return 'Privacy concerns';
+        return 'delete_reason_privacy'.tr(); // ✅ GÜNCELLENDİ
       case DeleteReason.tooManyNotifications:
-        return 'Too many emails/notifications';
+        return 'delete_reason_notifications'.tr(); // ✅ GÜNCELLENDİ
       case DeleteReason.technicalIssues:
-        return 'Difficulty using the platform';
+        return 'delete_reason_technical'.tr(); // ✅ GÜNCELLENDİ
       case DeleteReason.other:
-        return 'Other (please specify)';
+        return 'delete_reason_other'.tr(); // ✅ GÜNCELLENDİ
     }
   }
 }

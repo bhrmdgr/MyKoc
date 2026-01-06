@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:mykoc/pages/classroom/class_detail/announcement_model.dart';
 import 'package:intl/intl.dart';
@@ -12,7 +13,8 @@ class AnnouncementDetailDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final formattedDate = DateFormat('MMMM dd, yyyy - HH:mm').format(announcement.createdAt);
+    // Tarih formatı için cihaz dilini dikkate alır
+    final formattedDate = DateFormat('MMMM dd, yyyy - HH:mm', context.locale.languageCode).format(announcement.createdAt);
 
     return Dialog(
       shape: RoundedRectangleBorder(
@@ -93,9 +95,9 @@ class AnnouncementDetailDialog extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Details',
-                    style: TextStyle(
+                  Text(
+                    'details'.tr(), // ✅ GÜNCELLENDİ
+                    style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF1F2937),
@@ -134,9 +136,9 @@ class AnnouncementDetailDialog extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text(
-                        'Close',
-                        style: TextStyle(
+                      child: Text(
+                        'close'.tr(), // ✅ GÜNCELLENDİ
+                        style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                         ),

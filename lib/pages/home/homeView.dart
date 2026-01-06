@@ -17,8 +17,13 @@ class _HomeViewState extends State<HomeView> {
   @override
   void initState() {
     super.initState();
+    // Provider.of yerine doğrudan yeni bir instance oluşturup initialize ediyoruz
     _viewModel = HomeViewModel();
-    _viewModel.initialize();
+
+    // ÖNEMLİ: Widget ağacı çizildikten hemen sonra initialize'ı zorla tetikle
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _viewModel.initialize();
+    });
   }
 
   @override
@@ -41,7 +46,6 @@ class _HomeViewState extends State<HomeView> {
             );
           }
 
-          // Role göre farklı view göster
           return homeData.isMentor
               ? MentorHomeView(homeData: homeData, viewModel: viewModel)
               : StudentHomeView(homeData: homeData, viewModel: viewModel);

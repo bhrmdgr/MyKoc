@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:mykoc/firebase/auth/firebaseSignUp.dart';
 import 'package:mykoc/routers/appRouter.dart';
@@ -35,27 +36,27 @@ class _SignupState extends State<Signup> {
   Future<void> _handleSignUp() async {
     // Validation
     if (_nameController.text.trim().isEmpty) {
-      _showError('Lütfen adınızı girin');
+      _showError('error_empty_name'.tr());
       return;
     }
 
     if (_emailController.text.trim().isEmpty) {
-      _showError('Lütfen e-posta adresinizi girin');
+      _showError('error_empty_password'.tr());
       return;
     }
 
     if (_passwordController.text.isEmpty) {
-      _showError('Lütfen şifrenizi girin');
+      _showError('error_empty_password'.tr());
       return;
     }
 
     if (_passwordController.text.length < 6) {
-      _showError('Şifre en az 6 karakter olmalı');
+      _showError('error_password_length'.tr());
       return;
     }
 
     if (_passwordController.text != _confirmPasswordController.text) {
-      _showError('Şifreler eşleşmiyor');
+      _showError('error_password_mismatch'.tr());
       return;
     }
 
@@ -75,7 +76,7 @@ class _SignupState extends State<Signup> {
       );
 
       if (mounted) {
-        _showSuccess('Kayıt başarılı! Giriş yapılıyor...');
+        _showSuccess('success_signup'.tr());
         await Future.delayed(const Duration(seconds: 1));
         navigateToHome(context);
       }
@@ -163,10 +164,10 @@ class _SignupState extends State<Signup> {
   }
 
   Widget _buildHeader() {
-    return const Column(
+    return Column(
       children: [
         Text(
-          'Hesap Oluştur',
+          'create_account'.tr(),
           style: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.bold,
@@ -175,7 +176,7 @@ class _SignupState extends State<Signup> {
         ),
         SizedBox(height: 8),
         Text(
-          'MyKoc topluluğuna katıl',
+          'join_community'.tr(),
           style: TextStyle(
             fontSize: 14,
             color: Color(0xFF6B7280),
@@ -190,8 +191,8 @@ class _SignupState extends State<Signup> {
       controller: _nameController,
       keyboardType: TextInputType.name,
       decoration: InputDecoration(
-        labelText: 'Ad Soyad',
-        hintText: 'Adınızı girin',
+        labelText: 'full_name'.tr(),
+        hintText: 'enter_name'.tr(),
         prefixIcon: const Icon(Icons.person_outline),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -207,8 +208,8 @@ class _SignupState extends State<Signup> {
       controller: _emailController,
       keyboardType: TextInputType.emailAddress,
       decoration: InputDecoration(
-        labelText: 'E-posta',
-        hintText: 'ornek@email.com',
+        labelText: 'email'.tr(),
+        hintText: 'email_hint'.tr(),
         prefixIcon: const Icon(Icons.email_outlined),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -224,7 +225,7 @@ class _SignupState extends State<Signup> {
       controller: _passwordController,
       obscureText: !_isPasswordVisible,
       decoration: InputDecoration(
-        labelText: 'Şifre',
+        labelText: 'password'.tr(),
         hintText: '••••••••',
         prefixIcon: const Icon(Icons.lock_outline),
         suffixIcon: IconButton(
@@ -249,7 +250,7 @@ class _SignupState extends State<Signup> {
       controller: _confirmPasswordController,
       obscureText: !_isConfirmPasswordVisible,
       decoration: InputDecoration(
-        labelText: 'Şifre Tekrar',
+        labelText: 'confirm_password'.tr(),
         hintText: '••••••••',
         prefixIcon: const Icon(Icons.lock_outline),
         suffixIcon: IconButton(
@@ -274,7 +275,7 @@ class _SignupState extends State<Signup> {
       controller: _phoneController,
       keyboardType: TextInputType.phone,
       decoration: InputDecoration(
-        labelText: 'Telefon (Opsiyonel)',
+        labelText: 'phone_optional'.tr(),
         hintText: '+90 5XX XXX XX XX',
         prefixIcon: const Icon(Icons.phone_outlined),
         border: OutlineInputBorder(
@@ -292,8 +293,8 @@ class _SignupState extends State<Signup> {
       keyboardType: TextInputType.number,
       maxLength: 6,
       decoration: InputDecoration(
-        labelText: 'Sınıf Kodu (Opsiyonel)',
-        hintText: 'Öğrenci iseniz kodunuzu girin',
+        labelText: 'class_code_optional'.tr(),
+        hintText: 'class_code_hint'.tr(),
         prefixIcon: const Icon(Icons.key_outlined),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -325,7 +326,7 @@ class _SignupState extends State<Signup> {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Sınıf kodu olmadan mentör olarak kayıt olursunuz. Öğrenci olarak kayıt olmak için mentörünüzden aldığınız kodu girin.',
+              'mentor_info_text'.tr(),
               style: TextStyle(
                 fontSize: 12,
                 color: const Color(0xFF4338CA),
@@ -358,8 +359,8 @@ class _SignupState extends State<Signup> {
           valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
         ),
       )
-          : const Text(
-        'Kayıt Ol',
+          : Text(
+        'register_now'.tr(),
         style: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w600,
@@ -372,16 +373,16 @@ class _SignupState extends State<Signup> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Text(
-          'Zaten hesabınız var mı? ',
+        Text(
+          'already_have_account'.tr(),
           style: TextStyle(color: Color(0xFF6B7280)),
         ),
         TextButton(
           onPressed: () {
             goBack(context);
           },
-          child: const Text(
-            'Giriş Yap',
+          child: Text(
+            'login'.tr(),
             style: TextStyle(
               color: Color(0xFF6366F1),
               fontWeight: FontWeight.w600,

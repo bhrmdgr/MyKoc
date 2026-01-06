@@ -38,6 +38,16 @@ class CreateClassViewModel extends ChangeNotifier {
     'Language',
     'Economics',
     'Philosophy',
+    'Career Coaching',
+    'Exam Prep',
+    'Personal Development',
+    'Entrepreneurship',
+    'Psychology',
+    'Marketing',
+    'Study Techniques',
+    'Project Management',
+    'Public Speaking',
+    'Soft Skills',
   ];
 
   void setEmoji(String emoji) {

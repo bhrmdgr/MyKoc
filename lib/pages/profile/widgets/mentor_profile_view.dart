@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart'; // ← Eklendi
 import 'package:flutter/material.dart';
 import 'package:mykoc/pages/profile/profile_model.dart';
 import 'package:mykoc/pages/profile/profile_view_model.dart';
@@ -27,12 +28,11 @@ class MentorProfileView extends StatelessWidget {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            _buildHeader(context), // ← context ekle
+            _buildHeader(context),
             const SizedBox(height: 16),
             _buildStatsOverview(),
             const SizedBox(height: 16),
 
-            // Loading veya İçerik
             if (viewModel.isLoading)
               const Padding(
                 padding: EdgeInsets.all(40.0),
@@ -126,14 +126,13 @@ class MentorProfileView extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'Mentor',
+                'profile_mentor'.tr(), // ✅ GÜNCELLENDİ
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.white.withOpacity(0.8),
                 ),
               ),
 
-              // Message button (sadece öğrenci görüyorsa)
               if (viewModel.isStudentViewing) ...[
                 const SizedBox(height: 20),
                 SizedBox(
@@ -142,9 +141,9 @@ class MentorProfileView extends StatelessWidget {
                     onPressed: () => _openDirectChat(context),
                     icon: const Icon(
                         Icons.chat_bubble_outline_rounded, size: 20),
-                    label: const Text(
-                      "Send Message",
-                      style: TextStyle(fontWeight: FontWeight.w600),
+                    label: Text(
+                      "send_message".tr(), // ✅ GÜNCELLENDİ
+                      style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
@@ -166,10 +165,7 @@ class MentorProfileView extends StatelessWidget {
     );
   }
 
-  /// Direkt mesajlaşma başlat (Mentor Profile için)
-  /// Bu metodu MentorProfileView widget'ında kullanın
   Future<void> _openDirectChat(BuildContext context) async {
-    // Loading göster
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -187,10 +183,9 @@ class MentorProfileView extends StatelessWidget {
       final currentUserRole = localStorage.getUserRole();
 
       if (currentUserId == null || currentUserData == null) {
-        throw Exception('User not logged in');
+        throw Exception('error_user_not_found'.tr());
       }
 
-      // Profil sahibinin bilgileri (Mentor)
       final mentorId = viewModel.viewedMentorId;
       if (mentorId == null) {
         throw Exception('Mentor ID not found');
@@ -199,12 +194,10 @@ class MentorProfileView extends StatelessWidget {
       final mentorName = profileData.userName;
       final mentorImageUrl = profileData.profileImageUrl;
 
-      // Mesaj servisini çağır
       final messagingService = MessagingService();
       String? chatRoomId;
 
       if (currentUserRole == 'student') {
-        // Student -> Mentor
         chatRoomId = await messagingService.getOrCreateDirectChatRoomId(
           mentorId: mentorId,
           studentId: currentUserId,
@@ -214,10 +207,9 @@ class MentorProfileView extends StatelessWidget {
       }
 
       if (!context.mounted) return;
-      Navigator.pop(context); // Loading kapat
+      Navigator.pop(context);
 
       if (chatRoomId != null) {
-        // Temporary ID ise otherUser bilgilerini aktar
         final isTemporary = chatRoomId.startsWith('direct_');
 
         Navigator.push(
@@ -227,7 +219,6 @@ class MentorProfileView extends StatelessWidget {
               chatRoomId: chatRoomId!,
               chatRoomName: mentorName,
               isGroup: false,
-              // Sadece temporary ise otherUser bilgilerini ver
               otherUserName: isTemporary ? mentorName : null,
               otherUserImageUrl: isTemporary ? mentorImageUrl : null,
             ),
@@ -235,9 +226,9 @@ class MentorProfileView extends StatelessWidget {
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to start chat'),
-            backgroundColor: Color(0xFFEF4444),
+          SnackBar(
+            content: Text('failed_start_chat'.tr()), // ✅ GÜNCELLENDİ
+            backgroundColor: const Color(0xFFEF4444),
           ),
         );
       }
@@ -247,7 +238,7 @@ class MentorProfileView extends StatelessWidget {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString()}'),
+            content: Text('error_with_message'.tr(args: [e.toString()])), // ✅ GÜNCELLENDİ
             backgroundColor: const Color(0xFFEF4444),
           ),
         );
@@ -273,9 +264,9 @@ class MentorProfileView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Overview',
-            style: TextStyle(
+          Text(
+            'overview'.tr(), // ✅ GÜNCELLENDİ
+            style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Color(0xFF1F2937),
@@ -284,28 +275,26 @@ class MentorProfileView extends StatelessWidget {
           const SizedBox(height: 16),
           Row(
             children: [
-              // CLASSES BUTTON
               Expanded(
                 child: GestureDetector(
                   onTap: () => viewModel.setMentorFilter('classes'),
                   child: _buildStatBox(
                     icon: Icons.school_outlined,
                     value: '${profileData.classCount ?? 0}',
-                    label: 'Classes',
+                    label: 'classes'.tr(), // ✅ GÜNCELLENDİ
                     color: const Color(0xFF6366F1),
                     isSelected: viewModel.mentorFilter == 'classes',
                   ),
                 ),
               ),
               const SizedBox(width: 12),
-              // STUDENTS BUTTON
               Expanded(
                 child: GestureDetector(
                   onTap: () => viewModel.setMentorFilter('students'),
                   child: _buildStatBox(
                     icon: Icons.people_outline,
                     value: '${profileData.studentCount ?? 0}',
-                    label: 'Students',
+                    label: 'students'.tr(), // ✅ GÜNCELLENDİ
                     color: const Color(0xFF10B981),
                     isSelected: viewModel.mentorFilter == 'students',
                   ),
@@ -314,11 +303,10 @@ class MentorProfileView extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          // TOTAL TASKS - NOT CLICKABLE
           _buildStatBox(
             icon: Icons.assignment_outlined,
             value: '${profileData.activeTasks ?? 0}',
-            label: 'Total Tasks Created',
+            label: 'total_tasks_created'.tr(), // ✅ GÜNCELLENDİ
             color: const Color(0xFF8B5CF6),
             isFullWidth: true,
             isSelected: false,
@@ -431,11 +419,11 @@ class MentorProfileView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.only(left: 4, bottom: 12),
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 12),
             child: Text(
-              'All Students',
-              style: TextStyle(
+              'all_students'.tr(), // ✅ GÜNCELLENDİ
+              style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: Color(0xFF1F2937),
@@ -445,8 +433,8 @@ class MentorProfileView extends StatelessWidget {
           if (viewModel.allStudents.isEmpty)
             _buildEmptyClassesState(
               icon: Icons.people_outline,
-              title: 'No Student Data Found',
-              subtitle: 'Visit class details pages to sync student data locally.',
+              title: 'no_student_data'.tr(), // ✅ GÜNCELLENDİ
+              subtitle: 'sync_student_info'.tr(), // ✅ GÜNCELLENDİ
             )
           else
             ...viewModel.allStudents.map((student) {
@@ -549,11 +537,11 @@ class MentorProfileView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.only(left: 4, bottom: 12),
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 12),
             child: Text(
-              'My Classes',
-              style: TextStyle(
+              'my_classes'.tr(), // ✅ GÜNCELLENDİ
+              style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: Color(0xFF1F2937),
@@ -562,8 +550,8 @@ class MentorProfileView extends StatelessWidget {
           ),
           if (viewModel.classes.isEmpty)
             _buildEmptyClassesState(
-              title: 'No Classes Yet',
-              subtitle: 'Create your first class from the home page',
+              title: 'no_classes_title'.tr(), // ✅ GÜNCELLENDİ
+              subtitle: 'no_classes_subtitle'.tr(), // ✅ GÜNCELLENDİ
               icon: Icons.school_outlined,
             )
           else
@@ -646,25 +634,25 @@ class MentorProfileView extends StatelessWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      Icon(Icons.people_outline, size: 14,
-                          color: Colors.grey[500]),
+                      const Icon(Icons.people_outline, size: 14,
+                          color: Color(0xFF6B7280)),
                       const SizedBox(width: 4),
                       Text(
-                        '${classItem.studentCount} students',
-                        style: TextStyle(
+                        '${classItem.studentCount} ${'students'.tr()}', // ✅ GÜNCELLENDİ
+                        style: const TextStyle(
                           fontSize: 12,
-                          color: Colors.grey[500],
+                          color: Color(0xFF6B7280),
                         ),
                       ),
                       const SizedBox(width: 12),
-                      Icon(Icons.vpn_key_outlined, size: 14,
-                          color: Colors.grey[500]),
+                      const Icon(Icons.vpn_key_outlined, size: 14,
+                          color: Color(0xFF6B7280)),
                       const SizedBox(width: 4),
                       Text(
                         classItem.classCode,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 12,
-                          color: Colors.grey[500],
+                          color: Color(0xFF6B7280),
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -674,7 +662,7 @@ class MentorProfileView extends StatelessWidget {
               ),
             ),
             PopupMenuButton(
-              icon: Icon(Icons.more_vert, color: Colors.grey[600]),
+              icon: const Icon(Icons.more_vert, color: Color(0xFF6B7280)),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -687,14 +675,14 @@ class MentorProfileView extends StatelessWidget {
                           () => _showDeleteClassDialog(context, classItem),
                     );
                   },
-                  child: const Row(
+                  child: Row(
                     children: [
-                      Icon(Icons.delete_outline, color: Color(0xFFEF4444),
+                      const Icon(Icons.delete_outline, color: Color(0xFFEF4444),
                           size: 20),
-                      SizedBox(width: 12),
+                      const SizedBox(width: 12),
                       Text(
-                        'Delete Class',
-                        style: TextStyle(color: Color(0xFFEF4444)),
+                        'delete_class'.tr(), // ✅ GÜNCELLENDİ
+                        style: const TextStyle(color: Color(0xFFEF4444)),
                       ),
                     ],
                   ),
@@ -790,7 +778,7 @@ class MentorProfileView extends StatelessWidget {
         children: [
           _buildMenuItem(
             icon: Icons.settings_outlined,
-            title: 'Settings',
+            title: 'settings'.tr(), // ✅ GÜNCELLENDİ
             onTap: () {
               Navigator.push(
                 context,
@@ -801,7 +789,7 @@ class MentorProfileView extends StatelessWidget {
           _buildDivider(),
           _buildMenuItem(
             icon: Icons.logout_rounded,
-            title: 'Log Out',
+            title: 'logout'.tr(), // ✅ GÜNCELLENDİ
             isDestructive: true,
             onTap: () {
               _showLogoutDialog(context);
@@ -877,7 +865,7 @@ class MentorProfileView extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 12),
-                const Text('Delete Class'),
+                Text('delete_class'.tr()), // ✅ GÜNCELLENDİ
               ],
             ),
             content: Column(
@@ -885,7 +873,7 @@ class MentorProfileView extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Are you sure you want to delete "${classItem.className}"?',
+                  'delete_class_confirm_desc'.tr(args: [classItem.className]), // ✅ GÜNCELLENDİ
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
@@ -901,24 +889,21 @@ class MentorProfileView extends StatelessWidget {
                       color: const Color(0xFFEF4444).withOpacity(0.2),
                     ),
                   ),
-                  child: const Column(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'This action cannot be undone. This will permanently:',
-                        style: TextStyle(
+                        'delete_class_warning_title'.tr(), // ✅ GÜNCELLENDİ
+                        style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                           color: Color(0xFFEF4444),
                         ),
                       ),
-                      SizedBox(height: 8),
+                      const SizedBox(height: 8),
                       Text(
-                        '• Remove all students from this class\n'
-                            '• Delete all tasks and assignments\n'
-                            '• Delete all announcements\n'
-                            '• Remove all class data',
-                        style: TextStyle(
+                        'delete_class_warning_list'.tr(), // ✅ GÜNCELLENDİ
+                        style: const TextStyle(
                           fontSize: 12,
                           color: Color(0xFF6B7280),
                           height: 1.5,
@@ -932,7 +917,7 @@ class MentorProfileView extends StatelessWidget {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
+                child: Text('cancel'.tr()), // ✅ GÜNCELLENDİ
               ),
               Container(
                 decoration: BoxDecoration(
@@ -972,8 +957,8 @@ class MentorProfileView extends StatelessWidget {
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Text(success
-                                    ? 'Class deleted successfully'
-                                    : 'Failed to delete class. Please try again.'),
+                                    ? 'class_deleted_success'.tr() // ✅ GÜNCELLENDİ
+                                    : 'class_deleted_failed'.tr()), // ✅ GÜNCELLENDİ
                               ),
                             ],
                           ),
@@ -988,9 +973,9 @@ class MentorProfileView extends StatelessWidget {
                       );
                     }
                   },
-                  child: const Text(
-                    'Delete',
-                    style: TextStyle(
+                  child: Text(
+                    'delete'.tr(), // ✅ GÜNCELLENDİ
+                    style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                     ),
@@ -1008,25 +993,22 @@ class MentorProfileView extends StatelessWidget {
     showDialog(
       context: context,
       builder: (dialogContext) =>
-          AlertDialog( // ← Farklı context kullan
-            title: const Text('Log Out'),
-            content: const Text('Are you sure you want to log out?'),
+          AlertDialog(
+            title: Text('logout_confirm_title'.tr()), // ✅ GÜNCELLENDİ
+            content: Text('logout_confirm_desc'.tr()), // ✅ GÜNCELLENDİ
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext),
-                // ← dialogContext
-                child: const Text('Cancel'),
+                child: Text('cancel'.tr()), // ✅ GÜNCELLENDİ
               ),
               TextButton(
                 onPressed: () {
-                  Navigator.pop(dialogContext); // ← İlk dialog'u kapat
-
-                  // Logout'u ana context ile çağır
-                  viewModel.logout(context); // ← context (ana sayfa context'i)
+                  Navigator.pop(dialogContext);
+                  viewModel.logout(context);
                 },
-                child: const Text(
-                  'Log Out',
-                  style: TextStyle(color: Color(0xFFEF4444)),
+                child: Text(
+                  'logout'.tr(), // ✅ GÜNCELLENDİ
+                  style: const TextStyle(color: Color(0xFFEF4444)),
                 ),
               ),
             ],

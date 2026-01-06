@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:mykoc/pages/classroom/create_class/create_class_view_model.dart';
 import 'package:provider/provider.dart';
@@ -155,8 +156,8 @@ class _CreateClassViewState extends State<CreateClassView>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Create New Class',
+                Text(
+                  'create_new_class'.tr(),
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -164,7 +165,7 @@ class _CreateClassViewState extends State<CreateClassView>
                   ),
                 ),
                 Text(
-                  'Set up your classroom',
+                  'setup_classroom'.tr(),
                   style: TextStyle(
                     fontSize: 13,
                     color: Colors.grey[600],
@@ -211,8 +212,8 @@ class _CreateClassViewState extends State<CreateClassView>
                     color: Colors.white.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Text(
-                    '✨ Quick Setup',
+                  child: Text(
+                    'quick_setup'.tr(),
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 12,
@@ -221,8 +222,8 @@ class _CreateClassViewState extends State<CreateClassView>
                   ),
                 ),
                 const SizedBox(height: 12),
-                const Text(
-                  'Ready to get started?',
+                Text(
+                  'ready_to_start'.tr(),
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
@@ -231,7 +232,7 @@ class _CreateClassViewState extends State<CreateClassView>
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Create your class in just a few steps',
+                  'create_class_steps'.tr(),
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.white.withOpacity(0.9),
@@ -295,12 +296,12 @@ class _CreateClassViewState extends State<CreateClassView>
                 ),
               ),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Class Avatar',
+                      'class_avatar'.tr(),
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -309,7 +310,7 @@ class _CreateClassViewState extends State<CreateClassView>
                     ),
                     SizedBox(height: 2),
                     Text(
-                      'Choose an emoji for your class',
+                      'choose_emoji'.tr(),
                       style: TextStyle(
                         fontSize: 13,
                         color: Color(0xFF6B7280),
@@ -376,8 +377,8 @@ class _CreateClassViewState extends State<CreateClassView>
                           size: 28,
                         ),
                         const SizedBox(height: 8),
-                        const Text(
-                          'Change',
+                        Text(
+                          'change'.tr(),
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
@@ -433,12 +434,12 @@ class _CreateClassViewState extends State<CreateClassView>
                 ),
               ),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Class Information',
+                      'class_information'.tr(),
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -447,7 +448,7 @@ class _CreateClassViewState extends State<CreateClassView>
                     ),
                     SizedBox(height: 2),
                     Text(
-                      'Basic details about your class',
+                      'basic_details'.tr(),
                       style: TextStyle(
                         fontSize: 13,
                         color: Color(0xFF6B7280),
@@ -460,8 +461,8 @@ class _CreateClassViewState extends State<CreateClassView>
           ),
           const SizedBox(height: 24),
           _buildGlassTextField(
-            label: 'Class Name',
-            hint: 'e.g., English Literature',
+            label: 'class_name'.tr(),
+            hint: 'class_name_hint'.tr(),
             controller: viewModel.classNameController,
             icon: Icons.class_outlined,
           ),
@@ -532,11 +533,11 @@ class _CreateClassViewState extends State<CreateClassView>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          children: const [
+          children: [
             Icon(Icons.category_outlined, color: Color(0xFF6366F1), size: 20),
             SizedBox(width: 8),
             Text(
-              'Class Type',
+              'class_type'.tr(),
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
@@ -560,17 +561,22 @@ class _CreateClassViewState extends State<CreateClassView>
             ),
           ),
           child: DropdownButtonFormField<String>(
-            value: viewModel.selectedClassType,
-            decoration: const InputDecoration(
+            value: viewModel.selectedClassType, // Örn: 'Mathematics'
+            decoration: InputDecoration(
               border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              hintText: 'choose_class_type'.tr(),
             ),
             icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF6366F1)),
             items: viewModel.classTypes.map((type) {
+              // Boşlukları alt tireye çevirip hepsini küçük harf yapıyoruz
+              // Örn: 'Career Coaching' -> 'type_career_coaching'
+              final String key = 'type_${type.toLowerCase().replaceAll(' ', '_')}';
+
               return DropdownMenuItem(
                 value: type,
                 child: Text(
-                  type,
+                  key.tr(),
                   style: const TextStyle(fontSize: 15),
                 ),
               );
@@ -630,8 +636,8 @@ class _CreateClassViewState extends State<CreateClassView>
                       ),
                     ),
                     const SizedBox(width: 12),
-                    const Text(
-                      'Choose Your Emoji',
+                    Text(
+                      'choose_your_emoji'.tr(),
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
@@ -742,7 +748,7 @@ class _CreateClassViewState extends State<CreateClassView>
                 )
                     : Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
+                  children:  [
                     Icon(
                       Icons.check_circle_outline,
                       color: Colors.white,
@@ -750,7 +756,7 @@ class _CreateClassViewState extends State<CreateClassView>
                     ),
                     SizedBox(width: 10),
                     Text(
-                      'Create Class',
+                      'create_class'.tr(),
                       style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.bold,
@@ -770,7 +776,7 @@ class _CreateClassViewState extends State<CreateClassView>
 
   Future<void> _handleCreateClass(CreateClassViewModel viewModel) async {
     if (viewModel.classNameController.text.trim().isEmpty) {
-      _showError('Please enter a class name');
+      _showError('error_class_name'.tr());
       return;
     }
 
@@ -782,10 +788,10 @@ class _CreateClassViewState extends State<CreateClassView>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
-              children: const [
+              children: [
                 Icon(Icons.check_circle, color: Colors.white),
                 SizedBox(width: 12),
-                Text('Class created successfully!'),
+                Text('success_class_created'.tr()),
               ],
             ),
             backgroundColor: const Color(0xFF10B981),
@@ -796,7 +802,7 @@ class _CreateClassViewState extends State<CreateClassView>
           ),
         );
       } else {
-        _showError('Failed to create class');
+        _showError('failed_class_created'.tr());
       }
     }
   }
