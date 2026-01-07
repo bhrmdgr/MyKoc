@@ -1,5 +1,6 @@
 import 'package:easy_localization/easy_localization.dart'; // ← Eklendi
 import 'package:flutter/material.dart';
+import 'package:mykoc/pages/premium/premium_view.dart';
 import 'package:provider/provider.dart';
 import 'package:mykoc/pages/settings/settings_view_model.dart';
 import 'package:mykoc/pages/settings/settings_model.dart';
@@ -52,9 +53,12 @@ class _SettingsViewState extends State<SettingsView> {
                   const SizedBox(height: 20),
                   _buildUserInfoSection(context, viewModel.settingsData!),
                   const SizedBox(height: 16),
+                  _buildSubscriptionSection(context, viewModel.settingsData!),                  const SizedBox(height: 16),
                   _buildPreferencesSection(context),
                   const SizedBox(height: 16),
                   _buildSupportSection(context),
+                  const SizedBox(height: 16),
+                  _buildLogoutSection(context),
                   const SizedBox(height: 16),
                   _buildDangerZone(context),
                   const SizedBox(height: 40),
@@ -242,6 +246,123 @@ class _SettingsViewState extends State<SettingsView> {
     );
   }
 
+
+  Widget _buildSubscriptionSection(BuildContext context, SettingsModel settingsData) {
+    // Sadece mentörler plan yönetimi yapabilir
+    if (settingsData.userRole != 'mentor') return const SizedBox.shrink();
+
+    final bool isPremium = settingsData.subscriptionTier == 'premium';
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      // --- TÜM KARTI TIKLANABİLİR YAPTIK ---
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const PremiumView()),
+          );
+        },
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: isPremium ? Colors.amber.withOpacity(0.1) : Colors.blue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      isPremium ? Icons.stars_rounded : Icons.account_tree_outlined,
+                      color: isPremium ? Colors.amber : Colors.blue,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'current_plan'.tr(),
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[500],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          isPremium ? 'premium_plan'.tr() : 'free_plan'.tr(),
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1F2937),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Butonları görsel olarak bıraktık ama kartın tamamı zaten tıklanabiliyor
+                  isPremium
+                      ? Icon(Icons.chevron_right, color: Colors.grey[400])
+                      : Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF6366F1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      'upgrade'.tr(),
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+              if (isPremium) ...[
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Divider(),
+                ),
+                Row(
+                  children: [
+                    const Icon(Icons.verified_user_outlined, color: Color(0xFF10B981), size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'premium_active_info'.tr(),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey[600],
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildPreferencesSection(BuildContext context) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
@@ -387,6 +508,36 @@ class _SettingsViewState extends State<SettingsView> {
     );
   }
 
+  // build metodundaki Column içinde çağırın:
+// _buildSupportSection(context),
+// const SizedBox(height: 16),
+// _buildLogoutSection(context), // <--- Yeni eklendi
+
+  Widget _buildLogoutSection(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: _buildSettingItem(
+        icon: Icons.logout_rounded,
+        title: 'logout'.tr(),
+        onTap: () => _showLogoutDialog(context),
+        isDestructive: true,
+      ),
+    );
+  }
+
+
+
   Widget _buildDangerZone(BuildContext context) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
@@ -526,6 +677,30 @@ class _SettingsViewState extends State<SettingsView> {
           ),
         );
       },
+    );
+  }
+
+  void _showLogoutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('logout_confirm_title'.tr()),
+        content: Text('logout_confirm_desc'.tr()),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text('cancel'.tr()),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              _viewModel.logout(context);
+            },
+            child: Text('logout'.tr(), style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
     );
   }
 

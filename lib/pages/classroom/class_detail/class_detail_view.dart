@@ -1,6 +1,7 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:mykoc/pages/premium/premium_view.dart';
 import 'package:provider/provider.dart';
 import 'package:mykoc/pages/classroom/class_detail/class_detail_view_model.dart';
 import 'package:mykoc/pages/classroom/class_model.dart';
@@ -66,6 +67,48 @@ class _ClassDetailViewState extends State<ClassDetailView>
         }
       });
     });
+  }
+
+  // Öğrenci limiti dolduğunda gösterilecek Premium uyarısı
+  void _showStudentLimitDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: Color(0xFFF59E0B), size: 28),
+            const SizedBox(width: 12),
+            Text('limit_reached'.tr(), style: const TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Text('student_limit_info'.tr()),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('close'.tr(), style: TextStyle(color: Colors.grey[600])),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context); // Önce diyaloğu kapat
+              // Premium sayfasına yönlendiriyoruz
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const PremiumView()),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF6366F1),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: Text(
+                'upgrade_now'.tr(),
+                style: const TextStyle(color: Colors.white)
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   // ViewModel değiştiğinde tetiklenir
@@ -408,9 +451,7 @@ class _ClassDetailViewState extends State<ClassDetailView>
       return Container(
         height: 200,
         color: const Color(0xFFF9FAFB),
-        child: const Center(
-          child: CircularProgressIndicator(),
-        ),
+        child: const Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -418,7 +459,6 @@ class _ClassDetailViewState extends State<ClassDetailView>
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        // ... (Header kısmı aynı kalıyor) ...
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
           child: Row(
@@ -426,17 +466,41 @@ class _ClassDetailViewState extends State<ClassDetailView>
             children: [
               Text(
                 'students'.tr(),
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1F2937)),
+                style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1F2937)
+                ),
               ),
               OutlinedButton.icon(
-                onPressed: () => _showInviteCodeDialog(),
+                onPressed: () async {
+                  // Butona basıldığında limit kontrolü yapıyoruz
+                  final bool canAddMore = await viewModel.checkStudentLimit();
+
+                  if (mounted) {
+                    if (canAddMore) {
+                      // Limit uygunsa kodu göster
+                      _showInviteCodeDialog();
+                    } else {
+                      // Limit dolmuşsa Premium uyarısını/yönlendirmesini göster
+                      _showStudentLimitDialog();
+                    }
+                  }
+                },
                 icon: const Icon(Icons.person_add_outlined, size: 18),
                 label: Text('add_student'.tr()),
-                // ... style aynı
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF6366F1),
+                  side: const BorderSide(color: Color(0xFF6366F1)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
               ),
             ],
           ),
         ),
+        // Listenin geri kalanı aynı...
         viewModel.students.isEmpty
             ? _buildEmptyStudentsState()
             : Padding(
@@ -445,11 +509,10 @@ class _ClassDetailViewState extends State<ClassDetailView>
             mainAxisSize: MainAxisSize.min,
             children: viewModel.students.map((student) {
               final index = viewModel.students.indexOf(student);
-              final studentId = student['uid'] ?? student['id']; // ID'yi al
-
+              final studentId = student['uid'] ?? student['id'];
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: GestureDetector( // Tıklama özelliği
+                child: GestureDetector(
                   onTap: () {
                     if (studentId != null) {
                       Navigator.push(
@@ -731,6 +794,51 @@ class _ClassDetailViewState extends State<ClassDetailView>
     );
   }
 
+  Widget _buildStudentLimitBanner(ClassDetailViewModel viewModel) {
+    // Kullanıcı zaten premium ise banner'ı gizle
+    if (viewModel.isPremium) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF59E0B).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.3)),
+      ),
+      child: InkWell(
+        onTap: () {
+          // TODO: PremiumView sayfasına yönlendir
+          // Navigator.push(context, MaterialPageRoute(builder: (context) => const PremiumView()));
+        },
+        child: Row(
+          children: [
+            const Icon(Icons.stars_rounded, color: Color(0xFFD97706), size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: RichText(
+                text: TextSpan(
+                  style: const TextStyle(color: Color(0xFF92400E), fontSize: 12),
+                  children: [
+                    TextSpan(
+                        text: 'student_limit_banner_info'
+                            .tr(args: [viewModel.maxStudentLimit.toString()])),
+                    TextSpan(
+                      text: ' ${'upgrade_now'.tr()}',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          decoration: TextDecoration.underline),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showEditAnnouncementDialog(AnnouncementModel announcement) {
     showDialog(
       context: context,
@@ -783,12 +891,14 @@ class _ClassDetailViewState extends State<ClassDetailView>
   }
 
   void _showInviteCodeDialog() {
+    // ViewModel üzerinden güncel limit bilgilerini alıyoruz
+    final bool isPremium = _viewModel.isPremium;
+    final int maxLimit = _viewModel.maxStudentLimit;
+
     showDialog(
       context: context,
       builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -801,57 +911,70 @@ class _ClassDetailViewState extends State<ClassDetailView>
                   color: const Color(0xFF6366F1).withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
-                  Icons.qr_code_2_rounded,
-                  color: Color(0xFF6366F1),
-                  size: 30,
-                ),
+                child: const Icon(Icons.qr_code_2_rounded, color: Color(0xFF6366F1), size: 30),
               ),
               const SizedBox(height: 16),
               Text(
                 'class_code'.tr(),
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1F2937),
-                ),
+                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF1F2937)),
               ),
               const SizedBox(height: 8),
+
+              // --- GÜNCELLENEN BİLGİ ALANI ---
+              if (!isPremium) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.amber.shade200),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        'free_plan_student_limit_info'.tr(args: [maxLimit.toString()]),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 13, color: Colors.amber.shade900, fontWeight: FontWeight.w500),
+                      ),
+                      const SizedBox(height: 4),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => const PremiumView()));
+                        },
+                        child: Text(
+                          'upgrade_for_unlimited'.tr(),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF6366F1),
+                            fontWeight: FontWeight.bold,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+              // ------------------------------
+
               Text(
                 'ask_students_code'.tr(),
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                ),
+                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 16,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF3F4F6),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: const Color(0xFF6366F1).withOpacity(0.3),
-                    width: 2,
-                  ),
+                  border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.3), width: 2),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      widget.classData.classCode,
-                      style: const TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF6366F1),
-                        letterSpacing: 4,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  widget.classData.classCode,
+                  style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Color(0xFF6366F1), letterSpacing: 4),
                 ),
               ),
               const SizedBox(height: 24),
@@ -859,36 +982,20 @@ class _ClassDetailViewState extends State<ClassDetailView>
                 width: double.infinity,
                 height: 48,
                 child: ElevatedButton.icon(
-                  onPressed: () {
-                    _copyCodeToClipboard(widget.classData.classCode);
-                  },
+                  onPressed: () => _copyCodeToClipboard(widget.classData.classCode),
                   icon: const Icon(Icons.copy_rounded, size: 20),
-                  label: Text(
-                    'copy_code'.tr(),
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  label: Text('copy_code'.tr(), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF6366F1),
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
               ),
               const SizedBox(height: 12),
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: Text(
-                  'close'.tr(),
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Color(0xFF6B7280),
-                  ),
-                ),
+                child: Text('close'.tr(), style: const TextStyle(fontSize: 16, color: Color(0xFF6B7280))),
               ),
             ],
           ),

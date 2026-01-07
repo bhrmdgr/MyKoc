@@ -34,14 +34,14 @@ class _SignupState extends State<Signup> {
   }
 
   Future<void> _handleSignUp() async {
-    // Validation
+    // 1. Form Doğrulamaları (Validation)
     if (_nameController.text.trim().isEmpty) {
       _showError('error_empty_name'.tr());
       return;
     }
 
     if (_emailController.text.trim().isEmpty) {
-      _showError('error_empty_password'.tr());
+      _showError('error_empty_email'.tr());
       return;
     }
 
@@ -60,35 +60,86 @@ class _SignupState extends State<Signup> {
       return;
     }
 
+    // 2. Yükleniyor Durumunu Başlat
     setState(() => _isLoading = true);
 
     try {
+      // 3. Kayıt İşlemini Başlat
+      // Not: FirebaseSignUp içindeki _registerAsStudent artık limit kontrolü yapıyor.
       await _firebaseSignUp.signUpWithEmailAndPassword(
         name: _nameController.text.trim(),
         email: _emailController.text.trim(),
         password: _passwordController.text,
         phone: _phoneController.text.trim().isNotEmpty
             ? _phoneController.text.trim()
-            : null,  // ← Telefon eklendi
+            : null,
         classCode: _classCodeController.text.trim().isNotEmpty
             ? _classCodeController.text.trim()
             : null,
       );
 
+      // 4. Başarılı Kayıt
       if (mounted) {
         _showSuccess('success_signup'.tr());
         await Future.delayed(const Duration(seconds: 1));
-        navigateToHome(context);
+        if (mounted) navigateToHome(context);
       }
     } catch (e) {
+      // 5. Hata Yönetimi
       if (mounted) {
-        _showError(e.toString());
+        final errorString = e.toString();
+
+        // Mentörün öğrenci limiti doluysa özel diyalog göster
+        if (errorString.contains('STUDENT_LIMIT_REACHED')) {
+          _showLimitErrorDialog();
+        }
+        // Diğer genel hataları SnackBar ile göster
+        else {
+          _showError(errorString);
+        }
       }
     } finally {
+      // 6. Yükleniyor Durumunu Kapat
       if (mounted) {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  /// Mentör limiti dolduğunda gösterilecek özel uyarı diyaloğu
+  void _showLimitErrorDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false, // Kullanıcı mutlaka butona basmalı
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'limit_reached'.tr(),
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'student_signup_limit_info'.tr(),
+          style: const TextStyle(fontSize: 15),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'ok'.tr(),
+              style: const TextStyle(color: Color(0xFF6366F1), fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
 

@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'package:mykoc/firebase/classroom/classroom_service.dart';
 import 'package:mykoc/services/storage/local_storage_service.dart';
 import 'package:mykoc/firebase/messaging/fcm_service.dart';
 import 'package:mykoc/firebase/messaging/messaging_service.dart';
@@ -10,6 +11,7 @@ class FirebaseSignUp {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final LocalStorageService _localStorage = LocalStorageService();
   final MessagingService _messagingService = MessagingService();
+  final ClassroomService _classroomService = ClassroomService();
 
   Future<User?> signUpWithEmailAndPassword({
     required String name,
@@ -76,7 +78,7 @@ class FirebaseSignUp {
       'classCount': 0,
       'studentCount': 0,
       'maxClasses': 1,
-      'maxStudentsPerClass': 30,
+      'maxStudentsPerClass': 10,
       'createdAt': FieldValue.serverTimestamp(),
     };
 
@@ -97,7 +99,7 @@ class FirebaseSignUp {
     await _localStorage.saveMentorData({
       'subscriptionTier': 'free',
       'maxClasses': 1,
-      'maxStudentsPerClass': 30,
+      'maxStudentsPerClass': 10,
       'classCount': 0,
       'studentCount': 0,
     });
@@ -110,21 +112,32 @@ class FirebaseSignUp {
       String? phone,
       String classCode,
       ) async {
-    // 1. Sınıfı bul
-    final classDoc = await _firestore
+    // 1. Sınıfı kod ile bul
+    final classSnapshot = await _firestore
         .collection('classes')
-        .where('classCode', isEqualTo: classCode.trim())
+        .where('classCode', isEqualTo: classCode.trim().toUpperCase())
         .get();
 
-    if (classDoc.docs.isEmpty) {
+    if (classSnapshot.docs.isEmpty) {
       throw 'Geçersiz sınıf kodu';
     }
 
-    final classData = classDoc.docs.first.data();
-    final classId = classDoc.docs.first.id;
-    final mentorId = classData['mentorId'];
+    final classDoc = classSnapshot.docs.first;
+    final classId = classDoc.id;
+    final classData = classDoc.data();
+    final String mentorId = classData['mentorId'] ?? '';
 
-    // 2. Users collection
+    // --- KRİTİK LİMİT KONTROLÜ BAŞLANGIÇ ---
+    // ClassroomService üzerindeki merkezi kontrol metodunu kullanıyoruz
+    final bool canJoin = await _classroomService.checkStudentLimit(classId);
+
+    if (!canJoin) {
+      // Eğer limit dolmuşsa hata fırlat ve kaydı durdur
+      throw 'STUDENT_LIMIT_REACHED';
+    }
+    // --- KRİTİK LİMİT KONTROLÜ BİTİŞ ---
+
+    // 2. Users koleksiyonuna temel kullanıcı verilerini kaydet
     final userData = {
       'uid': uid,
       'name': name,
@@ -136,7 +149,7 @@ class FirebaseSignUp {
       'createdAt': FieldValue.serverTimestamp(),
     };
 
-    // 3. Students collection
+    // 3. Students koleksiyonuna öğrenci-mentör eşleşmesini kaydet
     final studentData = {
       'uid': uid,
       'name': name,
@@ -144,37 +157,41 @@ class FirebaseSignUp {
       'phone': phone?.trim(),
       'mentorId': mentorId,
       'classId': classId,
-      'classCode': classCode,
+      'classCode': classCode.toUpperCase(),
       'enrolledAt': FieldValue.serverTimestamp(),
     };
 
-    await _firestore.collection('users').doc(uid).set(userData);
-    await _firestore.collection('students').doc(uid).set(studentData);
+    // İşlemleri toplu (batch) yapmak veri tutarlılığı için daha iyidir
+    final batch = _firestore.batch();
 
-    // 4. Sınıfa öğrenci ekle
-    await _firestore
-        .collection('classes')
-        .doc(classId)
-        .collection('students')
-        .doc(uid)
-        .set({
-      'uid': uid,
-      'name': name,
-      'email': email,
-      'phone': phone?.trim(),
-      'enrolledAt': FieldValue.serverTimestamp(),
-    });
+    batch.set(_firestore.collection('users').doc(uid), userData);
+    batch.set(_firestore.collection('students').doc(uid), studentData);
 
-    // 5. Student count artır
-    await _firestore.collection('classes').doc(classId).update({
+    // 4. Sınıfın altındaki 'students' koleksiyonuna ekle
+    batch.set(
+      _firestore.collection('classes').doc(classId).collection('students').doc(uid),
+      {
+        'uid': uid,
+        'name': name,
+        'email': email,
+        'phone': phone?.trim(),
+        'enrolledAt': FieldValue.serverTimestamp(),
+      },
+    );
+
+    // 5. Sayaçları (studentCount) artır
+    batch.update(_firestore.collection('classes').doc(classId), {
       'studentCount': FieldValue.increment(1),
     });
 
-    await _firestore.collection('mentors').doc(mentorId).update({
+    batch.update(_firestore.collection('mentors').doc(mentorId), {
       'studentCount': FieldValue.increment(1),
     });
 
-    // 6. ÖNEMLİ: Öğrenciyi chat room'a ekle
+    // Batch işlemini tamamla
+    await batch.commit();
+
+    // 6. Mesajlaşma (Chat Room) entegrasyonu
     try {
       final chatRoomId = await _messagingService.getChatRoomIdByClassId(classId);
 
@@ -186,15 +203,13 @@ class FirebaseSignUp {
           studentImageUrl: null,
         );
         debugPrint('✅ Student added to chat room: $chatRoomId');
-      } else {
-        debugPrint('⚠️ Chat room not found for class: $classId');
       }
     } catch (e) {
       debugPrint('❌ Error adding student to chat room: $e');
-      // Chat room hatası kayıt işlemini durdurmamalı
+      // Chat hatası kaydı tamamen durdurmamalı, sadece logluyoruz.
     }
 
-    // 7. Local storage
+    // 7. Local Storage güncellemeleri
     await _localStorage.saveUserData({
       'uid': uid,
       'name': name,
@@ -209,7 +224,7 @@ class FirebaseSignUp {
     await _localStorage.saveStudentData({
       'mentorId': mentorId,
       'classId': classId,
-      'classCode': classCode,
+      'classCode': classCode.toUpperCase(),
     });
 
     await _localStorage.saveActiveClassId(classId);

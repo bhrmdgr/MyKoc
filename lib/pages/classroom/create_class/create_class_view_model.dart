@@ -17,6 +17,22 @@ class CreateClassViewModel extends ChangeNotifier {
   String _selectedClassType = 'Mathematics';
   String get selectedClassType => _selectedClassType;
 
+  // Kullanıcının premium olup olmadığını kontrol eder
+  bool get isPremium {
+    final mentorData = _localStorage.getMentorData();
+    return mentorData?['subscriptionTier'] == 'premium';
+  }
+
+  // Maksimum sınıf limitini döner (UI bilgilendirmesi için)
+  int get maxClassLimit {
+    final mentorData = _localStorage.getMentorData();
+    return mentorData?['maxClasses'] ?? 1;
+  }
+
+  // Hata mesajlarını UI'da göstermek için (Opsiyonel)
+  String? _errorMessage;
+  String? get errorMessage => _errorMessage;
+
   final List<String> availableEmojis = [
     '📚', '📖', '✏️', '📝', '🎨', '🎭', '🎵', '🎸',
     '🔬', '🧪', '🧬', '💻', '🖥️', '📱', '🌍', '🌎',
@@ -62,6 +78,7 @@ class CreateClassViewModel extends ChangeNotifier {
 
   Future<bool> createClass() async {
     _isLoading = true;
+    _errorMessage = null;
     notifyListeners();
 
     try {
@@ -74,7 +91,7 @@ class CreateClassViewModel extends ChangeNotifier {
 
       final mentorName = userData['name'] ?? 'Unknown';
 
-      // Service kullanarak sınıf oluştur
+      // Service kullanarak sınıf oluştur (Limit kontrolü artık servis içinde yapılıyor)
       final classId = await _classroomService.createClass(
         mentorId: uid,
         mentorName: mentorName,
@@ -84,8 +101,8 @@ class CreateClassViewModel extends ChangeNotifier {
       );
 
       if (classId != null) {
-        // Yeni sınıfı local'e ekle
-        final newClass = {
+        // Yeni sınıf verisini modelleyerek local'e ekle
+        final newClassMap = {
           'id': classId,
           'mentorId': uid,
           'mentorName': mentorName,
@@ -93,23 +110,31 @@ class CreateClassViewModel extends ChangeNotifier {
           'classType': _selectedClassType,
           'emoji': _selectedEmoji,
           'imageUrl': null,
-          'classCode': 'XXXXXX', // TODO: Gerçek kodu al
+          'classCode': '...', // Gerekiyorsa servisten dönen koda göre güncellenebilir
           'studentCount': 0,
           'taskCount': 0,
           'createdAt': DateTime.now().toIso8601String(),
         };
 
-        // Mevcut listeye ekle
+        // Mevcut listeye ekle ve kaydet
         final currentClasses = _localStorage.getClassesList() ?? [];
-        currentClasses.insert(0, newClass);
+        currentClasses.insert(0, newClassMap);
         await _localStorage.saveClassesList(currentClasses);
 
-        debugPrint('✅ Yeni sınıf local\'e de kaydedildi');
+        debugPrint('✅ Yeni sınıf local ve uzak sunucuya başarıyla kaydedildi.');
+        return true;
       }
 
-      return classId != null;
+      return false;
     } catch (e) {
-      debugPrint('❌ Create class error: $e');
+      // Servis katmanından gelen spesifik limit hatasını yakalıyoruz
+      if (e.toString().contains('LIMIT_REACHED')) {
+        _errorMessage = 'LIMIT_REACHED';
+        debugPrint('⚠️ Kullanıcı sınıf limitine ulaştı.');
+      } else {
+        _errorMessage = e.toString();
+        debugPrint('❌ Create class error: $e');
+      }
       return false;
     } finally {
       _isLoading = false;

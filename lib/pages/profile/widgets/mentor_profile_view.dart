@@ -41,9 +41,6 @@ class MentorProfileView extends StatelessWidget {
             else
               _buildDynamicContent(context),
 
-            const SizedBox(height: 16),
-            _buildMenuOptions(context),
-            const SizedBox(height: 40),
           ],
         ),
       ),
@@ -66,100 +63,89 @@ class MentorProfileView extends StatelessWidget {
       ),
       child: SafeArea(
         bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
-          child: Column(
-            children: [
-              Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: (profileData.profileImageUrl != null &&
-                    profileData.profileImageUrl!.isNotEmpty)
-                    ? ClipOval(
-                  child: Image.network(
-                    profileData.profileImageUrl!,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Center(
-                        child: Text(
-                          profileData.userInitials,
-                          style: const TextStyle(
-                            fontSize: 36,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF6366F1),
-                          ),
-                        ),
-                      );
-                    },
+        child: Stack(
+          alignment: Alignment.topCenter, // Stack içindeki her şeyi merkeze hizalar
+          children: [
+            // ⚙️ Sağ Üst Ayarlar Butonu - Pozisyonu sabit kalır
+            if (!viewModel.isStudentViewing)
+              Positioned(
+                top: 0,
+                right: 10,
+                child: IconButton(
+                  icon: const Icon(Icons.settings_outlined, color: Colors.white, size: 28),
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const SettingsView()),
                   ),
-                )
-                    : Center(
-                  child: Text(
-                    profileData.userInitials,
-                    style: const TextStyle(
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF6366F1),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                profileData.userName,
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'profile_mentor'.tr(), // ✅ GÜNCELLENDİ
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.white.withOpacity(0.8),
                 ),
               ),
 
-              if (viewModel.isStudentViewing) ...[
-                const SizedBox(height: 20),
-                SizedBox(
-                  height: 45,
-                  child: ElevatedButton.icon(
-                    onPressed: () => _openDirectChat(context),
-                    icon: const Icon(
-                        Icons.chat_bubble_outline_rounded, size: 20),
-                    label: Text(
-                      "send_message".tr(), // ✅ GÜNCELLENDİ
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: const Color(0xFF6366F1),
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
+            // 👤 Profil Bilgileri - Genişliği zorlayarak ortalıyoruz
+            SizedBox(
+              width: double.infinity, // Ekranı tam kaplamasını sağlar
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center, // İçerikleri yatayda ortalar
+                  children: [
+                    Container(
+                      width: 100,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
                       ),
+                      child: (profileData.profileImageUrl != null && profileData.profileImageUrl!.isNotEmpty)
+                          ? ClipOval(
+                        child: Image.network(
+                          profileData.profileImageUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Center(
+                            child: Text(profileData.userInitials,
+                                style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Color(0xFF6366F1))),
+                          ),
+                        ),
+                      )
+                          : Center(
+                          child: Text(profileData.userInitials,
+                              style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Color(0xFF6366F1)))),
                     ),
-                  ),
+                    const SizedBox(height: 16),
+                    Text(profileData.userName,
+                        style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
+                    const SizedBox(height: 4),
+                    Text('profile_mentor'.tr(), style: TextStyle(fontSize: 16, color: Colors.white.withOpacity(0.8))),
+
+                    // Mesaj Gönder Butonu Ortalı
+                    if (viewModel.isStudentViewing) ...[
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        height: 45,
+                        child: ElevatedButton.icon(
+                          onPressed: () => _openDirectChat(context),
+                          icon: const Icon(Icons.chat_bubble_outline_rounded, size: 20),
+                          label: Text("send_message".tr(), style: const TextStyle(fontWeight: FontWeight.w600)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: const Color(0xFF6366F1),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-                const SizedBox(height: 10),
-              ],
-            ],
-          ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -756,84 +742,8 @@ class MentorProfileView extends StatelessWidget {
     );
   }
 
-  Widget _buildMenuOptions(BuildContext context) {
-    if (viewModel.isStudentViewing) {
-      return const SizedBox.shrink();
-    }
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          _buildMenuItem(
-            icon: Icons.settings_outlined,
-            title: 'settings'.tr(), // ✅ GÜNCELLENDİ
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const SettingsView()),
-              );
-            },
-          ),
-          _buildDivider(),
-          _buildMenuItem(
-            icon: Icons.logout_rounded,
-            title: 'logout'.tr(), // ✅ GÜNCELLENDİ
-            isDestructive: true,
-            onTap: () {
-              _showLogoutDialog(context);
-            },
-          ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildMenuItem({
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-    bool isDestructive = false,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              color: isDestructive ? const Color(0xFFEF4444) : const Color(
-                  0xFF6B7280),
-              size: 24,
-            ),
-            const SizedBox(width: 16),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: isDestructive ? const Color(0xFFEF4444) : const Color(
-                    0xFF1F2937),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildDivider() {
     return Padding(
@@ -988,31 +898,4 @@ class MentorProfileView extends StatelessWidget {
   }
 
 
-
-  void _showLogoutDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) =>
-          AlertDialog(
-            title: Text('logout_confirm_title'.tr()), // ✅ GÜNCELLENDİ
-            content: Text('logout_confirm_desc'.tr()), // ✅ GÜNCELLENDİ
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext),
-                child: Text('cancel'.tr()), // ✅ GÜNCELLENDİ
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(dialogContext);
-                  viewModel.logout(context);
-                },
-                child: Text(
-                  'logout'.tr(), // ✅ GÜNCELLENDİ
-                  style: const TextStyle(color: Color(0xFFEF4444)),
-                ),
-              ),
-            ],
-          ),
-    );
-  }
 }

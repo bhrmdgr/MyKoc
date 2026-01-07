@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:mykoc/pages/auth/sign_in/signIn.dart';
 import 'package:mykoc/pages/settings/settings_model.dart';
 import 'package:mykoc/services/storage/local_storage_service.dart';
 import 'package:mykoc/routers/appRouter.dart';
@@ -45,31 +46,66 @@ class SettingsViewModel extends ChangeNotifier {
   }
 
   /// Kullanıcı verilerini yükle
+  // settings_view_model.dart içindeki ilgili kısmı şu şekilde güncelle:
+
   Future<void> _loadUserData() async {
+    final uid = _localStorage.getUid();
     final userData = _localStorage.getUserData();
-    // Bildirim tercihini local storage'dan oku (varsayılan true)
     final bool notificationsEnabled = _localStorage.getNotificationsEnabled() ?? true;
 
-    if (userData == null) {
-      debugPrint('⚠️ User data not found in local storage');
-      return;
+    if (uid == null || userData == null) return;
+
+    try {
+      final mentorDoc = await _firestore.collection('mentors').doc(uid).get();
+
+      String tier = 'free';
+      if (mentorDoc.exists) {
+        final data = Map<String, dynamic>.from(mentorDoc.data()!);
+
+        // --- Timestamp DÜZELTMESİ BAŞLANGIÇ ---
+        // Firebase'den gelen dökümandaki tüm Timestamp alanlarını String'e çeviriyoruz
+        data.forEach((key, value) {
+          if (value is Timestamp) {
+            data[key] = value.toDate().toIso8601String();
+          }
+        });
+        // --- Timestamp DÜZELTMESİ BİTİŞ ---
+
+        tier = data['subscriptionTier'] ?? 'free';
+        await _localStorage.saveMentorData(data); // Artık hata vermeyecek
+      }
+
+      _settingsData = SettingsModel(
+        userName: userData['name'] ?? 'User',
+        userEmail: userData['email'] ?? '',
+        userRole: userData['role'] ?? 'student',
+        profileImageUrl: userData['profileImage'],
+        appVersion: '1.0.0',
+        currentLanguage: 'English',
+        isNotificationsEnabled: notificationsEnabled,
+        subscriptionTier: tier,
+      );
+
+      debugPrint('✅ Settings data synced successfully.');
+    } catch (e) {
+      debugPrint('❌ Error syncing settings from Firestore: $e');
+      // Hata durumunda local veriden devam et
+      final mentorData = _localStorage.getMentorData();
+      _settingsData = SettingsModel(
+        userName: userData['name'] ?? 'User',
+        userEmail: userData['email'] ?? '',
+        userRole: userData['role'] ?? 'student',
+        profileImageUrl: userData['profileImage'],
+        appVersion: '1.0.0',
+        currentLanguage: 'English',
+        isNotificationsEnabled: notificationsEnabled,
+        subscriptionTier: mentorData?['subscriptionTier'] ?? 'free',
+      );
     }
-
-    _settingsData = SettingsModel(
-      userName: userData['name'] ?? 'User',
-      userEmail: userData['email'] ?? '',
-      userRole: userData['role'] ?? 'student',
-      profileImageUrl: userData['profileImage'],
-      appVersion: '1.0.0',
-      currentLanguage: 'English',
-      isNotificationsEnabled: notificationsEnabled, // Bildirim durumu eklendi
-    );
-
-    debugPrint('✅ Settings data loaded');
     _safeNotifyListeners();
   }
 
-  /// Bildirimleri Aç/Kapat (Yeni eklendi)
+  /// Bildirimleri Aç/Kapat
   Future<void> toggleNotifications(bool value) async {
     try {
       await _localStorage.saveNotificationsEnabled(value);
@@ -82,6 +118,7 @@ class SettingsViewModel extends ChangeNotifier {
           appVersion: _settingsData!.appVersion,
           currentLanguage: _settingsData!.currentLanguage,
           isNotificationsEnabled: value,
+          subscriptionTier: _settingsData!.subscriptionTier, // Durum korundu
         );
 
         if (value) {
@@ -107,7 +144,8 @@ class SettingsViewModel extends ChangeNotifier {
           profileImageUrl: _settingsData!.profileImageUrl,
           appVersion: _settingsData!.appVersion,
           currentLanguage: language,
-          isNotificationsEnabled: _settingsData!.isNotificationsEnabled, // Durum korundu
+          isNotificationsEnabled: _settingsData!.isNotificationsEnabled,
+          subscriptionTier: _settingsData!.subscriptionTier, // Durum korundu
         );
         _safeNotifyListeners();
       }
@@ -200,6 +238,38 @@ class SettingsViewModel extends ChangeNotifier {
     }
   }
 
+  Future<void> logout(BuildContext context) async {
+    try {
+      debugPrint('🚪 Logout süreci başladı...');
+      final uid = _localStorage.getUid();
+
+      // 1. FCM Token Temizliği
+      if (uid != null) {
+        try {
+          await FCMService().deleteToken(uid);
+        } catch (e) {
+          debugPrint('⚠️ Token silme hatası (atlanıyor): $e');
+        }
+      }
+
+      // 2. Firebase Oturumu Kapatma
+      await _auth.signOut();
+
+      // 3. Yerel Veri Temizliği
+      await _localStorage.clearAll();
+
+      // 4. Uygulamayı Sıfırla ve Login'e Yönlendir
+      if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const Signin()),
+              (route) => false, // Tüm sayfaları stackten atar
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Logout hatası: $e');
+    }
+  }
+
   /// Kullanıcı verilerini sil
   Future<void> _deleteUserData(String uid) async {
     try {
@@ -289,41 +359,6 @@ class SettingsViewModel extends ChangeNotifier {
     );
   }
 
-  /// Logout
-  Future<void> logout(BuildContext context) async {
-    try {
-      final uid = _localStorage.getUid();
-
-      // FCM token sil
-      if (uid != null) {
-        try {
-          await FCMService().deleteToken(uid);
-          debugPrint('✅ FCM token deleted on logout');
-        } catch (e) {
-          debugPrint('⚠️ FCM token delete error: $e');
-        }
-      }
-
-      await _auth.signOut();
-      await _localStorage.clearAll();
-
-      debugPrint('✅ User logged out successfully');
-
-      if (context.mounted) {
-        navigateToSignIn(context);
-      }
-    } catch (e) {
-      debugPrint('❌ Logout error: $e');
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to log out. Please try again.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
 
   @override
   void dispose() {

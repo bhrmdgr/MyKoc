@@ -10,6 +10,45 @@ class ClassroomService {
   final LocalStorageService _localStorage = LocalStorageService();
   final MessagingService _messagingService = MessagingService();
 
+  // YENİ: Öğrenci limitini kontrol eden merkezi servis fonksiyonu
+  Future<bool> checkStudentLimit(String classId) async {
+    try {
+      // 1. Sınıf verisini çek
+      final classDoc = await _firestore.collection('classes').doc(classId).get();
+      if (!classDoc.exists) return false;
+
+      final classData = classDoc.data()!;
+
+      // Veriyi güvenli bir şekilde int'e çeviriyoruz
+      final int currentCount = int.tryParse(classData['studentCount'].toString()) ?? 0;
+      final String mentorId = classData['mentorId'] ?? '';
+
+      // 2. Mentör verisini çek
+      final mentorDoc = await _firestore.collection('mentors').doc(mentorId).get();
+      if (!mentorDoc.exists) return true; // Mentor yoksa engelleme yapma
+
+      final mentorData = mentorDoc.data()!;
+      final String tier = mentorData['subscriptionTier']?.toString().toLowerCase() ?? 'free';
+      final int maxPerClass = int.tryParse(mentorData['maxStudentsPerClass'].toString()) ?? 10;
+
+      // TERMINAL LOGLARI - Buradan hatayı kesin göreceğiz
+      debugPrint('--- LİMİT KONTROLÜ ---');
+      debugPrint('Sınıftaki Mevcut: $currentCount');
+      debugPrint('İzin Verilen Max: $maxPerClass');
+      debugPrint('Abonelik Tipi: $tier');
+      debugPrint('Sonuç: ${tier == 'free' && currentCount >= maxPerClass ? "LİMİT DOLU" : "UYGUN"}');
+      debugPrint('----------------------');
+
+      // Kontrol mantığı
+      if (tier == 'free' && currentCount >= maxPerClass) {
+        return false; // Limit dolmuş, ekleyemez
+      }
+      return true; // Limit uygun veya premium
+    } catch (e) {
+      debugPrint('❌ Limit check error: $e');
+      return true; // Hata durumunda kullanıcıyı engellememek için true dönüyoruz
+    }
+  }
   Future<String?> createClass({
     required String mentorId,
     required String mentorName,
@@ -19,6 +58,20 @@ class ClassroomService {
     String? imageUrl,
   }) async {
     try {
+      // --- LİMİT KONTROLÜ BAŞLANGIÇ ---
+      final mentorDoc = await _firestore.collection('mentors').doc(mentorId).get();
+      if (!mentorDoc.exists) throw 'Mentor not found';
+
+      final mentorData = mentorDoc.data()!;
+      final String tier = mentorData['subscriptionTier'] ?? 'free';
+      final int currentClassCount = mentorData['classCount'] ?? 0;
+      final int maxClasses = mentorData['maxClasses'] ?? 1;
+
+      if (tier == 'free' && currentClassCount >= maxClasses) {
+        throw 'LIMIT_REACHED';
+      }
+      // --- LİMİT KONTROLÜ BİTİŞ ---
+
       final classCode = _generateClassCode();
       final docRef = await _firestore.collection('classes').add({
         'mentorId': mentorId,
@@ -48,7 +101,8 @@ class ClassroomService {
 
       return docRef.id;
     } catch (e) {
-      return null;
+      debugPrint('❌ Create class error: $e');
+      rethrow; // Hatayı ViewModel'in yakalaması için fırlatıyoruz
     }
   }
 
@@ -125,6 +179,20 @@ class ClassroomService {
 
       final mentorId = classDoc.data()?['mentorId'];
       final classCode = classDoc.data()?['classCode'];
+      final int currentStudentCountInClass = classDoc.data()?['studentCount'] ?? 0;
+
+      // --- ÖĞRENCİ LİMİT KONTROLÜ BAŞLANGIÇ ---
+      final mentorDoc = await _firestore.collection('mentors').doc(mentorId).get();
+      if (mentorDoc.exists) {
+        final mentorData = mentorDoc.data()!;
+        final String tier = mentorData['subscriptionTier'] ?? 'free';
+        final int maxStudentsPerClass = mentorData['maxStudentsPerClass'] ?? 10;
+
+        if (tier == 'free' && currentStudentCountInClass >= maxStudentsPerClass) {
+          throw 'STUDENT_LIMIT_REACHED';
+        }
+      }
+      // --- ÖĞRENCİ LİMİT KONTROLÜ BİTİŞ ---
 
       await _firestore.collection('classes').doc(classId).collection('students').doc(studentId).set({
         'uid': studentId, 'name': studentName, 'email': studentEmail, 'enrolledAt': FieldValue.serverTimestamp(),
@@ -154,7 +222,8 @@ class ClassroomService {
 
       return true;
     } catch (e) {
-      return false;
+      debugPrint('❌ Add student error: $e');
+      rethrow;
     }
   }
 

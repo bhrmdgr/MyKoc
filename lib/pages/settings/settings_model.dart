@@ -8,7 +8,8 @@ class SettingsModel {
   final String? profileImageUrl;
   final String appVersion;
   final String currentLanguage;
-  final bool isNotificationsEnabled; // ✅ EKLENDİ
+  final bool isNotificationsEnabled;
+  final String subscriptionTier; // ✅ Yeni eklendi
 
   SettingsModel({
     required this.userName,
@@ -17,7 +18,8 @@ class SettingsModel {
     this.profileImageUrl,
     required this.appVersion,
     required this.currentLanguage,
-    required this.isNotificationsEnabled, // ✅ EKLENDİ
+    required this.isNotificationsEnabled,
+    required this.subscriptionTier, // ✅ Yeni eklendi
   });
 
   String get userInitials {
@@ -39,12 +41,26 @@ class SettingsModel {
   }
 }
 
-// Delete Reason Enum ve Delete Account Reason Class olduğu gibi kaldı...
-enum DeleteReason { notUseful, foundAlternative, privacyConcerns, tooManyNotifications, technicalIssues, other }
+// --- Hesap Silme ile İlgili Yapılar ---
+
+enum DeleteReason {
+  notUseful,
+  foundAlternative,
+  privacyConcerns,
+  tooManyNotifications,
+  technicalIssues,
+  other
+}
+
 class DeleteAccountReason {
   final DeleteReason reason;
   final String? additionalFeedback;
-  DeleteAccountReason({required this.reason, this.additionalFeedback});
+
+  DeleteAccountReason({
+    required this.reason,
+    this.additionalFeedback
+  });
+
   Map<String, dynamic> toMap() {
     return {
       'reason': reason.toString().split('.').last,

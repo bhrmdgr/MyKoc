@@ -1,6 +1,7 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:mykoc/pages/classroom/create_class/create_class_view_model.dart';
+import 'package:mykoc/pages/premium/premium_view.dart';
 import 'package:provider/provider.dart';
 
 class CreateClassView extends StatefulWidget {
@@ -79,6 +80,8 @@ class _CreateClassViewState extends State<CreateClassView>
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               _buildWelcomeCard(),
+                              const SizedBox(height: 32),
+                              _buildLimitBanner(viewModel),
                               const SizedBox(height: 32),
                               _buildEmojiSection(viewModel),
                               const SizedBox(height: 32),
@@ -473,6 +476,43 @@ class _CreateClassViewState extends State<CreateClassView>
     );
   }
 
+
+  Widget _buildLimitBanner(CreateClassViewModel viewModel) {
+    // Eğer kullanıcı zaten premium ise bu banner'ı göstermeyebiliriz veya Pro tebriği gösterebiliriz
+    if (viewModel.isPremium) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF59E0B).withOpacity(0.1), // Amber rengi
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFF59E0B).withOpacity(0.3),
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline_rounded, color: Color(0xFFD97706), size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: const TextStyle(color: Color(0xFF92400E), fontSize: 13),
+                children: [
+                  TextSpan(text: 'free_plan_limit_info'.tr(args: [viewModel.maxClassLimit.toString()])),
+                  TextSpan(
+                    text: ' ${'upgrade_to_remove_limits'.tr()}',
+                    style: const TextStyle(fontWeight: FontWeight.bold, decoration: TextDecoration.underline),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildGlassTextField({
     required String label,
     required String hint,
@@ -756,7 +796,7 @@ class _CreateClassViewState extends State<CreateClassView>
                     ),
                     SizedBox(width: 10),
                     Text(
-                      'create_class'.tr(),
+                      'create_class_button'.tr(),
                       style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.bold,
@@ -789,22 +829,63 @@ class _CreateClassViewState extends State<CreateClassView>
           SnackBar(
             content: Row(
               children: [
-                Icon(Icons.check_circle, color: Colors.white),
-                SizedBox(width: 12),
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 12),
                 Text('success_class_created'.tr()),
               ],
             ),
             backgroundColor: const Color(0xFF10B981),
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
       } else {
-        _showError('failed_class_created'.tr());
+        // --- GÜNCELLEME: LİMİT KONTROLÜ VE ÖZEL UYARI ---
+        if (viewModel.errorMessage == 'LIMIT_REACHED') {
+          _showPremiumLimitDialog();
+        } else {
+          _showError('failed_class_created'.tr());
+        }
       }
     }
+  }
+
+  // Yeni: Premium Limit Uyarı Diyaloğu
+  void _showPremiumLimitDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Row(
+          children: [
+            const Icon(Icons.stars_rounded, color: Color(0xFFF59E0B), size: 28),
+            const SizedBox(width: 12),
+            Text('premium_required'.tr(), style: const TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Text('mentor_limit_reached_info'.tr()),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('cancel'.tr(), style: TextStyle(color: Colors.grey[600])),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context); // Diyaloğu kapat
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const PremiumView()),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF6366F1),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: Text('upgrade_now'.tr(), style: const TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showError(String message) {

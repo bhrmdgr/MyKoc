@@ -29,6 +29,18 @@ class ClassDetailViewModel extends ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
+  // Mentörün premium olup olmadığını kontrol eder
+  bool get isPremium {
+    final mentorData = _localStorage.getMentorData();
+    return mentorData?['subscriptionTier'] == 'premium';
+  }
+
+  // Sınıf başına maksimum öğrenci limitini döner
+  int get maxStudentLimit {
+    final mentorData = _localStorage.getMentorData();
+    return mentorData?['maxStudentsPerClass'] ?? 10;
+  }
+
   ClassDetailViewModel({required this.classId});
 
   Future<void> initialize() async {
@@ -49,6 +61,28 @@ class ClassDetailViewModel extends ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  /// Öğrenci ekleme limitini servisten kontrol eder
+  // class_detail_view_model.dart
+
+  Future<bool> checkStudentLimit() async {
+    try {
+      // 1. ClassroomService'deki yeni eklediğimiz anlık kontrol metodunu çağırıyoruz
+      // Bu metod Firestore'dan dökümanı 'get()' ile taze çeker
+      final bool canAdd = await _classroomService.checkStudentLimit(classId);
+
+      // 2. Eğer limit dolmuşsa ve biz hala eski veriyi görüyorsak
+      // yerel veriyi de bir tazeleyelim (UI güncellensin)
+      if (!canAdd) {
+        await refresh();
+      }
+
+      return canAdd;
+    } catch (e) {
+      debugPrint('Limit kontrol hatası: $e');
+      return false;
     }
   }
 
@@ -87,6 +121,8 @@ class ClassDetailViewModel extends ChangeNotifier {
       debugPrint('❌ Error loading from local: $e');
     }
   }
+
+
 
   Future<void> _loadFromFirestore() async {
     try {

@@ -502,24 +502,45 @@ class ProfileViewModel extends ChangeNotifier {
     }
   }
 
+  // profile_view_model.dart içindeki joinClass metodunu güncelle:
+
   Future<bool> joinClass(String classCode) async {
     try {
       final uid = _localStorage.getUid();
       final userData = _localStorage.getUserData();
       if (uid == null || userData == null) return false;
+
+      // 1. Önce sınıfı kod ile bulalım
+      final classModel = await _classroomService.getClassByCode(classCode);
+      if (classModel == null) throw 'Sınıf bulunamadı';
+
+      // 2. LİMİT KONTROLÜ
+      final bool canJoin = await _classroomService.checkStudentLimit(classModel.id);
+      if (!canJoin) {
+        // Burada UI tarafında özel bir uyarı göstermek için hata fırlatıyoruz
+        throw 'STUDENT_LIMIT_REACHED';
+      }
+
       final name = userData['name'] ?? 'Student';
       final email = userData['email'] ?? '';
-      final classModel = await _classroomService.getClassByCode(classCode);
-      if (classModel == null) return false;
+
+      // 3. Ekleme işlemini yap
       final success = await _classroomService.addStudentToClass(
         classId: classModel.id,
         studentId: uid,
         studentName: name,
         studentEmail: email,
       );
-      if (success) { await _loadFromFirestore(); return true; }
+
+      if (success) {
+        await _loadFromFirestore();
+        return true;
+      }
       return false;
-    } catch (e) { return false; }
+    } catch (e) {
+      debugPrint('❌ Join class error: $e');
+      rethrow; // View katmanında hata yakalamak için
+    }
   }
 
   Future<bool> leaveClass(String classId) async {
@@ -559,39 +580,7 @@ class ProfileViewModel extends ChangeNotifier {
     } catch (e) { return false; }
   }
 
-  Future<void> logout(BuildContext context) async {
-    try {
-      debugPrint('🚪 Starting logout process...');
 
-      // Token sil
-      final uid = _localStorage.getUid();
-      if (uid != null) {
-        await FCMService().deleteToken(uid);
-      }
-
-      await _auth.signOut();
-      debugPrint('✅ Firebase logout successful');
-
-      await _localStorage.clearAll();
-      debugPrint('✅ Local storage cleared');
-
-      if (context.mounted) {
-        Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const Signin()),
-              (route) => false,
-        );
-      }
-    } catch (e) {
-      debugPrint('❌ Error during logout: $e');
-      await _localStorage.clearAll();
-      if (context.mounted) {
-        Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const Signin()),
-              (route) => false,
-        );
-      }
-    }
-  }
 
   String _getInitials(String name) {
     final parts = name.trim().split(' ');
