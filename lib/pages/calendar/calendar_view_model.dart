@@ -7,15 +7,12 @@ import 'package:mykoc/firebase/calendar/calendar_service.dart';
 import 'package:mykoc/services/storage/local_storage_service.dart';
 
 class CalendarViewModel extends ChangeNotifier {
-  // Servisler
   final TaskService _taskService = TaskService();
   final CalendarService _calendarService = CalendarService();
   final LocalStorageService _localStorage = LocalStorageService();
 
-  // Disposed kontrolü için flag
   bool _isDisposed = false;
 
-  // Calendar State
   CalendarFormat _calendarFormat = CalendarFormat.month;
   CalendarFormat get calendarFormat => _calendarFormat;
 
@@ -25,7 +22,6 @@ class CalendarViewModel extends ChangeNotifier {
   DateTime? _selectedDay;
   DateTime? get selectedDay => _selectedDay;
 
-  // Data State
   bool _isLoading = true;
   bool get isLoading => _isLoading;
 
@@ -33,7 +29,6 @@ class CalendarViewModel extends ChangeNotifier {
   List<TaskModel> _selectedDayTasks = [];
   List<TaskModel> get selectedDayTasks => _selectedDayTasks;
 
-  // Notes State
   Map<DateTime, CalendarNoteModel> _notes = {};
   bool _isEditingNote = false;
   bool get isEditingNote => _isEditingNote;
@@ -44,14 +39,11 @@ class CalendarViewModel extends ChangeNotifier {
     return _notes[normalizedDate]?.content ?? '';
   }
 
-  // --- SAFE NOTIFY LISTENERS ---
   void _safeNotifyListeners() {
-    if (!_isDisposed) {
-      notifyListeners();
-    }
+    if (!_isDisposed) notifyListeners();
   }
 
-  // --- INIT ---
+  // --- INIT: Önce Yerel Veri -> Sonra Firebase ---
   Future<void> initialize() async {
     _isLoading = true;
     _selectedDay = _focusedDay;
@@ -64,62 +56,80 @@ class CalendarViewModel extends ChangeNotifier {
       return;
     }
 
-    // 1. Taskları Çek
-    try {
-      final isMentor = _localStorage.isMentor();
-      if (isMentor) {
-        final classes = _localStorage.getClassesList();
-        if (classes != null && classes.isNotEmpty) {
-          // Tüm sınıfların tasklarını toplayalım
-          List<TaskModel> allClassTasks = [];
-          for (var cls in classes) {
-            final tasks = await _taskService.getClassTasks(cls['id']);
-            allClassTasks.addAll(tasks);
-          }
-          _allTasks = allClassTasks;
-        }
-      } else {
-        _allTasks = await _taskService.getStudentTasks(uid);
-      }
-    } catch (e) {
-      debugPrint('Error fetching tasks: $e');
+    // 1. Önce Localden Yükle (Hız İçin)
+    _loadDataFromLocal();
+    _updateSelectedDayTasks();
+
+    // Eğer yerelde veri varsa loading'i kapat ki kullanıcı takvimi hemen görsün
+    if (_allTasks.isNotEmpty || _notes.isNotEmpty) {
+      _isLoading = false;
+      _safeNotifyListeners();
     }
 
-    // Disposed kontrolü - eğer dispose edildiyse devam etme
-    if (_isDisposed) return;
-
-    // 2. Notları Localden Yükle
-    _loadNotesFromLocal();
-
-    // 3. Seçili günün verilerini güncelle
-    _updateSelectedDayTasks();
+    // 2. Arka Planda Firebase Senkronizasyonu
+    await _syncWithFirebase(uid);
 
     _isLoading = false;
     _safeNotifyListeners();
-
-    // 4. Firebase Not Senkronizasyonu (arka planda)
-    _syncNotesFromFirebase(uid);
   }
 
-  // --- EVENT LOADER (TAKVİM İŞARETÇİLERİ İÇİN) ---
-  // Bu metot takvimdeki her gün için çalışır ve o güne ait hem notu hem taskları döndürür.
+  void _loadDataFromLocal() {
+    // Notları Yükle
+    final storedNotes = _localStorage.getCalendarNotes();
+    _notes = {};
+    storedNotes.forEach((key, value) {
+      final date = DateTime.parse(key);
+      final note = CalendarNoteModel.fromMap(value);
+      _notes[DateTime(date.year, date.month, date.day)] = note;
+    });
+
+    // Taskları Yükle (HomeViewModel'in kaydettiği cache'i kullanıyoruz)
+    final storedTasks = _localStorage.getStudentTasks();
+    if (storedTasks != null) {
+      _allTasks = storedTasks.map((t) => TaskModel.fromMap(t)).toList();
+    }
+  }
+
+  Future<void> _syncWithFirebase(String uid) async {
+    try {
+      // Notları Senkronize Et
+      final cloudNotes = await _calendarService.getUserNotes(uid);
+      if (_isDisposed) return;
+
+      final Map<String, dynamic> mapForStorage = {};
+      _notes = {};
+      for (var note in cloudNotes) {
+        final normalizedDate = DateTime(note.date.year, note.date.month, note.date.day);
+        _notes[normalizedDate] = note;
+        mapForStorage[note.date.toIso8601String()] = note.toMap();
+      }
+      await _localStorage.saveCalendarNotes(mapForStorage);
+
+      // Görevleri Senkronize Et (Güncel hali çek)
+      if (!_localStorage.isMentor()) {
+        final freshTasks = await _taskService.getStudentTasks(uid);
+        _allTasks = freshTasks;
+        await _localStorage.saveStudentTasks(_allTasks.map((t) => t.toMap()).toList());
+      }
+
+      _updateSelectedDayTasks();
+      debugPrint('✅ Calendar synced with Firebase');
+    } catch (e) {
+      debugPrint('❌ Sync Error: $e');
+    }
+  }
+
   List<dynamic> getEventsForDay(DateTime day) {
     List<dynamic> events = [];
-
-    // 1. O güne ait taskları ekle
     final tasksForDay = _allTasks.where((task) => isSameDay(task.dueDate, day));
     events.addAll(tasksForDay);
 
-    // 2. O güne ait not varsa ekle
     final normalizedDate = DateTime(day.year, day.month, day.day);
     if (_notes.containsKey(normalizedDate)) {
       events.add(_notes[normalizedDate]);
     }
-
     return events;
   }
-
-  // --- CALENDAR ACTIONS ---
 
   void onDaySelected(DateTime selectedDay, DateTime focusedDay) {
     if (!isSameDay(_selectedDay, selectedDay)) {
@@ -146,112 +156,92 @@ class CalendarViewModel extends ChangeNotifier {
     _safeNotifyListeners();
   }
 
-  // --- TASK LOGIC ---
-
   void _updateSelectedDayTasks() {
     if (_selectedDay == null) return;
-    _selectedDayTasks = _allTasks.where((task) {
-      return isSameDay(task.dueDate, _selectedDay);
-    }).toList();
-  }
-
-  // --- NOTE LOGIC ---
-
-  void _loadNotesFromLocal() {
-    final storedData = _localStorage.getCalendarNotes();
-    final Map<DateTime, CalendarNoteModel> loadedNotes = {};
-
-    storedData.forEach((key, value) {
-      final date = DateTime.parse(key);
-      final note = CalendarNoteModel.fromMap(value);
-      final normalizedDate = DateTime(date.year, date.month, date.day);
-      loadedNotes[normalizedDate] = note;
-    });
-
-    _notes = loadedNotes;
-  }
-
-  Future<void> _syncNotesFromFirebase(String uid) async {
-    try {
-      final cloudNotes = await _calendarService.getUserNotes(uid);
-
-      // Disposed kontrolü - Firebase'den veri geldiğinde widget dispose olmuş olabilir
-      if (_isDisposed) return;
-
-      final Map<String, dynamic> mapForStorage = {};
-      final Map<DateTime, CalendarNoteModel> updatedNotesMap = {};
-
-      for (var note in cloudNotes) {
-        final normalizedDate = DateTime(note.date.year, note.date.month, note.date.day);
-        updatedNotesMap[normalizedDate] = note;
-        mapForStorage[note.date.toIso8601String()] = note.toMap();
-      }
-
-      await _localStorage.saveCalendarNotes(mapForStorage);
-
-      // Bir kez daha disposed kontrolü
-      if (_isDisposed) return;
-
-      _notes = updatedNotesMap;
-      _safeNotifyListeners();
-
-      debugPrint('✅ Calendar notes synced from Firebase: ${cloudNotes.length} notes');
-    } catch (e) {
-      debugPrint('❌ Error syncing notes: $e');
-    }
+    _selectedDayTasks = _allTasks.where((task) => isSameDay(task.dueDate, _selectedDay)).toList();
   }
 
   Future<bool> saveNote(String content) async {
     final uid = _localStorage.getUid();
-    if (uid == null || _selectedDay == null) return false;
+    if (uid == null || _selectedDay == null) {
+      debugPrint('❌ SaveNote Hatası: UID veya Seçili Gün eksik.');
+      return false;
+    }
 
     final normalizedDate = DateTime(_selectedDay!.year, _selectedDay!.month, _selectedDay!.day);
     final trimmedContent = content.trim();
 
-    if (trimmedContent.isEmpty) {
-      // Not silinecek
-      if (_notes.containsKey(normalizedDate)) {
-        _notes.remove(normalizedDate);
-        _updateLocalCache();
-        _safeNotifyListeners();
+    // UI'da hemen göstermek için geçici yedek alalım (Hata olursa geri döneceğiz)
+    final oldNote = _notes[normalizedDate];
+    bool isSuccess = false;
 
-        // Firebase'den sil (arka planda)
-        _calendarService.deleteNote(uid, normalizedDate);
+    try {
+      if (trimmedContent.isEmpty) {
+        // 1. Durum: Notu Silme
+        _notes.remove(normalizedDate); // UI'dan anında kaldır
+
+        isSuccess = await _calendarService.deleteNote(uid, normalizedDate);
+
+        if (!isSuccess) {
+          // Firebase silme başarısızsa eski notu geri getir
+          if (oldNote != null) _notes[normalizedDate] = oldNote;
+          throw Exception("Firebase silme işlemi başarısız.");
+        }
+      } else {
+        // 2. Durum: Notu Kaydetme veya Güncelleme
+        final newNote = CalendarNoteModel(
+          id: '${uid}_${normalizedDate.millisecondsSinceEpoch}',
+          userId: uid,
+          date: normalizedDate,
+          content: trimmedContent,
+          updatedAt: DateTime.now(),
+        );
+
+        // UI'yı güncelle
+        _notes[normalizedDate] = newNote;
+
+        // Firebase'e gönder ve BEKLE (await)
+        isSuccess = await _calendarService.saveNote(
+          userId: uid,
+          date: normalizedDate,
+          content: trimmedContent,
+        );
+
+        if (!isSuccess) {
+          // Firebase kayıt başarısızsa UI'yı eski haline döndür
+          if (oldNote != null) {
+            _notes[normalizedDate] = oldNote;
+          } else {
+            _notes.remove(normalizedDate);
+          }
+          throw Exception("Firebase kayıt işlemi başarısız.");
+        }
       }
-    } else {
-      // Not kaydedilecek
-      final newNote = CalendarNoteModel(
-        id: '${uid}_${normalizedDate.millisecondsSinceEpoch}',
-        userId: uid,
-        date: normalizedDate,
-        content: trimmedContent,
-        updatedAt: DateTime.now(),
-      );
 
-      _notes[normalizedDate] = newNote;
-      _updateLocalCache();
+      // 3. Her şey başarılıysa Yerel Cache'i güncelle
+      _updateLocalNoteCache();
+      _isEditingNote = false;
       _safeNotifyListeners();
 
-      // Firebase'e kaydet (arka planda)
-      _calendarService.saveNote(
-        userId: uid,
-        date: normalizedDate,
-        content: trimmedContent,
-      );
-    }
+      debugPrint('✅ Not başarıyla Firebase ve Yerel Hafızaya kaydedildi.');
+      return true;
 
-    _isEditingNote = false;
-    _safeNotifyListeners();
-    return true;
+    } catch (e) {
+      debugPrint('❌ saveNote Kritik Hata: $e');
+      _safeNotifyListeners(); // UI'daki değişikliği geri almak için
+      return false;
+    }
   }
 
-  void _updateLocalCache() {
+  void _updateLocalNoteCache() {
     final Map<String, dynamic> mapForStorage = {};
     _notes.forEach((key, value) {
       mapForStorage[key.toIso8601String()] = value.toMap();
     });
     _localStorage.saveCalendarNotes(mapForStorage);
   }
+
+
 
   @override
   void dispose() {

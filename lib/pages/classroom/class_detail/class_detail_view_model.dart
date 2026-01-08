@@ -29,6 +29,12 @@ class ClassDetailViewModel extends ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
+  // ==================== YENİ: GÖREV DETAYLARI VE İSTATİSTİK MAP'İ ====================
+  // Her görevin (taskId) detaylı durumlarını (StudentTaskStatus listesi) tutar.
+  Map<String, TaskDetailWithStudents> _taskDetails = {};
+  Map<String, TaskDetailWithStudents> get taskDetails => _taskDetails;
+  // =================================================================================
+
   // Mentörün premium olup olmadığını kontrol eder
   bool get isPremium {
     final mentorData = _localStorage.getMentorData();
@@ -41,44 +47,81 @@ class ClassDetailViewModel extends ChangeNotifier {
     return mentorData?['maxStudentsPerClass'] ?? 10;
   }
 
+  // ==================== EKLEME: ORAN VE İSTATİSTİKLER ====================
+
+  /// Sınıftaki mevcut öğrenci sayısı
+  int get currentStudentCount => _students.length;
+
+  /// Öğrenci doluluk oranı (0.0 ile 1.0 arasında)
+  double get enrollmentRatio {
+    if (maxStudentLimit == 0) return 0.0;
+    double ratio = currentStudentCount / maxStudentLimit;
+    return ratio > 1.0 ? 1.0 : ratio;
+  }
+
+  /// UI'da gösterilecek metin (Örn: "8 / 10")
+  String get enrollmentText => '$currentStudentCount / $maxStudentLimit';
+
+  /// Doluluk yüzdesi metni (Örn: "%80")
+  String get enrollmentPercentage => '${(enrollmentRatio * 100).toInt()}%';
+
+  /// Sınıfın dolup dolmadığını kontrol eder
+  bool get isClassFull => currentStudentCount >= maxStudentLimit;
+
+  /// Toplam görev sayısı
+  int get totalTaskCount => _tasks.length;
+
+  /// Sınıfın genel ödev tamamlama oranı (0.0 - 1.0)
+  double get overallCompletionRatio {
+    if (_tasks.isEmpty || _taskDetails.isEmpty) return 0.0;
+
+    int totalAssignments = 0; // Toplam atanan ödev sayısı (Görev Sayısı * Öğrenci Sayısı gibi)
+    int totalCompleted = 0;   // Toplam tamamlanan ödev sayısı
+
+    for (var detail in _taskDetails.values) {
+      totalAssignments += detail.totalStudents;
+      totalCompleted += detail.completedCount;
+    }
+
+    if (totalAssignments == 0) return 0.0;
+    return totalCompleted / totalAssignments;
+  }
+
+  /// UI'da gösterilecek genel başarı yüzdesi (Örn: "%75")
+  String get overallCompletionPercentage => '${(overallCompletionRatio * 100).toInt()}%';
+
+  // ======================================================================
+
   ClassDetailViewModel({required this.classId});
 
+  bool _isProcessing = false; // Metodun meşgul olup olmadığını tutar
+
   Future<void> initialize() async {
-    _isLoading = false;
+    if (_isProcessing) return;
+    _isProcessing = true;
 
     try {
-      // Önce local'den yükle (hızlı gösterim)
-      await _loadFromLocal();
-      notifyListeners();
-
-      // Sonra Firestore'dan güncelle (arka planda)
       _isLoading = true;
+      await _loadFromLocal();
       notifyListeners();
 
       await _loadFromFirestore();
     } catch (e) {
-      debugPrint('Error loading class details: $e');
+      debugPrint('Error: $e');
     } finally {
       _isLoading = false;
+      _isProcessing = false;
       notifyListeners();
     }
   }
 
   /// Öğrenci ekleme limitini servisten kontrol eder
-  // class_detail_view_model.dart
-
   Future<bool> checkStudentLimit() async {
     try {
-      // 1. ClassroomService'deki yeni eklediğimiz anlık kontrol metodunu çağırıyoruz
-      // Bu metod Firestore'dan dökümanı 'get()' ile taze çeker
       final bool canAdd = await _classroomService.checkStudentLimit(classId);
-
-      // 2. Eğer limit dolmuşsa ve biz hala eski veriyi görüyorsak
-      // yerel veriyi de bir tazeleyelim (UI güncellensin)
       if (!canAdd) {
         await refresh();
       }
-
       return canAdd;
     } catch (e) {
       debugPrint('Limit kontrol hatası: $e');
@@ -88,79 +131,84 @@ class ClassDetailViewModel extends ChangeNotifier {
 
   Future<void> _loadFromLocal() async {
     try {
-      // Class bilgisini local'den yükle
       final localClass = _localStorage.getClass(classId);
       if (localClass != null) {
         _classData = ClassModel.fromMap(localClass);
-        debugPrint('📦 Class bilgisi local\'den yüklendi: ${_classData?.className}');
       }
 
-      // Öğrencileri local'den yükle
       final localStudents = _localStorage.getClassStudents(classId);
-      debugPrint('🔍 Local students check for classId: $classId');
-      debugPrint('🔍 Local students result: $localStudents');
-
       if (localStudents != null && localStudents.isNotEmpty) {
         _students = localStudents;
-        debugPrint('📦 ${_students.length} öğrenci local\'den yüklendi');
-      } else {
-        debugPrint('⚠️ Local\'de öğrenci bulunamadı');
       }
 
-      // Duyuruları local'den yükle
       final localAnnouncements = _localStorage.getClassAnnouncements(classId);
       if (localAnnouncements != null && localAnnouncements.isNotEmpty) {
         _announcements = localAnnouncements
             .map((a) => AnnouncementModel.fromLocalMap(a))
             .toList();
-        debugPrint('📦 ${_announcements.length} duyuru local\'den yüklendi');
       }
 
-      // TODO: Tasks'ı local'den yükle (implement later)
+      final localTasks = _localStorage.getStudentTasks();
+      if (localTasks != null && localTasks.isNotEmpty) {
+        _tasks = localTasks.map((t) => TaskModel.fromMap(t)).toList();
+      }
     } catch (e) {
       debugPrint('❌ Error loading from local: $e');
     }
   }
 
-
-
   Future<void> _loadFromFirestore() async {
     try {
       debugPrint('🔥 Firestore\'dan class bilgisi çekiliyor: $classId');
 
-      // Class bilgisini Firestore'dan güncelle
       _classData = await _classroomService.getClassById(classId);
-
       if (_classData != null) {
-        debugPrint('✅ Class bulundu: ${_classData?.className}');
         await _localStorage.saveClass(classId, _classData!.toMap());
       }
 
-      // Öğrencileri Firestore'dan güncelle
-      debugPrint('🔥 Firestore\'dan öğrenciler çekiliyor...');
       _students = await _classroomService.getClassStudents(classId);
-
-      debugPrint('✅ Firestore\'dan ${_students.length} öğrenci yüklendi');
-
       if (_students.isNotEmpty) {
         await _localStorage.saveClassStudents(classId, _students);
-        debugPrint('💾 Öğrenciler local\'e kaydedildi');
       }
 
-      // Tasks'ları Firestore'dan yükle
-      debugPrint('🔥 Firestore\'dan görevler çekiliyor...');
       _tasks = await _taskService.getClassTasks(classId);
-      debugPrint('✅ Firestore\'dan ${_tasks.length} görev yüklendi');
+      if (_tasks.isNotEmpty) {
+        await _localStorage.saveStudentTasks(_tasks.map((t) => t.toMap()).toList());
 
-      // Duyuruları Firestore'dan yükle
-      debugPrint('🔥 Firestore\'dan duyurular çekiliyor...');
+        // ==================== YENİ: GÖREV İSTATİSTİKLERİNİ ÇEK ====================
+        await _fetchAllTaskDetails();
+        // =========================================================================
+      }
+
       _announcements = await _announcementService.getClassAnnouncements(classId);
-      debugPrint('✅ Firestore\'dan ${_announcements.length} duyuru yüklendi');
+      if (_announcements.isNotEmpty) {
+        await _localStorage.saveClassAnnouncements(
+            classId,
+            _announcements.map((a) => a.toLocalMap()).toList()
+        );
+      }
 
       notifyListeners();
     } catch (e) {
       debugPrint('❌ Error loading from Firestore: $e');
     }
+  }
+
+  /// Tüm görevlerin istatistiklerini (kim yaptı, kim yapmadı) arka arkaya çeker.
+  Future<void> _fetchAllTaskDetails() async {
+    if (_tasks.isEmpty) return;
+
+    Map<String, TaskDetailWithStudents> tempDetails = {};
+
+    for (var task in _tasks) {
+      final detail = await _taskService.getTaskDetailWithStudents(taskId: task.id);
+      if (detail != null) {
+        tempDetails[task.id] = detail;
+      }
+    }
+
+    _taskDetails = tempDetails;
+    notifyListeners();
   }
 
   Future<void> refresh() async {
@@ -169,16 +217,12 @@ class ClassDetailViewModel extends ChangeNotifier {
 
   // ==================== ANNOUNCEMENT İŞLEMLERİ ====================
 
-  /// Yeni duyuru oluştur (🔔 Artık otomatik bildirim gönderir)
   Future<bool> createAnnouncement({
     required String mentorId,
     required String title,
     required String description,
   }) async {
     try {
-      debugPrint('📢 Creating announcement with notification...');
-
-      // ← YENİ: AnnouncementService artık otomatik olarak bildirim gönderiyor
       final announcementId = await _announcementService.createAnnouncement(
         classId: classId,
         mentorId: mentorId,
@@ -187,8 +231,16 @@ class ClassDetailViewModel extends ChangeNotifier {
       );
 
       if (announcementId != null) {
-        debugPrint('✅ Announcement created and notification sent!');
-        // Listeyi güncelle
+        final newAnnouncement = AnnouncementModel(
+          id: announcementId,
+          classId: classId,
+          mentorId: mentorId,
+          title: title,
+          description: description,
+          createdAt: DateTime.now(),
+        );
+        _announcements.insert(0, newAnnouncement);
+        notifyListeners();
         await refresh();
         return true;
       }
@@ -199,7 +251,6 @@ class ClassDetailViewModel extends ChangeNotifier {
     }
   }
 
-  /// Duyuru güncelle
   Future<bool> updateAnnouncement({
     required String announcementId,
     required String title,
@@ -214,7 +265,6 @@ class ClassDetailViewModel extends ChangeNotifier {
       );
 
       if (success) {
-        // Listeyi güncelle
         await refresh();
         return true;
       }
@@ -225,7 +275,6 @@ class ClassDetailViewModel extends ChangeNotifier {
     }
   }
 
-  /// Duyuru sil
   Future<bool> deleteAnnouncement(String announcementId) async {
     try {
       final success = await _announcementService.deleteAnnouncement(
@@ -234,7 +283,6 @@ class ClassDetailViewModel extends ChangeNotifier {
       );
 
       if (success) {
-        // Listeyi güncelle
         await refresh();
         return true;
       }

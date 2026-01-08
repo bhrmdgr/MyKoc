@@ -245,6 +245,25 @@ class LocalStorageService {
     if (kDebugMode) print('🗑️ Class students silindi: $classId');
   }
 
+  // ==================== ANNOUNCEMENT (DUYURU) İŞLEMLERİ ====================
+
+  static const String _keyLocalAnnouncements = 'local_announcements_cache';
+
+  /// Duyuruları yerele kaydet (classId bazlı veya genel)
+  Future<void> saveLocalAnnouncements(List<Map<String, dynamic>> announcements) async {
+    final jsonString = jsonEncode(announcements);
+    await _prefs?.setString(_keyLocalAnnouncements, jsonString);
+    if (kDebugMode) print('✅ Duyurular yerele kaydedildi: ${announcements.length} adet');
+  }
+
+  /// Duyuruları yerelden oku
+  List<Map<String, dynamic>>? getLocalAnnouncements() {
+    final jsonString = _prefs?.getString(_keyLocalAnnouncements);
+    if (jsonString == null) return null;
+    final List<dynamic> decoded = jsonDecode(jsonString);
+    return decoded.map((e) => e as Map<String, dynamic>).toList();
+  }
+
   // ==================== CLASS ANNOUNCEMENTS ====================
 
   static const String _keyClassAnnouncementsPrefix = 'class_announcements_';
@@ -383,6 +402,25 @@ class LocalStorageService {
     final jsonString = _prefs?.getString(_keyCalendarNotes);
     if (jsonString == null) return {};
     return jsonDecode(jsonString) as Map<String, dynamic>;
+  }
+
+  // ==================== TASK (GÖREV) İŞLEMLERİ ====================
+
+  static const String _keyStudentTasks = 'student_tasks_cache';
+
+  /// Öğrenci görevlerini yerele kaydet
+  Future<void> saveStudentTasks(List<Map<String, dynamic>> tasks) async {
+    final jsonString = jsonEncode(tasks);
+    await _prefs?.setString(_keyStudentTasks, jsonString);
+    if (kDebugMode) print('✅ Student tasks yerele kaydedildi: ${tasks.length} adet');
+  }
+
+  /// Öğrenci görevlerini yerelden oku
+  List<Map<String, dynamic>>? getStudentTasks() {
+    final jsonString = _prefs?.getString(_keyStudentTasks);
+    if (jsonString == null) return null;
+    final List<dynamic> decoded = jsonDecode(jsonString);
+    return decoded.map((e) => e as Map<String, dynamic>).toList();
   }
 
   // ==================== TEMİZLEME İŞLEMLERİ ====================

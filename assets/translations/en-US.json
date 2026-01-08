@@ -428,7 +428,13 @@
   "delete_account_error": "An error occurred while deleting your account. Please try again.",
   "reauth_required_title": "Re-authentication Required",
   "reauth_required_message": "For security reasons, you need to log in again before deleting your account.",
-  "login_again": "Log In Again"
+  "login_again": "Log In Again",
+
+
+  "total_tasks": "Total Tasks",
+  "completion": "Completion",
+  "classes": "Classes"
+
 
 
 }

@@ -431,7 +431,13 @@
   "delete_account_error": "Hesabınız silinirken bir hata oluştu. Lütfen tekrar deneyin.",
   "reauth_required_title": "Yeniden Kimlik Doğrulama Gerekli",
   "reauth_required_message": "Güvenlik nedeniyle hesabınızı silmeden önce tekrar giriş yapmanız gerekiyor.",
-  "login_again": "Tekrar Giriş Yap"
+  "login_again": "Tekrar Giriş Yap",
+
+  "total_tasks": "Toplam Görevler",
+  "completion": "Tamamlanma",
+  "classes": "Sınıflar"
+
+
 
 
 

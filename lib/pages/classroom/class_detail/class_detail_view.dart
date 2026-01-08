@@ -113,11 +113,14 @@ class _ClassDetailViewState extends State<ClassDetailView>
 
   // ViewModel değiştiğinde tetiklenir
   void _onViewModelUpdated() {
-    if (mounted && !_viewModel.isLoading && _viewModel.tasks.isNotEmpty) {
-      // Eğer task sayısı ile çekilen istatistik sayısı uyuşmuyorsa eksikleri çek
-      if (_viewModel.tasks.length > _taskStats.length) {
-        _loadTaskStats();
-      }
+    if (!mounted) return;
+
+    // Sadece loading bittiğinde ve elimizde task varken,
+    // ama henüz stats doldurulmamışsa bir kez tetikle.
+    if (!_viewModel.isLoading &&
+        _viewModel.tasks.isNotEmpty &&
+        _taskStats.isEmpty) {
+      _loadTaskStats();
     }
   }
 
@@ -126,35 +129,33 @@ class _ClassDetailViewState extends State<ClassDetailView>
     final tasks = _viewModel.tasks;
     if (tasks.isEmpty) return;
 
-    // Mevcut map'in kopyası üzerinde işlem yapıyoruz
+    bool hasChanged = false;
+    // Yerel bir kopya üzerinden çalış
     final currentStats = Map<String, Map<String, int>>.from(_taskStats);
 
     for (var task in tasks) {
-      // Zaten bu task için veri varsa tekrar çekme (Optimizasyon)
       if (currentStats.containsKey(task.id)) continue;
 
       try {
-        final detail = await _taskService.getTaskDetailWithStudents(
-          taskId: task.id,
-        );
-
+        final detail = await _taskService.getTaskDetailWithStudents(taskId: task.id);
         if (detail != null) {
           currentStats[task.id] = {
             'notStarted': detail.notStartedCount,
             'inProgress': detail.inProgressCount,
             'completed': detail.completedCount,
           };
-
-          // Her veri geldiğinde arayüzü güncelle (Kullanıcıyı bekletmemek için)
-          if (mounted) {
-            setState(() {
-              _taskStats = Map.from(currentStats);
-            });
-          }
+          hasChanged = true;
         }
       } catch (e) {
-        debugPrint('Error loading stats for task ${task.id}: $e');
+        debugPrint('Error: $e');
       }
+    }
+
+    // Döngü bittikten sonra TEK BİR setState
+    if (mounted && hasChanged) {
+      setState(() {
+        _taskStats = currentStats;
+      });
     }
   }
 
@@ -297,54 +298,55 @@ class _ClassDetailViewState extends State<ClassDetailView>
   }
 
   // --- GÜNCELLENEN 3'LÜ İSTATİSTİK KARTLARI ---
+  // --- GÜNCELLENEN 3'LÜ İSTATİSTİK KARTLARI ---
   Widget _buildStatsCards() {
-    final studentCount = widget.classData.studentCount.toString();
-    final totalTasks = _viewModel.tasks.length.toString();
-    final progressValue = _calculateOverallProgress();
-    final progressPercent = (progressValue * 100).toInt().toString();
+    // Consumer kullanarak ViewModel'i dinliyoruz
+    return Consumer<ClassDetailViewModel>(
+      builder: (context, viewModel, child) {
+        return Container(
+          transform: Matrix4.translationValues(0, -30, 0),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Row(
+            children: [
+              // 1. Öğrenci Sayısı
+              Expanded(
+                child: _buildStatCard(
+                  icon: Icons.groups_rounded,
+                  iconColor: const Color(0xFF6366F1),
+                  value: viewModel.currentStudentCount.toString(),
+                  label: 'students'.tr(),
+                ),
+              ),
+              const SizedBox(width: 12),
 
-    return Container(
-      transform: Matrix4.translationValues(0, -30, 0),
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(
-        children: [
-          // 1. Student Count
-          Expanded(
-            child: _buildStatCard(
-              icon: Icons.groups_rounded,
-              iconColor: const Color(0xFF6366F1), // Mor
-              value: studentCount,
-              label: 'students'.tr(),
-            ),
-          ),
-          const SizedBox(width: 12),
+              // 2. Toplam Görev Sayısı
+              Expanded(
+                child: _buildStatCard(
+                  icon: Icons.assignment_rounded,
+                  iconColor: const Color(0xFFF59E0B),
+                  value: viewModel.totalTaskCount.toString(), // Provider'a bağlandı
+                  label: 'total_tasks'.tr(),
+                ),
+              ),
+              const SizedBox(width: 12),
 
-          // 2. Total Tasks
-          Expanded(
-            child: _buildStatCard(
-              icon: Icons.assignment_rounded,
-              iconColor: const Color(0xFFF59E0B), // Turuncu
-              value: totalTasks,
-              label: 'total_tasks'.tr(),
-            ),
+              // 3. Başarı Oranı (Completion)
+              Expanded(
+                child: _buildStatCard(
+                  icon: Icons.pie_chart_rounded,
+                  iconColor: const Color(0xFF10B981),
+                  value: viewModel.overallCompletionPercentage, // Provider'a bağlandı
+                  label: 'completion'.tr(),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-
-          // 3. Completion Rate
-          Expanded(
-            child: _buildStatCard(
-              icon: Icons.pie_chart_rounded,
-              iconColor: const Color(0xFF10B981), // Yeşil
-              value: '%$progressPercent',
-              label: 'completion'.tr(),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildStatCard({
+  Widget  _buildStatCard({
     required IconData icon,
     required Color iconColor,
     required String value,

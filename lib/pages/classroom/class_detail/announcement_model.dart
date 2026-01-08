@@ -35,7 +35,7 @@ class AnnouncementModel {
     );
   }
 
-  // Firestore'a kaydet için Map
+  // Firestore'a kaydet için Map (Timestamp içerir)
   Map<String, dynamic> toMap() {
     return {
       'classId': classId,
@@ -47,7 +47,7 @@ class AnnouncementModel {
     };
   }
 
-  // Local storage için Map (Timestamp olmadan)
+  // ✅ Yerel depolama için Map (Timestamp hatasını çözen kısım)
   Map<String, dynamic> toLocalMap() {
     return {
       'id': id,
@@ -55,12 +55,13 @@ class AnnouncementModel {
       'mentorId': mentorId,
       'title': title,
       'description': description,
+      // Tarihleri String'e çeviriyoruz ki JSON hata vermesin
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
     };
   }
 
-  // Local storage'dan model oluştur
+  // ✅ Yerel depolamadan model oluştur (Hem String hem Timestamp desteğiyle)
   factory AnnouncementModel.fromLocalMap(Map<String, dynamic> map) {
     return AnnouncementModel(
       id: map['id'] ?? '',
@@ -68,8 +69,13 @@ class AnnouncementModel {
       mentorId: map['mentorId'] ?? '',
       title: map['title'] ?? '',
       description: map['description'] ?? '',
-      createdAt: DateTime.parse(map['createdAt']),
-      updatedAt: map['updatedAt'] != null ? DateTime.parse(map['updatedAt']) : null,
+      // Kayıt türüne göre güvenli dönüşüm
+      createdAt: map['createdAt'] is String
+          ? DateTime.parse(map['createdAt'])
+          : (map['createdAt'] as Timestamp).toDate(),
+      updatedAt: map['updatedAt'] != null
+          ? (map['updatedAt'] is String ? DateTime.parse(map['updatedAt']) : (map['updatedAt'] as Timestamp).toDate())
+          : null,
     );
   }
 
