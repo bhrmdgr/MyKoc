@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'package:email_validator/email_validator.dart';
 import 'package:mykoc/firebase/classroom/classroom_service.dart';
 import 'package:mykoc/services/storage/local_storage_service.dart';
 import 'package:mykoc/firebase/messaging/fcm_service.dart';
@@ -21,31 +22,51 @@ class FirebaseSignUp {
     String? classCode,
   }) async {
     try {
+      final String trimmedEmail = email.trim();
+
+      if (!EmailValidator.validate(trimmedEmail)) {
+        throw 'INVALID_FORMAT';
+      }
+
+      final String? normalizedPhone = phone?.replaceAll(RegExp(r'\s+'), '');
+
+      // 1. ADIM: Firebase Auth Kaydı
       final userCredential = await _auth.createUserWithEmailAndPassword(
-        email: email.trim(),
+        email: trimmedEmail,
         password: password,
       );
 
       final user = userCredential.user;
       if (user == null) throw 'Kullanıcı oluşturulamadı';
 
+      // 2. ADIM: Profil Bilgileri Güncelleme
       await user.updateDisplayName(name);
-      await _saveToLocalStorage(user.uid, email);
+      await _saveToLocalStorage(user.uid, trimmedEmail);
 
+      // 3. ADIM: Rol Bazlı Veritabanı Kaydı
+      // Buradaki Firestore kayıtları kritik olduğu için 'await' ile bekliyoruz.
       if (classCode != null && classCode.isNotEmpty) {
-        await _registerAsStudent(user.uid, name, email, phone, classCode);
+        await _registerAsStudent(user.uid, name, trimmedEmail, normalizedPhone, classCode);
       } else {
-        await _registerAsMentor(user.uid, name, email, phone);
+        await _registerAsMentor(user.uid, name, trimmedEmail, normalizedPhone);
       }
 
-      // FCM token kaydet
-      await FCMService().saveToken(user.uid);
-      debugPrint('✅ FCM token saved');
+      // --- GÜNCELLEME BURADA ---
+      // FCM token alma işlemi 36 saniye süren o 'contention' hatasına neden oluyor.
+      // Unawaited (beklemesiz) yaparak bu bloktan hemen kurtuluyoruz.
+      FCMService().saveToken(user.uid).then((_) {
+        debugPrint('✅ FCM token saved');
+      }).catchError((e) {
+        debugPrint('⚠️ FCM token hatası (Kayıt etkilenmedi): $e');
+      });
 
-      return user;
+      return user; // Kullanıcı hemen ana sayfaya yönlendirilir.
     } on FirebaseAuthException catch (e) {
       throw _getErrorMessage(e.code);
     } catch (e) {
+      if (e == 'INVALID_FORMAT') {
+        throw 'Lütfen geçerli bir e-posta adresi girdiğinizden emin olun.';
+      }
       throw e.toString();
     }
   }
@@ -60,7 +81,7 @@ class FirebaseSignUp {
       'uid': uid,
       'name': name,
       'email': email,
-      'phone': phone?.trim(),
+      'phone': phone,
       'role': 'mentor',
       'profileImage': '',
       'bio': '',
@@ -71,7 +92,7 @@ class FirebaseSignUp {
       'uid': uid,
       'name': name,
       'email': email,
-      'phone': phone?.trim(),
+      'phone': phone,
       'subscriptionTier': 'free',
       'subscriptionStartDate': FieldValue.serverTimestamp(),
       'subscriptionEndDate': null,
@@ -89,7 +110,7 @@ class FirebaseSignUp {
       'uid': uid,
       'name': name,
       'email': email,
-      'phone': phone?.trim(),
+      'phone': phone,
       'role': 'mentor',
       'profileImage': '',
       'bio': '',
@@ -112,7 +133,6 @@ class FirebaseSignUp {
       String? phone,
       String classCode,
       ) async {
-    // 1. Sınıfı kod ile bul
     final classSnapshot = await _firestore
         .collection('classes')
         .where('classCode', isEqualTo: classCode.trim().toUpperCase())
@@ -127,94 +147,73 @@ class FirebaseSignUp {
     final classData = classDoc.data();
     final String mentorId = classData['mentorId'] ?? '';
 
-    // --- KRİTİK LİMİT KONTROLÜ BAŞLANGIÇ ---
-    // ClassroomService üzerindeki merkezi kontrol metodunu kullanıyoruz
     final bool canJoin = await _classroomService.checkStudentLimit(classId);
-
     if (!canJoin) {
-      // Eğer limit dolmuşsa hata fırlat ve kaydı durdur
       throw 'STUDENT_LIMIT_REACHED';
     }
-    // --- KRİTİK LİMİT KONTROLÜ BİTİŞ ---
 
-    // 2. Users koleksiyonuna temel kullanıcı verilerini kaydet
     final userData = {
       'uid': uid,
       'name': name,
       'email': email,
-      'phone': phone?.trim(),
+      'phone': phone,
       'role': 'student',
       'profileImage': '',
       'bio': '',
       'createdAt': FieldValue.serverTimestamp(),
     };
 
-    // 3. Students koleksiyonuna öğrenci-mentör eşleşmesini kaydet
     final studentData = {
       'uid': uid,
       'name': name,
       'email': email,
-      'phone': phone?.trim(),
+      'phone': phone,
       'mentorId': mentorId,
       'classId': classId,
       'classCode': classCode.toUpperCase(),
       'enrolledAt': FieldValue.serverTimestamp(),
     };
 
-    // İşlemleri toplu (batch) yapmak veri tutarlılığı için daha iyidir
     final batch = _firestore.batch();
-
     batch.set(_firestore.collection('users').doc(uid), userData);
     batch.set(_firestore.collection('students').doc(uid), studentData);
-
-    // 4. Sınıfın altındaki 'students' koleksiyonuna ekle
     batch.set(
       _firestore.collection('classes').doc(classId).collection('students').doc(uid),
       {
         'uid': uid,
         'name': name,
         'email': email,
-        'phone': phone?.trim(),
+        'phone': phone,
         'enrolledAt': FieldValue.serverTimestamp(),
       },
     );
 
-    // 5. Sayaçları (studentCount) artır
-    batch.update(_firestore.collection('classes').doc(classId), {
-      'studentCount': FieldValue.increment(1),
-    });
+    batch.update(_firestore.collection('classes').doc(classId), {'studentCount': FieldValue.increment(1)});
+    batch.update(_firestore.collection('mentors').doc(mentorId), {'studentCount': FieldValue.increment(1)});
 
-    batch.update(_firestore.collection('mentors').doc(mentorId), {
-      'studentCount': FieldValue.increment(1),
-    });
-
-    // Batch işlemini tamamla
     await batch.commit();
 
-    // 6. Mesajlaşma (Chat Room) entegrasyonu
-    try {
-      final chatRoomId = await _messagingService.getChatRoomIdByClassId(classId);
-
+    // --- GÜNCELLEME BURADA ---
+    // Mesajlaşma entegrasyonu tamamen arka plana alındı.
+    // .then() kullanarak asenkron çalıştırıyoruz, 'await' yapmıyoruz.
+    _messagingService.getChatRoomIdByClassId(classId).then((chatRoomId) {
       if (chatRoomId != null) {
-        await _messagingService.addStudentToChatRoom(
+        _messagingService.addStudentToChatRoom(
           chatRoomId: chatRoomId,
           studentId: uid,
           studentName: name,
           studentImageUrl: null,
         );
-        debugPrint('✅ Student added to chat room: $chatRoomId');
       }
-    } catch (e) {
-      debugPrint('❌ Error adding student to chat room: $e');
-      // Chat hatası kaydı tamamen durdurmamalı, sadece logluyoruz.
-    }
+    }).catchError((e) {
+      debugPrint('❌ Sohbet odasına ekleme hatası: $e');
+    });
 
-    // 7. Local Storage güncellemeleri
     await _localStorage.saveUserData({
       'uid': uid,
       'name': name,
       'email': email,
-      'phone': phone?.trim(),
+      'phone': phone,
       'role': 'student',
       'profileImage': '',
       'bio': '',
@@ -240,7 +239,7 @@ class FirebaseSignUp {
       case 'email-already-in-use':
         return 'Bu e-posta adresi zaten kullanımda';
       case 'invalid-email':
-        return 'Geçersiz e-posta adresi';
+        return 'E-posta adresi geçersiz veya sunucusu bulunamadı';
       case 'weak-password':
         return 'Şifre çok zayıf. En az 6 karakter olmalı';
       case 'network-request-failed':
@@ -248,7 +247,7 @@ class FirebaseSignUp {
       case 'operation-not-allowed':
         return 'E-posta/Şifre girişi aktif değil';
       default:
-        return 'Kayıt sırasında bir hata oluştu';
+        return 'Kayıt sırasında bir hata oluştu (Hata: $code)';
     }
   }
 }

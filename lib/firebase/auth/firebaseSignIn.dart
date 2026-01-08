@@ -2,156 +2,150 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mykoc/services/storage/local_storage_service.dart';
 import 'package:flutter/foundation.dart';
-import 'package:mykoc/firebase/messaging/fcm_service.dart';
-
 
 class FirebaseSignIn {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final LocalStorageService _localStorage = LocalStorageService();
 
-  // Email ve şifre ile giriş
-  // Email ve şifre ile giriş
-  // lib/firebase/auth/firebaseSignIn.dart
-
+  /// SADECE GİRİŞ YAP - Başka hiçbir şey yapma
   Future<User?> signInWithEmailAndPassword({
     required String email,
     required String password,
   }) async {
     try {
-      final userCredential = await _auth.signInWithEmailAndPassword(
+      debugPrint('🔐 [1/3] Giriş denemesi başladı: $email');
+
+      // ADIM 1: Sadece Firebase Auth'a giriş yap
+      final userCredential = await _auth
+          .signInWithEmailAndPassword(
         email: email.trim(),
         password: password,
+      )
+          .timeout(
+        const Duration(seconds: 20),
+        onTimeout: () {
+          throw 'TIMEOUT: Firebase sunucusuna ulaşılamadı';
+        },
       );
 
+      debugPrint('✅ [2/3] Firebase Auth başarılı');
+
       final user = userCredential.user;
-      if (user == null) throw 'Kullanıcı bulunamadı';
-
-      // Firestore'da kullanıcı var mı kontrol et
-      final userDoc = await _firestore.collection('users').doc(user.uid).get();
-
-      if (!userDoc.exists) {
-        // Kullanıcı Firestore'da yok = hesap silinmiş
-        await _auth.signOut();
-
-        // Firebase Auth'dan da sil
-        try {
-          await user.delete();
-        } catch (e) {
-          debugPrint('⚠️ Could not delete orphaned auth user: $e');
-        }
-
-        throw 'Bu hesap silinmiş. Lütfen yeni bir hesap oluşturun.';
+      if (user == null) {
+        throw 'Kullanıcı bilgisi alınamadı';
       }
 
-      // Normal flow devam eder
-      await _fetchAndSaveUserData(user.uid, email);
-      await FCMService().saveToken(user.uid);
+      // ADIM 2: Sadece UID ve Email kaydet (Hızlı işlem)
+      await _localStorage.saveUid(user.uid);
+      await _localStorage.saveEmail(email.trim());
 
-      if (kDebugMode) print('✅ FCM token saved');
+      debugPrint('✅ [3/3] Local storage kaydedildi');
+
+      // ADIM 3: Arka planda diğer işlemleri yap (UI'ı bloklamaz)
+      _loadUserDataInBackground(user.uid, email.trim());
 
       return user;
     } on FirebaseAuthException catch (e) {
-      if (kDebugMode) print('FirebaseAuth Error: ${e.code}');
+      debugPrint('❌ FirebaseAuth hatası: ${e.code}');
       throw _getErrorMessage(e.code);
     } catch (e) {
-      if (kDebugMode) print('SignIn Error: $e');
+      debugPrint('❌ Genel hata: $e');
       throw e.toString();
     }
   }
 
-  // Firestore'dan kullanıcı bilgilerini çek ve kaydet
-  Future<void> _fetchAndSaveUserData(String uid, String email) async {
+  /// Arka planda kullanıcı verilerini yükle
+  void _loadUserDataInBackground(String uid, String email) async {
     try {
-      // ✅ UID ve Email'i hemen kaydet
-      await _localStorage.saveUid(uid);
-      await _localStorage.saveEmail(email);
+      debugPrint('📦 Arka planda veri yükleniyor...');
 
-      // User bilgilerini çek
-      final userDoc = await _firestore.collection('users').doc(uid).get();
+      // Firestore'dan kullanıcı verisini al
+      final userDoc = await _firestore
+          .collection('users')
+          .doc(uid)
+          .get()
+          .timeout(const Duration(seconds: 10));
 
       if (!userDoc.exists) {
-        throw 'Kullanıcı kaydı bulunamadı';
+        debugPrint('⚠️ Kullanıcı kaydı Firestore\'da bulunamadı');
+        return;
       }
 
       final userData = userDoc.data()!;
       final role = userData['role'];
 
-      // ✅ Timestamp'leri temizle
-      final userDataToSave = Map<String, dynamic>.from(userData);
-      userDataToSave.removeWhere((key, value) => value is Timestamp);
+      // Timestamp'leri kaldır
+      final cleanUserData = Map<String, dynamic>.from(userData);
+      cleanUserData.removeWhere((key, value) => value is Timestamp);
 
-      await _localStorage.saveUserData(userDataToSave);
+      await _localStorage.saveUserData(cleanUserData);
 
-      // ✅ Role göre ek bilgileri kaydet
+      // Role göre ek veri yükle
       if (role == 'mentor') {
-        final mentorDoc = await _firestore.collection('mentors').doc(uid).get();
+        final mentorDoc = await _firestore
+            .collection('mentors')
+            .doc(uid)
+            .get()
+            .timeout(const Duration(seconds: 10));
+
         if (mentorDoc.exists) {
           final mentorData = Map<String, dynamic>.from(mentorDoc.data()!);
-          // Timestamp'leri temizle
           mentorData.removeWhere((key, value) => value is Timestamp);
           await _localStorage.saveMentorData(mentorData);
         }
       } else if (role == 'student') {
-        final studentDoc = await _firestore.collection('students').doc(uid).get();
+        final studentDoc = await _firestore
+            .collection('students')
+            .doc(uid)
+            .get()
+            .timeout(const Duration(seconds: 10));
+
         if (studentDoc.exists) {
           final studentData = Map<String, dynamic>.from(studentDoc.data()!);
-          // Timestamp'leri temizle
           studentData.removeWhere((key, value) => value is Timestamp);
           await _localStorage.saveStudentData(studentData);
         }
       }
 
-      if (kDebugMode) print('✅ User data loaded successfully');
+      debugPrint('✅ Arka plan veri yükleme tamamlandı');
     } catch (e) {
-      if (kDebugMode) print('Error fetching user data: $e');
-      throw 'Kullanıcı bilgileri yüklenemedi';
+      debugPrint('⚠️ Arka plan veri yükleme hatası: $e');
+      // Hata olsa bile kullanıcı zaten giriş yapmış durumda
     }
   }
 
-  // Çıkış yapma
   Future<void> signOut() async {
     try {
-      debugPrint('🚪 Signing out from Firebase...');
       await _auth.signOut();
-      debugPrint('✅ Firebase sign out successful');
-
-      debugPrint('🗑️ Clearing local storage...');
       await _localStorage.clearAll();
-      debugPrint('✅ Local storage cleared');
+      debugPrint('✅ Çıkış başarılı');
     } catch (e) {
-      debugPrint('❌ Error during sign out: $e');
-      // Hata olsa bile local storage'ı temizle
-      try {
-        await _localStorage.clearAll();
-      } catch (clearError) {
-        debugPrint('❌ Error clearing storage: $clearError');
-      }
+      debugPrint('❌ Çıkış hatası: $e');
+      await _localStorage.clearAll();
       throw 'Çıkış yapılırken bir hata oluştu';
     }
   }
 
-  // Şifre sıfırlama
   Future<void> resetPassword({required String email}) async {
     try {
       await _auth.sendPasswordResetEmail(email: email.trim());
+      debugPrint('✅ Şifre sıfırlama emaili gönderildi');
     } on FirebaseAuthException catch (e) {
+      debugPrint('❌ Şifre sıfırlama hatası: ${e.code}');
       throw _getErrorMessage(e.code);
-    } catch (e) {
-      throw 'Şifre sıfırlama e-postası gönderilemedi';
     }
   }
 
-  // Mevcut kullanıcıyı al
   User? getCurrentUser() => _auth.currentUser;
 
-  // Oturum durumu stream
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
   String _getErrorMessage(String code) {
     switch (code) {
       case 'user-not-found':
-        return 'Bu e-posta adresiyle kayıtlı kullanıcı bulunamadı';
+      case 'invalid-credential':
+        return 'E-posta veya şifre hatalı';
       case 'wrong-password':
         return 'Hatalı şifre girdiniz';
       case 'invalid-email':
@@ -162,10 +156,8 @@ class FirebaseSignIn {
         return 'Çok fazla deneme yaptınız. Lütfen daha sonra tekrar deneyin';
       case 'network-request-failed':
         return 'İnternet bağlantınızı kontrol edin';
-      case 'invalid-credential':
-        return 'E-posta veya şifre hatalı';
       default:
-        return 'Giriş yapılırken bir hata oluştu';
+        return 'Giriş yapılırken bir hata oluştu (Hata: $code)';
     }
   }
 }

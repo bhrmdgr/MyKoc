@@ -1,5 +1,7 @@
 import 'package:easy_localization/easy_localization.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:mykoc/firebase/auth/firebaseSignUp.dart';
 import 'package:mykoc/routers/appRouter.dart';
 
@@ -18,7 +20,10 @@ class _SignupState extends State<Signup> {
   final _confirmPasswordController = TextEditingController();
   final _classCodeController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _otpController = TextEditingController();
 
+  String _fullPhoneNumber = "";
+  String _verificationId = "";
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
   bool _isLoading = false;
@@ -30,142 +35,192 @@ class _SignupState extends State<Signup> {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _classCodeController.dispose();
+    _phoneController.dispose();
+    _otpController.dispose();
     super.dispose();
   }
 
+  // 1. ADIM: Telefon Doğrulama Başlatma
   Future<void> _handleSignUp() async {
-    // 1. Form Doğrulamaları (Validation)
-    if (_nameController.text.trim().isEmpty) {
-      _showError('error_empty_name'.tr());
-      return;
-    }
+    if (_nameController.text.trim().isEmpty) { _showError('error_empty_name'.tr()); return; }
+    if (_emailController.text.trim().isEmpty) { _showError('error_empty_email'.tr()); return; }
+    if (_passwordController.text.length < 6) { _showError('error_password_length'.tr()); return; }
+    if (_passwordController.text != _confirmPasswordController.text) { _showError('error_password_mismatch'.tr()); return; }
+    if (_fullPhoneNumber.isEmpty) { _showError('error_empty_phone'.tr()); return; }
 
-    if (_emailController.text.trim().isEmpty) {
-      _showError('error_empty_email'.tr());
-      return;
-    }
-
-    if (_passwordController.text.isEmpty) {
-      _showError('error_empty_password'.tr());
-      return;
-    }
-
-    if (_passwordController.text.length < 6) {
-      _showError('error_password_length'.tr());
-      return;
-    }
-
-    if (_passwordController.text != _confirmPasswordController.text) {
-      _showError('error_password_mismatch'.tr());
-      return;
-    }
-
-    // 2. Yükleniyor Durumunu Başlat
     setState(() => _isLoading = true);
 
     try {
-      // 3. Kayıt İşlemini Başlat
-      // Not: FirebaseSignUp içindeki _registerAsStudent artık limit kontrolü yapıyor.
-      await _firebaseSignUp.signUpWithEmailAndPassword(
-        name: _nameController.text.trim(),
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-        phone: _phoneController.text.trim().isNotEmpty
-            ? _phoneController.text.trim()
-            : null,
-        classCode: _classCodeController.text.trim().isNotEmpty
-            ? _classCodeController.text.trim()
-            : null,
+      await FirebaseAuth.instance.verifyPhoneNumber(
+        phoneNumber: _fullPhoneNumber,
+        verificationCompleted: (PhoneAuthCredential credential) async {
+          // Bazı Android cihazlarda otomatik doğrulama yapabilir
+        },
+        verificationFailed: (FirebaseAuthException e) {
+          // Bu logu mutlaka kontrol et!
+          debugPrint("🔥 SMS HATASI GELDİ: ${e.code}");
+          debugPrint("🔥 HATA MESAJI: ${e.message}");
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("SMS Hatası: ${e.message}")),
+            );
+          }
+        },
+        codeSent: (String verificationId, int? resendToken) {
+          setState(() {
+            _isLoading = false;
+            _verificationId = verificationId;
+          });
+          _showOTPDialog();
+        },
+        codeAutoRetrievalTimeout: (String verificationId) {
+          _verificationId = verificationId;
+        },
       );
-
-      // 4. Başarılı Kayıt
-      if (mounted) {
-        _showSuccess('success_signup'.tr());
-        await Future.delayed(const Duration(seconds: 1));
-        if (mounted) navigateToHome(context);
-      }
     } catch (e) {
-      // 5. Hata Yönetimi
-      if (mounted) {
-        final errorString = e.toString();
-
-        // Mentörün öğrenci limiti doluysa özel diyalog göster
-        if (errorString.contains('STUDENT_LIMIT_REACHED')) {
-          _showLimitErrorDialog();
-        }
-        // Diğer genel hataları SnackBar ile göster
-        else {
-          _showError(errorString);
-        }
-      }
-    } finally {
-      // 6. Yükleniyor Durumunu Kapat
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      setState(() => _isLoading = false);
+      _showError(e.toString());
     }
   }
 
-  /// Mentör limiti dolduğunda gösterilecek özel uyarı diyaloğu
-  void _showLimitErrorDialog() {
+  // 2. ADIM: OTP Giriş Diyaloğu
+  void _showOTPDialog() {
     showDialog(
       context: context,
-      barrierDismissible: false, // Kullanıcı mutlaka butona basmalı
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
+        title: Text('verify_phone'.tr(), textAlign: TextAlign.center),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'limit_reached'.tr(),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            Text('enter_otp_sent'.tr(args: [_fullPhoneNumber])),
+            const SizedBox(height: 20),
+            TextField(
+              controller: _otpController,
+              keyboardType: TextInputType.number,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 24, letterSpacing: 8, fontWeight: FontWeight.bold),
+              decoration: InputDecoration(
+                hintText: "000000",
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ],
         ),
-        content: Text(
-          'student_signup_limit_info'.tr(),
-          style: const TextStyle(fontSize: 15),
-        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(
-              'ok'.tr(),
-              style: const TextStyle(color: Color(0xFF6366F1), fontWeight: FontWeight.bold),
-            ),
+            child: Text('cancel'.tr(), style: const TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () => _completeRegistration(),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6366F1)),
+            child: Text('verify_and_register'.tr()),
           ),
         ],
       ),
     );
   }
 
+  // 3. ADIM: Son Kayıt İşlemi
+  Future<void> _completeRegistration() async {
+    // 1. Önce OTP diyaloğunu kapatıyoruz
+    Navigator.pop(context);
+    setState(() => _isLoading = true);
 
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-        duration: const Duration(seconds: 3), // ← 3 saniye göster
-        behavior: SnackBarBehavior.floating, // ← Floating yaparak daha görünür
+    try {
+      // 2. Kullanıcının girdiği kodla Credential oluştur
+      PhoneAuthCredential credential = PhoneAuthProvider.credential(
+        verificationId: _verificationId,
+        smsCode: _otpController.text.trim(),
+      );
+
+      // --- EN KRİTİK ADIM: KODUN DOĞRULANMASI ---
+      // Eğer girilen kod yanlışsa, Firebase burada hata fırlatır ve catch bloğuna atlar.
+      // Bu satır yoksa, kod kontrol edilmeden bir sonraki adıma geçer!
+      await FirebaseAuth.instance.signInWithCredential(credential);
+      // ------------------------------------------
+
+      // 3. Kod doğruysa (buraya kadar geldiyse), asıl kayıt işlemini yap
+      await _firebaseSignUp.signUpWithEmailAndPassword(
+        name: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        phone: _fullPhoneNumber,
+        classCode: _classCodeController.text.trim().isNotEmpty
+            ? _classCodeController.text.trim()
+            : null,
+      );
+
+      // 4. Başarılı yönlendirme
+      if (mounted) {
+        _showSuccess('success_signup'.tr());
+        await Future.delayed(const Duration(seconds: 1));
+        if (mounted) navigateToHome(context);
+      }
+    } on FirebaseAuthException catch (e) {
+      // Firebase spesifik hataları yakala (Yanlış kod, süresi dolmuş kod vb.)
+      if (mounted) {
+        String errorMessage;
+        switch (e.code) {
+          case 'invalid-verification-code':
+            errorMessage = 'error_invalid_otp'.tr(); // "Geçersiz kod"
+            break;
+          case 'session-expired':
+            errorMessage = 'error_otp_expired'.tr(); // "Kodun süresi doldu"
+            break;
+          default:
+            errorMessage = e.message ?? 'error_unknown'.tr();
+        }
+        _showError(errorMessage);
+      }
+    } catch (e) {
+      // Diğer genel hatalar (Limit aşımı vb.)
+      if (mounted) {
+        final errorString = e.toString();
+        if (errorString.contains('STUDENT_LIMIT_REACHED')) {
+          _showLimitErrorDialog();
+        } else {
+          _showError(errorString);
+        }
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _showLimitErrorDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+            const SizedBox(width: 12),
+            Expanded(child: Text('limit_reached'.tr(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18))),
+          ],
+        ),
+        content: Text('student_signup_limit_info'.tr()),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: Text('ok'.tr(), style: const TextStyle(color: Color(0xFF6366F1)))),
+        ],
       ),
     );
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating));
   }
 
   void _showSuccess(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.green,
-        duration: const Duration(seconds: 3),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.green, behavior: SnackBarBehavior.floating));
   }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -174,10 +229,7 @@ class _SignupState extends State<Signup> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF1F2937)),
-          onPressed: () => goBack(context),
-        ),
+        leading: IconButton(icon: const Icon(Icons.arrow_back, color: Color(0xFF1F2937)), onPressed: () => goBack(context)),
       ),
       body: SafeArea(
         child: Center(
@@ -215,26 +267,11 @@ class _SignupState extends State<Signup> {
   }
 
   Widget _buildHeader() {
-    return Column(
-      children: [
-        Text(
-          'create_account'.tr(),
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF1F2937),
-          ),
-        ),
-        SizedBox(height: 8),
-        Text(
-          'join_community'.tr(),
-          style: TextStyle(
-            fontSize: 14,
-            color: Color(0xFF6B7280),
-          ),
-        ),
-      ],
-    );
+    return Column(children: [
+      Text('create_account'.tr(), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF1F2937))),
+      const SizedBox(height: 8),
+      Text('join_community'.tr(), style: const TextStyle(fontSize: 14, color: Color(0xFF6B7280))),
+    ]);
   }
 
   Widget _buildNameField() {
@@ -245,11 +282,25 @@ class _SignupState extends State<Signup> {
         labelText: 'full_name'.tr(),
         hintText: 'enter_name'.tr(),
         prefixIcon: const Icon(Icons.person_outline),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         filled: true,
         fillColor: const Color(0xFFF9FAFB),
+      ),
+    );
+  }
+
+  Widget _buildPhoneField() {
+    return IntlPhoneField(
+      controller: _phoneController,
+      initialCountryCode: 'TR',
+      languageCode: context.locale.languageCode,
+      onChanged: (phone) => _fullPhoneNumber = phone.completeNumber,
+      decoration: InputDecoration(
+        labelText: 'phone_optional'.tr(),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        filled: true,
+        fillColor: const Color(0xFFF9FAFB),
+        counterText: '',
       ),
     );
   }
@@ -262,9 +313,7 @@ class _SignupState extends State<Signup> {
         labelText: 'email'.tr(),
         hintText: 'email_hint'.tr(),
         prefixIcon: const Icon(Icons.email_outlined),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         filled: true,
         fillColor: const Color(0xFFF9FAFB),
       ),
@@ -277,19 +326,12 @@ class _SignupState extends State<Signup> {
       obscureText: !_isPasswordVisible,
       decoration: InputDecoration(
         labelText: 'password'.tr(),
-        hintText: '••••••••',
         prefixIcon: const Icon(Icons.lock_outline),
         suffixIcon: IconButton(
-          icon: Icon(
-            _isPasswordVisible ? Icons.visibility_off : Icons.visibility,
-          ),
-          onPressed: () {
-            setState(() => _isPasswordVisible = !_isPasswordVisible);
-          },
+          icon: Icon(_isPasswordVisible ? Icons.visibility_off : Icons.visibility),
+          onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
         ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         filled: true,
         fillColor: const Color(0xFFF9FAFB),
       ),
@@ -302,36 +344,12 @@ class _SignupState extends State<Signup> {
       obscureText: !_isConfirmPasswordVisible,
       decoration: InputDecoration(
         labelText: 'confirm_password'.tr(),
-        hintText: '••••••••',
         prefixIcon: const Icon(Icons.lock_outline),
         suffixIcon: IconButton(
-          icon: Icon(
-            _isConfirmPasswordVisible ? Icons.visibility_off : Icons.visibility,
-          ),
-          onPressed: () {
-            setState(() => _isConfirmPasswordVisible = !_isConfirmPasswordVisible);
-          },
+          icon: Icon(_isConfirmPasswordVisible ? Icons.visibility_off : Icons.visibility),
+          onPressed: () => setState(() => _isConfirmPasswordVisible = !_isConfirmPasswordVisible),
         ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        filled: true,
-        fillColor: const Color(0xFFF9FAFB),
-      ),
-    );
-  }
-
-  Widget _buildPhoneField() {
-    return TextField(
-      controller: _phoneController,
-      keyboardType: TextInputType.phone,
-      decoration: InputDecoration(
-        labelText: 'phone_optional'.tr(),
-        hintText: '+90 5XX XXX XX XX',
-        prefixIcon: const Icon(Icons.phone_outlined),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         filled: true,
         fillColor: const Color(0xFFF9FAFB),
       ),
@@ -345,19 +363,14 @@ class _SignupState extends State<Signup> {
       maxLength: 6,
       decoration: InputDecoration(
         labelText: 'class_code_optional'.tr(),
-        hintText: 'class_code_hint'.tr(),
         prefixIcon: const Icon(Icons.key_outlined),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         filled: true,
         fillColor: const Color(0xFFF9FAFB),
         counterText: '',
       ),
     );
   }
-
-
 
   Widget _buildInfoCard() {
     return Container(
@@ -367,25 +380,11 @@ class _SignupState extends State<Signup> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.3)),
       ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.info_outline,
-            color: const Color(0xFF6366F1),
-            size: 20,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              'mentor_info_text'.tr(),
-              style: TextStyle(
-                fontSize: 12,
-                color: const Color(0xFF4338CA),
-              ),
-            ),
-          ),
-        ],
-      ),
+      child: Row(children: [
+        const Icon(Icons.info_outline, color: Color(0xFF6366F1), size: 20),
+        const SizedBox(width: 12),
+        Expanded(child: Text('mentor_info_text'.tr(), style: const TextStyle(fontSize: 12, color: Color(0xFF4338CA)))),
+      ]),
     );
   }
 
@@ -396,51 +395,18 @@ class _SignupState extends State<Signup> {
         backgroundColor: const Color(0xFF6366F1),
         foregroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(vertical: 16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       child: _isLoading
-          ? const SizedBox(
-        height: 20,
-        width: 20,
-        child: CircularProgressIndicator(
-          strokeWidth: 2,
-          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-        ),
-      )
-          : Text(
-        'register_now'.tr(),
-        style: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
+          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+          : Text('register_now'.tr(), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
     );
   }
 
   Widget _buildSignInLink() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(
-          'already_have_account'.tr(),
-          style: TextStyle(color: Color(0xFF6B7280)),
-        ),
-        TextButton(
-          onPressed: () {
-            goBack(context);
-          },
-          child: Text(
-            'login'.tr(),
-            style: TextStyle(
-              color: Color(0xFF6366F1),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ],
-    );
+    return Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+      Text('already_have_account'.tr(), style: const TextStyle(color: Color(0xFF6B7280))),
+      TextButton(onPressed: () => goBack(context), child: Text('login'.tr(), style: const TextStyle(color: Color(0xFF6366F1), fontWeight: FontWeight.w600))),
+    ]);
   }
 }

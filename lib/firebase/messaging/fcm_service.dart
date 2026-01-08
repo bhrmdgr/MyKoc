@@ -24,72 +24,77 @@ class FCMService {
   final FlutterLocalNotificationsPlugin _localNotifications =
   FlutterLocalNotificationsPlugin();
 
+  // Android Kanal Tanımı
+  final AndroidNotificationChannel _channel = const AndroidNotificationChannel(
+    'mykoc_channel', // ID: Cloud Functions veya Manuel gönderimle aynı olmalı
+    'MyKoc Bildirimleri', // İsim: Ayarlarda görünür
+    description: 'Mesaj ve duyuru bildirimleri.', // Açıklama
+    importance: Importance.max,
+    playSound: true,
+    enableVibration: true,
+  );
+
   String? _fcmToken;
   String? get fcmToken => _fcmToken;
 
   Future<void> initialize() async {
     debugPrint('🔔 FCM Service initializing...');
 
-    // İzin iste
-    NotificationSettings settings = await _fcm.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
+    try {
+      // 1. İzin İste
+      NotificationSettings settings = await _fcm.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+        provisional: false,
+      );
 
-    if (settings.authorizationStatus != AuthorizationStatus.authorized) {
-      debugPrint('⚠️ Notification permission denied');
-      return;
+      if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+        debugPrint('✅ Notification permission granted');
+      }
+
+      // 2. Yerel Bildirimleri ve Kanalı Başlat (Android için kritik)
+      await _initializeLocalNotifications();
+
+      // 3. iOS için ön planda bildirim görünürlüğü ayarı
+      await _fcm.setForegroundNotificationPresentationOptions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+
+      // 4. Dinleyicileri Kur
+      _setupMessageListeners();
+
+      debugPrint('✅ FCM Service basic setup complete.');
+    } catch (e) {
+      debugPrint('❌ FCM Service initialize error: $e');
     }
+  }
 
-    debugPrint('✅ Notification permission granted');
+  void _setupMessageListeners() {
+    // Ön planda mesaj gelirse
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      debugPrint('📲 Foreground message received: ${message.notification?.title}');
+      _showLocalNotification(message);
+    });
 
-    // Local notifications başlat
-    await _initializeLocalNotifications();
+    // Bildirime tıklanırsa
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      _handleNotificationTap(message);
+    });
 
-    // FCM token al
-    _fcmToken = await _fcm.getToken();
-    debugPrint('🔑 FCM Token: $_fcmToken');
-
-    // Token'ı kaydet
-    final userId = _localStorage.getUid();
-    if (userId != null && _fcmToken != null) {
-      await saveToken(userId);
-    }
-
-    // Token yenilendiğinde
+    // Token yenilenirse
     _fcm.onTokenRefresh.listen((token) {
       _fcmToken = token;
-      debugPrint('🔄 Token refreshed');
       final userId = _localStorage.getUid();
       if (userId != null) {
         saveToken(userId);
       }
     });
-
-    // Foreground mesajları (uygulama açıkken)
-    FirebaseMessaging.onMessage.listen((message) {
-      debugPrint('📲 Foreground message: ${message.notification?.title}');
-      _showLocalNotification(message);
-    });
-
-    // Bildirime tıklandığında (background/terminated)
-    FirebaseMessaging.onMessageOpenedApp.listen((message) {
-      debugPrint('🔔 Notification tapped: ${message.data}');
-      _handleNotificationTap(message);
-    });
-
-    // Uygulama kapalıyken gelen bildirime tıklandıysa
-    final initialMessage = await _fcm.getInitialMessage();
-    if (initialMessage != null) {
-      debugPrint('🔔 App opened from notification');
-      _handleNotificationTap(initialMessage);
-    }
-
-    debugPrint('✅ FCM Service initialized');
   }
 
-  /// Token al ve gerekiyorsa kaydet (✅ Yeni Eklendi)
+  /// Token al ve gerekiyorsa kaydet
   Future<String?> getToken() async {
     try {
       _fcmToken = await _fcm.getToken();
@@ -104,7 +109,7 @@ class FCMService {
     }
   }
 
-  /// Local notifications başlat
+  /// Local notifications ve Kanal kurulumu
   Future<void> _initializeLocalNotifications() async {
     const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
     const iosSettings = DarwinInitializationSettings(
@@ -118,6 +123,11 @@ class FCMService {
       iOS: iosSettings,
     );
 
+    // Kanalı Android sistemine kaydet (Kritik!)
+    await _localNotifications
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(_channel);
+
     await _localNotifications.initialize(
       initSettings,
       onDidReceiveNotificationResponse: (details) {
@@ -125,72 +135,59 @@ class FCMService {
       },
     );
 
-    debugPrint('✅ Local notifications initialized');
+    debugPrint('✅ Local notifications & Channel initialized');
   }
 
   /// Foreground'da local notification göster
   Future<void> _showLocalNotification(RemoteMessage message) async {
-    const androidDetails = AndroidNotificationDetails(
-      'mykoc_channel', // Functions kodundaki channelId ile birebir AYNI olmalı
-      'MyKoc Notifications',
-      importance: Importance.max, // En yüksek önem
-      priority: Priority.high,    // Öncelikli
-      enableVibration: true,     // Titreşim açık
-      playSound: true,           // Ses açık
-    );
+    RemoteNotification? notification = message.notification;
+    AndroidNotification? android = message.notification?.android;
 
-    const iosDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
-    );
-
-    const details = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
-
-    await _localNotifications.show(
-      message.hashCode,
-      message.notification?.title ?? 'MyKoc',
-      message.notification?.body ?? '',
-      details,
-      payload: message.data.toString(),
-    );
+    if (notification != null) {
+      await _localNotifications.show(
+        notification.hashCode,
+        notification.title,
+        notification.body,
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            _channel.id,
+            _channel.name,
+            channelDescription: _channel.description,
+            icon: android?.smallIcon ?? '@mipmap/ic_launcher',
+            importance: _channel.importance,
+            priority: Priority.high,
+            playSound: true,
+          ),
+          iOS: const DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+          ),
+        ),
+        payload: message.data.toString(),
+      );
+    }
   }
 
-  /// Bildirime tıklandığında
   void _handleNotificationTap(RemoteMessage message) {
     final type = message.data['type'];
-
     debugPrint('🔔 Notification type: $type');
-
-    // Navigation için implementation eklenecek
-    // Örnek:
-    // if (type == 'announcement') {
-    //   final announcementId = message.data['announcementId'];
-    //   NavigationService.navigateTo('/announcement/$announcementId');
-    // }
   }
 
-  /// Token'ı Firestore'a kaydet
   Future<void> saveToken(String userId) async {
     if (_fcmToken == null) return;
-
     try {
       await _firestore.collection('fcmTokens').doc(userId).set({
         'token': _fcmToken,
         'updatedAt': FieldValue.serverTimestamp(),
         'platform': defaultTargetPlatform.name,
       }, SetOptions(merge: true));
-
       debugPrint('✅ Token saved to Firestore');
     } catch (e) {
       debugPrint('❌ Token save error: $e');
     }
   }
 
-  /// Token'ı sil (logout'ta)
   Future<void> deleteToken(String userId) async {
     try {
       await _fcm.deleteToken();
@@ -201,7 +198,6 @@ class FCMService {
     }
   }
 
-  /// Sınıftaki tüm öğrencilere duyuru bildirimi gönder
   Future<bool> sendAnnouncementNotification({
     required String classId,
     required String className,
@@ -212,16 +208,12 @@ class FCMService {
     try {
       debugPrint('📤 Sending announcement notification to class: $classId');
 
-      // Sınıftaki öğrencileri al
       final studentsSnapshot = await _firestore
           .collection('students')
           .where('classId', isEqualTo: classId)
           .get();
 
-      if (studentsSnapshot.docs.isEmpty) {
-        debugPrint('⚠️ No students in class');
-        return false;
-      }
+      if (studentsSnapshot.docs.isEmpty) return false;
 
       final studentIds = studentsSnapshot.docs
           .map((doc) => doc.data()['userId'] as String?)
@@ -229,52 +221,29 @@ class FCMService {
           .cast<String>()
           .toList();
 
-      debugPrint('👥 Found ${studentIds.length} students');
-
-      // Öğrencilerin FCM token'larını al
       final tokens = await _getTokensForUsers(studentIds);
+      if (tokens.isEmpty) return false;
 
-      if (tokens.isEmpty) {
-        debugPrint('⚠️ No FCM tokens found');
-        return false;
-      }
-
-      debugPrint('📲 Found ${tokens.length} FCM tokens');
-
-      // ⚠️ PRODUCTION'DA CLOUD FUNCTIONS KULLANILMALI
-      // Şimdilik sadece log'layalım
-      debugPrint('✅ Notification data prepared:');
-      debugPrint('   Title: $title');
-      debugPrint('   Description: $description');
-      debugPrint('   Class: $className');
-      debugPrint('   Recipients: ${tokens.length}');
-      debugPrint('⚠️ Cloud Functions ile gerçek bildirim gönderilecek');
-
+      debugPrint('✅ Found ${tokens.length} FCM tokens. Production: Use Cloud Functions.');
       return true;
     } catch (e) {
-      debugPrint('❌ Error sending announcement notification: $e');
+      debugPrint('❌ Error: $e');
       return false;
     }
   }
 
-  /// Kullanıcıların FCM token'larını al
   Future<List<String>> _getTokensForUsers(List<String> userIds) async {
     try {
       final tokens = <String>[];
-
       for (final userId in userIds) {
         final doc = await _firestore.collection('fcmTokens').doc(userId).get();
         if (doc.exists) {
           final token = doc.data()?['token'] as String?;
-          if (token != null) {
-            tokens.add(token);
-          }
+          if (token != null) tokens.add(token);
         }
       }
-
       return tokens;
     } catch (e) {
-      debugPrint('❌ Error getting tokens: $e');
       return [];
     }
   }

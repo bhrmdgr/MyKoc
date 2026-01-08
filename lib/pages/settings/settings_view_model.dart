@@ -1,7 +1,10 @@
 import 'dart:io';
+import 'package:easy_localization/easy_localization.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart';
 import 'package:mykoc/pages/auth/sign_in/signIn.dart';
 import 'package:mykoc/pages/settings/settings_model.dart';
 import 'package:mykoc/services/storage/local_storage_service.dart';
@@ -46,8 +49,6 @@ class SettingsViewModel extends ChangeNotifier {
   }
 
   /// Kullanıcı verilerini yükle
-  // settings_view_model.dart içindeki ilgili kısmı şu şekilde güncelle:
-
   Future<void> _loadUserData() async {
     final uid = _localStorage.getUid();
     final userData = _localStorage.getUserData();
@@ -62,17 +63,15 @@ class SettingsViewModel extends ChangeNotifier {
       if (mentorDoc.exists) {
         final data = Map<String, dynamic>.from(mentorDoc.data()!);
 
-        // --- Timestamp DÜZELTMESİ BAŞLANGIÇ ---
-        // Firebase'den gelen dökümandaki tüm Timestamp alanlarını String'e çeviriyoruz
+        // Timestamp'leri String'e çevir
         data.forEach((key, value) {
           if (value is Timestamp) {
             data[key] = value.toDate().toIso8601String();
           }
         });
-        // --- Timestamp DÜZELTMESİ BİTİŞ ---
 
         tier = data['subscriptionTier'] ?? 'free';
-        await _localStorage.saveMentorData(data); // Artık hata vermeyecek
+        await _localStorage.saveMentorData(data);
       }
 
       _settingsData = SettingsModel(
@@ -118,11 +117,11 @@ class SettingsViewModel extends ChangeNotifier {
           appVersion: _settingsData!.appVersion,
           currentLanguage: _settingsData!.currentLanguage,
           isNotificationsEnabled: value,
-          subscriptionTier: _settingsData!.subscriptionTier, // Durum korundu
+          subscriptionTier: _settingsData!.subscriptionTier,
         );
 
         if (value) {
-          await FCMService().getToken(); // Bildirim açıldıysa token yenile
+          await FCMService().getToken();
         }
         _safeNotifyListeners();
       }
@@ -131,7 +130,7 @@ class SettingsViewModel extends ChangeNotifier {
     }
   }
 
-  /// Dil değiştir (Easy Localization ile uyumlu hale getirildi)
+  /// Dil değiştir
   Future<void> changeLanguage(String language) async {
     try {
       debugPrint('🌐 Language internal state updated to: $language');
@@ -145,7 +144,7 @@ class SettingsViewModel extends ChangeNotifier {
           appVersion: _settingsData!.appVersion,
           currentLanguage: language,
           isNotificationsEnabled: _settingsData!.isNotificationsEnabled,
-          subscriptionTier: _settingsData!.subscriptionTier, // Durum korundu
+          subscriptionTier: _settingsData!.subscriptionTier,
         );
         _safeNotifyListeners();
       }
@@ -154,90 +153,53 @@ class SettingsViewModel extends ChangeNotifier {
     }
   }
 
-  /// Hesabı sil
+  /// Hesabı sil - Sadece işlemi yapar, dialog yönetimi UI'da
+  // SettingsViewModel içindeki deleteAccount metodunu şu şekilde güncelleyin:
+
   Future<bool> deleteAccount({
-    required BuildContext context,
     required DeleteAccountReason deleteReason,
   }) async {
-    _isDeleting = true;
+    _isDeleting = true; // Loading durumunu başlat
     _safeNotifyListeners();
 
     try {
-      final uid = _localStorage.getUid();
-      final role = _localStorage.getUserRole();
-      final email = _localStorage.getEmail();
-      final name = _localStorage.getUserName();
+      final user = _auth.currentUser;
+      if (user == null) return false;
 
-      if (uid == null) {
-        debugPrint('❌ User ID not found');
-        return false;
-      }
+      final uid = user.uid;
 
-      debugPrint('🗑️ Starting account deletion process...');
-
-      // 1. Silme nedenini ÖNCE kaydet (detaylı bilgi ile)
-      await _firestore.collection('deleted_accounts').add({
-        'uid': uid,
-        'email': email,
-        'name': name,
-        'role': role,
-        'reason': deleteReason.reason.toString().split('.').last,
-        'reasonText': _getReasonText(deleteReason.reason),
-        'additionalFeedback': deleteReason.additionalFeedback,
-        'deletedAt': FieldValue.serverTimestamp(),
-        'platform': Platform.isAndroid ? 'android' : (Platform.isIOS ? 'ios' : 'unknown'),
-      });
-
-      debugPrint('✅ Delete reason saved');
-
-      // 2. Kullanıcının verilerini sil
+      // 1. Verileri sil (Sıralama önemli: önce veriler, en son kullanıcı)
       await _deleteUserData(uid);
 
-      // 3. FCM token sil
       try {
+        await FirebaseMessaging.instance.deleteToken();
         await FCMService().deleteToken(uid);
-        debugPrint('✅ FCM token deleted');
       } catch (e) {
-        debugPrint('⚠️ FCM token delete error: $e');
+        debugPrint('⚠️ FCM Token silme hatası: $e');
       }
 
-      // 4. Firebase Auth hesabını sil
-      final currentUser = _auth.currentUser;
-      if (currentUser != null) {
-        await currentUser.delete();
-        debugPrint('✅ Firebase Auth account deleted');
-      }
-
-      // 5. Local storage'ı temizle
       await _localStorage.clearAll();
-      debugPrint('✅ Local storage cleared');
 
-      // 6. Login sayfasına yönlendir
-      if (context.mounted) {
-        navigateToSignIn(context);
-      }
+      // 2. Firebase Auth hesabını sil
+      // (Bu işlem başarılı olursa kullanıcı otomatik logout olur)
+      await user.delete();
 
-      return true;
-    } on FirebaseAuthException catch (e) {
-      debugPrint('❌ Auth error during account deletion: ${e.code}');
-
-      if (e.code == 'requires-recent-login') {
-        // Kullanıcının yeniden giriş yapması gerekiyor
-        if (context.mounted) {
-          _showReauthDialog(context);
-        }
-      }
-
-      return false;
-    } catch (e) {
-      debugPrint('❌ Error deleting account: $e');
-      return false;
-    } finally {
       _isDeleting = false;
       _safeNotifyListeners();
+      return true;
+
+    } on FirebaseAuthException catch (e) {
+      _isDeleting = false;
+      _safeNotifyListeners();
+      rethrow;
+    } catch (e) {
+      _isDeleting = false;
+      _safeNotifyListeners();
+      return false;
     }
   }
 
+  /// Logout
   Future<void> logout(BuildContext context) async {
     try {
       debugPrint('🚪 Logout süreci başladı...');
@@ -262,7 +224,7 @@ class SettingsViewModel extends ChangeNotifier {
       if (context.mounted) {
         Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const Signin()),
-              (route) => false, // Tüm sayfaları stackten atar
+              (route) => false,
         );
       }
     } catch (e) {
@@ -274,27 +236,36 @@ class SettingsViewModel extends ChangeNotifier {
   Future<void> _deleteUserData(String uid) async {
     try {
       final batch = _firestore.batch();
-
-      // User document'ı sil
-      batch.delete(_firestore.collection('users').doc(uid));
-
-      // Kullanıcının oluşturduğu/katıldığı sınıfları bul ve temizle
       final userData = _localStorage.getUserData();
       final role = userData?['role'] ?? 'student';
 
+      debugPrint('📋 Kullanıcı rolü: $role');
+
+      // User document'ı sil
+      batch.delete(_firestore.collection('users').doc(uid));
+      debugPrint('🗑️ Users collection kaydı silme için işaretlendi');
+
       if (role == 'mentor') {
-        // Mentör ise: Oluşturduğu sınıfları sil
+        // Mentör ise: Oluşturduğu sınıfları bul ve sil
         final mentorClasses = await _firestore
             .collection('classes')
             .where('mentorId', isEqualTo: uid)
             .get();
 
+        debugPrint('📚 ${mentorClasses.docs.length} adet sınıf bulundu');
+
         for (var doc in mentorClasses.docs) {
           batch.delete(doc.reference);
+          debugPrint('🗑️ Class ${doc.id} silme için işaretlendi');
         }
 
         // Mentör verilerini sil
-        batch.delete(_firestore.collection('mentors').doc(uid));
+        final mentorDoc = await _firestore.collection('mentors').doc(uid).get();
+        if (mentorDoc.exists) {
+          batch.delete(mentorDoc.reference);
+          debugPrint('🗑️ Mentor collection kaydı silme için işaretlendi');
+        }
+
       } else {
         // Öğrenci ise: Katıldığı sınıflardan çıkar
         final studentRecords = await _firestore
@@ -302,63 +273,23 @@ class SettingsViewModel extends ChangeNotifier {
             .where('uid', isEqualTo: uid)
             .get();
 
+        debugPrint('🎓 ${studentRecords.docs.length} adet öğrenci kaydı bulundu');
+
         for (var doc in studentRecords.docs) {
           batch.delete(doc.reference);
+          debugPrint('🗑️ Student ${doc.id} silme için işaretlendi');
         }
       }
 
+      // Batch commit
       await batch.commit();
-      debugPrint('✅ User data deleted from Firestore');
+      debugPrint('✅ Tüm Firestore verileri başarıyla silindi');
+
     } catch (e) {
-      debugPrint('❌ Error deleting user data: $e');
+      debugPrint('❌ Firestore veri silme hatası: $e');
+      rethrow;
     }
   }
-
-  /// Silme nedeni text'ini döndür
-  String _getReasonText(DeleteReason reason) {
-    switch (reason) {
-      case DeleteReason.notUseful:
-        return 'Uygulama kullanışlı değil';
-      case DeleteReason.foundAlternative:
-        return 'Alternatif bir uygulama buldum';
-      case DeleteReason.privacyConcerns:
-        return 'Gizlilik endişeleri';
-      case DeleteReason.tooManyNotifications:
-        return 'Çok fazla bildirim';
-      case DeleteReason.technicalIssues:
-        return 'Teknik sorunlar';
-      case DeleteReason.other:
-        return 'Diğer';
-    }
-  }
-
-  /// Yeniden kimlik doğrulama dialog'u
-  void _showReauthDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Re-authentication Required'),
-        content: const Text(
-          'For security reasons, you need to log in again before deleting your account.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _auth.signOut();
-              navigateToSignIn(context);
-            },
-            child: const Text('Log In Again'),
-          ),
-        ],
-      ),
-    );
-  }
-
 
   @override
   void dispose() {

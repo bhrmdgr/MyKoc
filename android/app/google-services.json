@@ -12,7 +12,20 @@
           "package_name": "com.mykoc.mykoc"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "204385191760-srnegboh4ptc690rpk6ntst0q2p7pgv7.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mykoc.mykoc",
+            "certificate_hash": "526b6a37bfb87a6532c2a7f2ecf517cc324bea76"
+          }
+        },
+        {
+          "client_id": "204385191760-4bnllc3gin87ote5cacr9hlcjtnb7tjr.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDoGHltd5HZMerkEmjd4LCOLrhGBRpgkOM"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "204385191760-4bnllc3gin87ote5cacr9hlcjtnb7tjr.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "204385191760-e97emn01q626i512jlo9kdhma6s2ga3f.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.mykoc.mykoc"
+              }
+            }
+          ]
         }
       }
     }
