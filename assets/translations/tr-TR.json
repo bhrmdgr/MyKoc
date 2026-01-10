@@ -200,8 +200,8 @@
   "notifications": "Bildirimler",
   "manage_notifications": "Bildirim tercihlerini yönet",
   "support_legal": "Destek ve Yasal",
-  "privacy_policy": "Gizlilik Politikası",
-  "terms_of_service": "Kullanım Koşulları",
+  "privacy_policy_nav": "Gizlilik Politikası",
+  "terms_of_service_nav": "Kullanım Koşulları",
   "about": "Hakkında",
   "version": "Sürüm {}",
   "help_support": "Yardım ve Destek",
@@ -222,7 +222,7 @@
   "type_science": "Fen Bilimleri",
   "type_literature": "Edebiyat",
   "type_history": "Tarih",
-  "type_art": "Art",
+  "type_art": "Sanat",
   "type_music": "Müzik",
   "type_programming": "Programlama",
   "user_placeholder": "Kullanıcı",
@@ -253,9 +253,6 @@
   "student_limit_banner_info": "Ücretsiz planda sınıf başına en fazla {} öğrenci ekleyebilirsiniz.",
   "free_plan_student_limit_info": "Ücretsiz planda bu sınıfa en fazla {} öğrenci ekleyebilirsiniz.",
   "upgrade_for_unlimited": "Sınırsız öğrenci için Premium'a yükseltin",
-
-
-
   "files_title": "Dosyalar",
   "files_subtitle": "Görevle ilgili dökümanlar",
   "assign_work_students": "Öğrencilerine görev ata",
@@ -286,7 +283,6 @@
   "sync_student_info": "Sınıflarınıza öğrenci katıldığında burada görünecektir.",
   "no_classes_title": "Sınıf Bulunmuyor",
   "no_classes_subtitle": "Henüz bir sınıf oluşturmadınız.",
-  "settings": "Ayarlar",
   "stats_classes": "Sınıflar",
   "stats_tasks": "Görevler",
   "stats_completed": "Biten",
@@ -302,14 +298,9 @@
   "overdue_label": "GECİKTİ",
   "error_select_student": "Lütfen en az bir öğrenci seçin",
   "error_enter_title": "Lütfen görev başlığı girin",
-
-
   "create_task_button": "Görevi Oluştur",
   "task_title_hint": "örn: Bölüm 5'i Oku",
   "assigned_count": "{} seçildi",
-  "priority_high": "YÜKSEK",
-  "priority_medium": "ORTA",
-  "priority_low": "DÜŞÜK",
   "sort_upcoming": "Yaklaşanlar",
   "sort_newest": "En Yeni",
   "sort_oldest": "En Eski",
@@ -325,7 +316,6 @@
   "type_project_management": "Proje Yönetimi",
   "type_public_speaking": "Hitabet",
   "type_soft_skills": "Sosyal Beceriler",
-
   "type_design": "Tasarım",
   "type_physics": "Fizik",
   "type_chemistry": "Kimya",
@@ -333,18 +323,10 @@
   "type_language": "Dil Eğitimi",
   "type_economics": "Ekonomi",
   "type_philosophy": "Felsefe",
-  "type_art": "Sanat",
-  "type_music": "Müzik",
-  "type_programming": "Programlama",
-  "type_career_coaching": "Kariyer Koçluğu",
-
   "current_plan": "Mevcut Plan",
   "free_plan": "Ücretsiz Paket",
   "premium_plan": "Premium PRO",
-  "upgrade": "Yükselt",
   "premium_active_info": "Tüm özellikler sınırsız olarak açık.",
-
-
   "manage": "Yönet",
   "current_subscription": "Mevcut Aboneliğiniz",
   "cancel_subscription": "Aboneliği İptal Et",
@@ -352,7 +334,6 @@
   "cancel_confirm_desc": "Premium avantajlarını kaybedeceksiniz. Devam etmek istiyor musunuz?",
   "subscription_cancelled_success": "Aboneliğiniz başarıyla iptal edildi.",
   "update_plan": "Planı Güncelle",
-
   "verify_phone": "Telefonu Doğrula",
   "enter_otp_sent": "{} numaralı telefona gönderilen 6 haneli kodu giriniz.",
   "verify_and_register": "Doğrula ve Kayıt Ol",
@@ -361,10 +342,8 @@
   "error_unknown": "Beklenmedik bir hata oluştu",
   "error_empty_phone": "Lütfen telefon numaranızı giriniz",
   "account_deleted_title": "Hesap Silindi",
-  "account_deleted_message": "Hesabınız ve tüm verileriniz başarıyla silindi. Güvenliğiniz için uygulama şimdi kapatılacak.",
+  "account_deleted_message": "Hesabınız kalıcı olarak silindi. Giriş ekranına yönlendirileceksiniz.",
   "close_app": "Uygulamayı Kapat",
-  "login": "Giriş Yap",
-
   "delete_reason_question": "Hesabınızı neden siliyorsunuz?",
   "delete_reason_not_useful": "Uygulamayı kullanışlı bulmadım",
   "delete_reason_alternative": "Başka bir uygulama kullanacağım",
@@ -374,71 +353,65 @@
   "delete_reason_other": "Diğer",
   "delete_my_account_button": "Hesabımı Sil",
   "delete_reason_hint": "Lütfen bize biraz daha detay verin (isteğe bağlı)...",
-
-
-  "account_deleted_title": "Hesap Silindi",
-  "account_deleted_message": "Hesabınız kalıcı olarak silindi. Giriş ekranına yönlendirileceksiniz.",
-  "delete_account_error": "Hesabınız silinirken bir hata oluştu. Lütfen tekrar deneyin.",
-  "ok": "Tamam",
-
   "no_data_available": "Veri bulunamadı",
-  "settings_title": "Ayarlar",
-  "user_information": "Kullanıcı Bilgileri",
-  "current_plan": "Mevcut Plan",
-  "premium_plan": "Premium Plan",
-  "free_plan": "Ücretsiz Plan",
-  "upgrade": "Yükselt",
-  "premium_active_info": "Premium avantajlarınız aktif",
-  "preferences": "Tercihler",
-  "language": "Dil",
-  "notifications": "Bildirimler",
-  "manage_notifications": "Push bildirimlerini yönet",
-  "support_legal": "Destek & Yasal",
-  "privacy_policy": "Gizlilik Politikası",
-  "terms_of_service": "Kullanım Koşulları",
-  "about": "Hakkında",
-  "version": "Sürüm {0}",
-  "help_support": "Yardım & Destek",
-  "logout": "Çıkış Yap",
-  "logout_confirm_title": "Çıkış Onayı",
-  "logout_confirm_desc": "Çıkış yapmak istediğinizden emin misiniz?",
-  "cancel": "İptal",
-  "delete_account": "Hesabı Sil",
-  "delete_account_subtitle": "Hesabınızı ve tüm verilerinizi kalıcı olarak silin",
   "coming_soon": "Yakında",
-  "feature_coming_soon": "{0} özelliği yakında kullanıma sunulacak.",
-  "ok": "Tamam",
+  "feature_coming_soon": "{} özelliği yakında kullanıma sunulacak.",
   "about_title": "MyKoç Hakkında",
   "app_description": "MyKoç",
   "platform_summary": "Eğitim ve mentorluk için modern bir platform.",
-  "all_rights_reserved": "© 2025 MyKoç. Tüm hakları saklıdır.",
-  "close": "Kapat",
+  "all_rights_reserved": "© 2026 MyKoç. Tüm hakları saklıdır.",
   "select_language": "Dil Seçin",
-  "language_changed": "Dil {0} olarak değiştirildi",
-  "delete_account_warning": "Uyarı: Bu işlem geri alınamaz!",
-  "delete_account_data_loss": "Tüm verileriniz, sınıflarınız ve bilgileriniz kalıcı olarak silinecektir.",
-  "delete_reason_question": "Hesabınızı neden siliyorsunuz?",
-  "delete_reason_not_useful": "Uygulama kullanışlı değil",
-  "delete_reason_alternative": "Alternatif bir uygulama buldum",
-  "delete_reason_privacy": "Gizlilik endişeleri",
-  "delete_reason_notifications": "Çok fazla bildirim",
-  "delete_reason_technical": "Teknik sorunlar",
-  "delete_reason_other": "Diğer",
-  "delete_reason_hint": "Lütfen nedeninizi paylaşın...",
-  "delete_my_account_button": "Hesabımı Sil",
-  "account_deleted_title": "Hesap Silindi",
-  "account_deleted_message": "Hesabınız kalıcı olarak silindi. Giriş ekranına yönlendirileceksiniz.",
-  "delete_account_error": "Hesabınız silinirken bir hata oluştu. Lütfen tekrar deneyin.",
+  "language_changed": "Dil {} olarak değiştirildi",
   "reauth_required_title": "Yeniden Kimlik Doğrulama Gerekli",
   "reauth_required_message": "Güvenlik nedeniyle hesabınızı silmeden önce tekrar giriş yapmanız gerekiyor.",
   "login_again": "Tekrar Giriş Yap",
-
   "total_tasks": "Toplam Görevler",
   "completion": "Tamamlanma",
-  "classes": "Sınıflar"
+  "classes": "Sınıflar",
+
+
+  "privacy_policy_title": "Gizlilik Politikası",
+  "privacy_policy_content": "Son Güncelleme: 10 Ocak 2026\n\n1. Veri Sorumlusu\nMykoc uygulaması, kişisel verilerinizin güvenliğini ciddiye alır ve 6698 sayılı Kişisel Verilerin Korunması Kanunu (KVKK) hükümlerine uygun olarak işler.\n\n2. İşlenen Veriler ve Yöntemi\nUygulamayı kullandığınızda aşağıdaki verileriniz tamamen dijital yollarla işlenir:\n• Kimlik ve İletişim: Ad, soyad, e-posta adresi, telefon numarası.\n• Eğitim Verileri: Kayıtlı olduğunuz sınıflar, mentor/öğrenci eşleşmeleri, sınıf içi etkileşimler.\n• Teknik Veriler: Cihaz modeli, işletim sistemi sürümü, Push bildirimleri için FCM (Firebase Cloud Messaging) jetonu ve uygulama içi kullanım istatistikleri.\n\n3. Veri İşleme Amaçları\nKişisel verileriniz; kullanıcı kaydı oluşturma, mentor-öğrenci arasındaki eğitim akışını yönetme, abonelik haklarını doğrulama, teknik destek sağlama ve yasal yükümlülükleri yerine getirme amaçlarıyla işlenir.\n\n4. Veri Aktarımı ve Saklama\nVerileriniz, Google Firebase sunucularında yüksek güvenlikli şifreleme yöntemleriyle saklanır. Verileriniz, kanuni zorunluluklar veya hizmetin ifası (bildirim gönderimi vb.) haricinde üçüncü şahıslara veya reklam ajanslarına satılmaz veya paylaşılmaz.\n\n5. Kullanıcı Hakları\nKVKK uyarınca; verilerinizin işlenip işlenmediğini öğrenme, yanlış işlenmişse düzeltilmesini isteme ve verilerinizin silinmesini (Unutulma Hakkı) talep etme hakkına sahipsiniz. Bu haklarınızı uygulama içindeki 'Hesabı Sil' seçeneğiyle veya destek hattımız üzerinden kullanabilirsiniz.",
+
+  "terms_of_service_title": "Kullanım Koşulları",
+  "terms_of_use_content": "Son Güncelleme: 10 Ocak 2026\n\n1. Hizmet Tanımı\nMykoc, mentorlar ve öğrenciler arasında eğitim koçluğu süreçlerini dijitalleştiren bir yönetim platformudur.\n\n2. Üyelik ve Hesap Güvenliği\n• Uygulamaya kayıt olurken verdiğiniz bilgilerin doğruluğu sizin sorumluluğunuzdadır.\n• Şifrenizin gizliliğini korumak sizin yükümlülüğünüzdedir. Hesabınız üzerinden yapılan tüm işlemlerden siz sorumlu tutulursunuz.\n\n3. Mentor ve Öğrenci Sorumlulukları\n• Mentorlar, oluşturdukları sınıfların içeriğinden ve öğrencilere sundukları rehberlikten bizzat sorumludur.\n• Öğrenciler, sadece kendilerine iletilen geçerli sınıf kodları ile sisteme dahil olabilirler.\n• Uygulama içinde hakaret, taciz, fikri mülkiyet ihlali veya etik dışı paylaşım yapılması durumunda hesaplar kalıcı olarak kapatılır.\n\n4. Abonelik ve Ödemeler\n• Bazı özellikler (Premium içerikler, genişletilmiş sınıf limitleri vb.) ücrete tabi olabilir.\n• Abonelik iptalleri Google Play Store veya Apple App Store üzerinden yönetilir. Mykoc, uygulama mağazalarının ödeme politikalarına tabidir.\n\n5. Fikri Mülkiyet\nMykoc'un arayüzü, markası ve yazılım kodu Mykoc ekibine aittir. İzinsiz kopyalanması, tersine mühendislik yapılması veya ticari amaçla dağıtılması yasaktır.\n\n6. Sorumluluk Reddi\nMykoc, hizmetin kesintisiz sunulması için elinden geleni yapar; ancak sunucu kaynaklı gecikmeler, veri kayıpları veya internet kesintilerinden kaynaklanan zararlardan sorumlu tutulamaz. Mykoc bir eğitim aracıdır, mentorun sunduğu eğitimin kalitesini garanti etmez.\n\n7. Şartlarda Değişiklik\nMykoc, bu koşulları güncelleme hakkını saklı tutar. Güncellemeler uygulama içinde yayınlandığı andan itibaren geçerli sayılır.",
 
 
 
+  "help_support_title": "Yardım ve Destek",
+  "help_support_content": "Size nasıl yardımcı olabiliriz?\n\n1. Sıkça Sorulan Sorular\n\n• Sınıf Kodunu Nasıl Paylaşırım?\nMentor olarak sınıf oluşturduğunuzda, sınıf detay ekranındaki kodu öğrencilerinize ileterek onları davet edebilirsiniz.\n\n• Aboneliğimi Nasıl İptal Ederim?\nAbonelik işlemleri Apple App Store veya Google Play Store üzerinden yönetilir. Mağaza ayarlarınızdan dilediğiniz zaman iptal edebilirsiniz.\n\n• Verilerim Güvende mi?\nEvet, tüm verileriniz Google Firebase altyapısında şifrelenmiş olarak saklanır.\n\n• Şifremi Unuttum, Ne Yapmalıyım?\nGiriş ekranındaki 'Şifremi Unuttum' butonuna tıklayarak e-posta adresinize sıfırlama bağlantısı isteyebilirsiniz.\n\n2. İletişime Geçin\n\nYaşadığınız teknik sorunlar veya önerileriniz için bize aşağıdaki kanallardan ulaşabilirsiniz:\n\n• E-posta: myKoc@gmail.com\n\nSize en geç 24 saat içinde dönüş yapmaya çalışıyoruz.",
+
+
+  "accept_terms_text": "Kullanım ",
+  "confirm_read_text": " okudum ve kabul ediyorum.",
+  "and": " ve ",
+  "error_accept_policies": "Devam etmek için lütfen kullanım koşullarını onaylayın.",
+
+
+  "forgot_password_question": "Şifremi Unuttum?",
+  "reset_password": "Şifreyi Sıfırla",
+  "reset_password_info": "Şifrenizi sıfırlamanız için size bir bağlantı göndereceğiz. Lütfen e-posta adresinizi girin.",
+  "password_reset_sent": "Şifre sıfırlama bağlantısı e-posta adresinize gönderildi. Lütfen spam klasörünüzü kontrol etmeyi unutmayın. ",
+  "send": "Gönder",
+
+  "spam_check_info": "E-posta kutunuzda göremiyorsanız, lütfen spam (gereksiz) klasörünü de kontrol edin.",
+
+  "member_since": "Üyelik Tarihi: {}",
+
+  "current_password": "Kullanılan Şifre",
+  "new_password": "Yeni Şifre",
+  "confirm_new_password": "Yeni Şifreyi Onaylayın",
+  "no_classes_yet": "Henüz Sınıfınız Yok",
+  "create_first_class": "İlk Sınıfınızı Oluşturun",
+
+
+  "security": "Güvenlik",
+  "upgrade": "Yükselt",
+  "no_data_available": "Veri bulunamadı",
+  "manage_notifications": "Bildirimleri yönet",
+  "help_support_title": "Yardım ve Destek",
+  "help_support_content": "Size nasıl yardımcı olabiliriz? Destek ekibimizle iletişime geçin."
 
 
 }
+

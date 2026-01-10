@@ -6,7 +6,8 @@ import 'package:mykoc/pages/communication/messages/messages_view.dart';
 import 'package:mykoc/pages/profile/profile_view.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mykoc/services/storage/local_storage_service.dart';
-import 'dart:async'; // Stream birleştirme için gerekirse
+import 'package:mykoc/firebase/messaging/fcm_service.dart'; // FCM Import eklendi
+import 'dart:async';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -27,6 +28,29 @@ class _MainScreenState extends State<MainScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    // Uygulama oturduktan sonra token işlemini başlat
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initFCMToken();
+    });
+  }
+
+  Future<void> _initFCMToken() async {
+    final String? uid = _storage.getUid();
+
+    // Güvenlik: Eğer UID hatalıysa (android gibi) veya null ise bekle
+    if (uid != null && uid.length > 10) {
+      debugPrint('🚀 MainScreen: Kullanıcı doğrulandı, Token alınıyor...');
+      // Google API broker hatalarını önlemek için 2 saniye bekle
+      await Future.delayed(const Duration(seconds: 2));
+      await FCMService().getToken();
+    } else {
+      debugPrint('⚠️ MainScreen: Geçersiz UID ($uid), token alınmadı.');
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final String? uid = _storage.getUid();
 
@@ -36,9 +60,11 @@ class _MainScreenState extends State<MainScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.only(bottom: 100),
-            child: _pages[_currentIndex],
+            child: IndexedStack(
+              index: _currentIndex,
+              children: _pages,
+            ),
           ),
-          // StreamBuilder ile mesaj ve takvim bildirimlerini yönetiyoruz
           _buildNotificationListener(uid),
         ],
       ),
@@ -64,7 +90,6 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  // MESAJLAR: chatRooms içindeki map yapısına göre okur
   Stream<int> _getUnreadMessagesCount(String uid) {
     return FirebaseFirestore.instance
         .collection('chatRooms')
@@ -83,7 +108,6 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
-  // TAKVİM: Bugün teslim tarihi olan bir task var mı?
   Stream<bool> _getTodayTaskStatus(String uid) {
     return FirebaseFirestore.instance
         .collection('tasks')

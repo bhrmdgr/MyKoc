@@ -58,10 +58,12 @@ class HomeViewModel extends ChangeNotifier {
       bool hasLocalData = await _loadFromLocalStorage();
 
       if (hasLocalData) {
-        debugPrint('📦 Data initially loaded from Local Storage');
         _isInitialized = true;
-        _setLoading(false);
+        _setLoading(false); // UI hemen açılsın
         _safeNotifyListeners();
+
+        // AMA Firestore güncel verisini mutlaka arkada çekmeye devam et
+        // return; <-- BU SATIRI KALDIRIN veya kontrol ekleyin.
       }
 
       final currentUser = FirebaseAuth.instance.currentUser;

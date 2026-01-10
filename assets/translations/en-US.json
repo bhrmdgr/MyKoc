@@ -200,8 +200,8 @@
   "notifications": "Notifications",
   "manage_notifications": "Manage notification preferences",
   "support_legal": "Support & Legal",
-  "privacy_policy": "Privacy Policy",
-  "terms_of_service": "Terms of Service",
+  "privacy_policy_nav": "Privacy Policy",
+  "terms_of_service_nav": "Terms of Service",
   "about": "About",
   "version": "Version {}",
   "help_support": "Help & Support",
@@ -253,7 +253,6 @@
   "student_limit_banner_info": "In the free plan, you can add a maximum of {} students per class.",
   "free_plan_student_limit_info": "In the free plan, you can add a maximum of {} students to this class.",
   "upgrade_for_unlimited": "Upgrade to Premium for unlimited students",
-
   "files_title": "Files",
   "files_subtitle": "Documents related to the task",
   "assign_work_students": "Assign work to your students",
@@ -300,13 +299,9 @@
   "overdue_label": "OVERDUE",
   "error_select_student": "Please select at least one student",
   "error_enter_title": "Please enter a task title",
-
   "create_task_button": "Create Task",
   "task_title_hint": "e.g., Read Chapter 5",
   "assigned_count": "{} selected",
-  "priority_high": "HIGH",
-  "priority_medium": "MEDIUM",
-  "priority_low": "LOW",
   "sort_upcoming": "Upcoming",
   "sort_newest": "Newest",
   "sort_oldest": "Oldest",
@@ -322,7 +317,6 @@
   "type_project_management": "Project Management",
   "type_public_speaking": "Public Speaking",
   "type_soft_skills": "Soft Skills",
-
   "type_design": "Design",
   "type_physics": "Physics",
   "type_chemistry": "Chemistry",
@@ -330,18 +324,11 @@
   "type_language": "Language",
   "type_economics": "Economics",
   "type_philosophy": "Philosophy",
-  "type_art": "Art",
-  "type_music": "Music",
-  "type_programming": "Programming",
-  "type_career_coaching": "Career Coaching",
-
   "current_plan": "Current Plan",
   "free_plan": "Free Plan",
   "premium_plan": "Premium PRO",
   "upgrade": "Upgrade",
   "premium_active_info": "All features are unlocked without limits.",
-
-
   "manage": "Manage",
   "current_subscription": "Your Current Subscription",
   "cancel_subscription": "Cancel Subscription",
@@ -349,7 +336,6 @@
   "cancel_confirm_desc": "You will lose all Premium benefits. Do you want to proceed?",
   "subscription_cancelled_success": "Subscription cancelled successfully.",
   "update_plan": "Update Plan",
-
   "verify_phone": "Verify Phone",
   "enter_otp_sent": "Enter the 6-digit code sent to {}.",
   "verify_and_register": "Verify and Register",
@@ -358,10 +344,9 @@
   "error_unknown": "An unexpected error occurred",
   "error_empty_phone": "Please enter your phone number",
   "account_deleted_title": "Account Deleted",
-  "account_deleted_message": "Your account and all associated data have been successfully deleted. For your security, the app will now close.",
+  "account_deleted_message": "Your account has been permanently deleted. You will be redirected to the login screen.",
   "close_app": "Close App",
   "login": "Login",
-
   "delete_reason_question": "Why are you deleting your account?",
   "delete_reason_not_useful": "I didn't find the app useful",
   "delete_reason_alternative": "I will use another app",
@@ -371,70 +356,63 @@
   "delete_reason_other": "Other",
   "delete_my_account_button": "Delete My Account",
   "delete_reason_hint": "Please give us a bit more detail (optional)...",
-
-  "account_deleted_title": "Account Deleted",
-  "account_deleted_message": "Your account has been permanently deleted. You will be redirected to the login screen.",
-  "delete_account_error": "An error occurred while deleting your account. Please try again.",
-  "ok": "OK",
-
-
   "no_data_available": "No data available",
-  "settings_title": "Settings",
-  "user_information": "User Information",
-  "current_plan": "Current Plan",
-  "premium_plan": "Premium Plan",
-  "free_plan": "Free Plan",
-  "upgrade": "Upgrade",
-  "premium_active_info": "Premium benefits are active",
-  "preferences": "Preferences",
-  "language": "Language",
-  "notifications": "Notifications",
-  "manage_notifications": "Manage push notifications",
-  "support_legal": "Support & Legal",
-  "privacy_policy": "Privacy Policy",
-  "terms_of_service": "Terms of Service",
-  "about": "About",
-  "version": "Version {0}",
-  "help_support": "Help & Support",
-  "logout": "Logout",
-  "logout_confirm_title": "Logout Confirmation",
-  "logout_confirm_desc": "Are you sure you want to logout?",
-  "cancel": "Cancel",
-  "delete_account": "Delete Account",
-  "delete_account_subtitle": "Permanently delete your account and all data",
   "coming_soon": "Coming Soon",
-  "feature_coming_soon": "{0} feature will be available soon.",
-  "ok": "OK",
+  "feature_coming_soon": "{} feature will be available soon.",
   "about_title": "About MyKoç",
   "app_description": "MyKoç",
   "platform_summary": "A modern platform for education and mentoring.",
-  "all_rights_reserved": "© 2025 MyKoç. All rights reserved.",
-  "close": "Close",
+  "all_rights_reserved": "© 2026 MyKoç. All rights reserved.",
   "select_language": "Select Language",
-  "language_changed": "Language changed to {0}",
-  "delete_account_warning": "Warning: This action is irreversible!",
-  "delete_account_data_loss": "All your data, classes, and information will be permanently deleted.",
-  "delete_reason_question": "Why are you deleting your account?",
-  "delete_reason_not_useful": "App is not useful",
-  "delete_reason_alternative": "Found an alternative",
-  "delete_reason_privacy": "Privacy concerns",
-  "delete_reason_notifications": "Too many notifications",
-  "delete_reason_technical": "Technical issues",
-  "delete_reason_other": "Other",
-  "delete_reason_hint": "Please share your reason...",
-  "delete_my_account_button": "Delete My Account",
-  "account_deleted_title": "Account Deleted",
-  "account_deleted_message": "Your account has been permanently deleted. You will be redirected to the login screen.",
-  "delete_account_error": "An error occurred while deleting your account. Please try again.",
+  "language_changed": "Language changed to {}",
   "reauth_required_title": "Re-authentication Required",
   "reauth_required_message": "For security reasons, you need to log in again before deleting your account.",
   "login_again": "Log In Again",
-
-
   "total_tasks": "Total Tasks",
   "completion": "Completion",
-  "classes": "Classes"
+  "classes": "Classes",
 
+
+  "privacy_policy_title": "Privacy Policy",
+  "privacy_policy_content": "Last Updated: January 10, 2026\n\n1. Data Controller\nMykoc values your privacy and processes your personal data in compliance with global data protection standards (including GDPR and local regulations).\n\n2. Data Collected\nThe following data is collected during your use of the app:\n• Identity & Contact: Name, surname, email address, and phone number.\n• Educational Data: Enrolled classes, mentor/student assignments, and classroom interactions.\n• Technical Data: Device model, OS version, FCM token for notifications, and usage analytics.\n\n3. Purpose of Processing\nYour data is used to: create and manage user accounts, facilitate mentor-student communication, verify subscription status, provide technical support, and meet legal requirements.\n\n4. Data Storage and Transfer\nYour data is securely stored on Google Firebase servers. We do not sell or share your personal data with third parties for marketing purposes. Data is only shared with service providers (like notification services) necessary to perform the app's functions.\n\n5. User Rights\nYou have the right to access your data, request corrections, or request the permanent deletion of your account (Right to be Forgotten). You can exercise these rights through the 'Delete Account' feature in the app settings.",
+
+  "terms_of_service_title": "Terms of Service",
+  "terms_of_use_content": "Last Updated: January 10, 2026\n\n1. Description of Service\nMykoc is a management platform designed to digitize the coaching and mentoring processes between mentors and students.\n\n2. Membership and Security\n• You are responsible for providing accurate information during registration.\n• You are solely responsible for maintaining the confidentiality of your account credentials and for all activities that occur under your account.\n\n3. Mentor and Student Conduct\n• Mentors are solely responsible for the content of their classes and the guidance provided to students.\n• Students may only join classes using valid codes provided by authorized mentors.\n• Any form of harassment, hate speech, or intellectual property infringement will result in immediate account termination.\n\n4. Subscriptions and Payments\n• Premium features may require a paid subscription. \n• Subscriptions and refunds are managed via Google Play Store or Apple App Store. Mykoc adheres to the payment policies of these platforms.\n\n5. Intellectual Property\nAll app designs, software code, and logos are the exclusive property of Mykoc. Unauthorized copying, distribution, or reverse engineering is strictly prohibited.\n\n6. Disclaimer of Warranties\nMykoc provides the service on an 'as-is' basis. We are not liable for data loss, server downtime, or the quality of educational content provided by individual mentors.\n\n7. Changes to Terms\nMykoc reserves the right to modify these terms at any time. Your continued use of the app after changes are posted constitutes acceptance of the new terms.",
+
+
+  "help_support_title": "Help and Support",
+  "help_support_content": "How can we help you?\n\n1. Frequently Asked Questions\n\n• How do I share the Class Code?\nAs a mentor, once you create a class, you can find the unique code on the class details screen and share it with your students.\n\n• How can I cancel my subscription?\nSubscriptions are managed through the Apple App Store or Google Play Store. You can cancel at any time via your store account settings.\n\n• Is my data secure?\nYes, all your data is stored encrypted within the Google Firebase infrastructure.\n\n• I forgot my password, what should I do?\nClick the 'Forgot Password' button on the login screen to receive a reset link via your email.\n\n2. Contact Us\n\nFor technical issues or suggestions, you can reach us through the following channels:\n\n• Email: mykoc@gmail.com\n\nWe aim to respond to all inquiries within 24 hours.",
+
+
+  "accept_terms_text": "I have read and agree to the ",
+  "confirm_read_text": ".",
+  "and": " and ",
+  "error_accept_policies": "Please accept the terms and conditions to continue.",
+
+
+  "forgot_password_question": "Forgot Password?",
+  "reset_password": "Reset Password",
+  "reset_password_info": "We will send you a link to reset your password. Please enter your email address.",
+  "password_reset_sent": "Password reset link has been sent to your email address.Please remember to check your spam folder.",
+  "send": "Send",
+
+  "spam_check_info": "If you don't see it in your inbox, please check your spam folder.",
+
+  "member_since": "Member since: {}",
+
+  "current_password": "Current Password",
+  "new_password": "New Password",
+  "confirm_new_password": "Confirm New Password",
+  "no_classes_yet": "No Classes Yet",
+  "create_first_class": "Create First Class",
+
+
+  "security": "Security",
+  "upgrade": "Upgrade",
+  "no_data_available": "No data available",
+  "manage_notifications": "Manage notifications",
+  "help_support_title": "Help & Support",
+  "help_support_content": "How can we help you? Contact our support team."
 
 
 }

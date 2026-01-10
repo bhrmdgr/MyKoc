@@ -111,7 +111,7 @@ class _UserInfoViewState extends State<UserInfoView> {
               ),
               const SizedBox(width: 12),
               Text(
-                'user_info_title'.tr(), // ✅ GÜNCELLENDİ
+                'user_information'.tr(), // ✅ GÜNCELLENDİ
                 style: const TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -291,7 +291,7 @@ class _UserInfoViewState extends State<UserInfoView> {
             TextFormField(
               controller: _nameController,
               decoration: InputDecoration(
-                labelText: 'full_name_label'.tr(), // ✅ GÜNCELLENDİ
+                labelText: 'full_name'.tr(), // ✅ GÜNCELLENDİ
                 prefixIcon: const Icon(Icons.person_outline),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -308,7 +308,7 @@ class _UserInfoViewState extends State<UserInfoView> {
             TextFormField(
               controller: _phoneController,
               decoration: InputDecoration(
-                labelText: 'phone_number_label'.tr(), // ✅ GÜNCELLENDİ
+                labelText: 'phone_optional'.tr(), // ✅ GÜNCELLENDİ
                 hintText: '+90 5XX XXX XX XX',
                 prefixIcon: const Icon(Icons.phone_outlined),
                 border: OutlineInputBorder(
@@ -641,8 +641,12 @@ class _UserInfoViewState extends State<UserInfoView> {
                     controller: currentPasswordController,
                     obscureText: !isCurrentPasswordVisible,
                     decoration: InputDecoration(
-                      labelText: 'current_password'.tr(), // ✅ GÜNCELLENDİ
-                      prefixIcon: const Icon(Icons.lock_outline),
+                      labelText: 'current_password'.tr(),
+                      // Metin boyutlarını 12 olarak ayarladık
+                      labelStyle: const TextStyle(fontSize: 12),
+                      floatingLabelStyle: const TextStyle(fontSize: 12, color: Color(0xFF6366F1)),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                      prefixIcon: const Icon(Icons.lock_outline, size: 20),
                       suffixIcon: IconButton(
                         icon: Icon(isCurrentPasswordVisible
                             ? Icons.visibility_off
@@ -660,8 +664,12 @@ class _UserInfoViewState extends State<UserInfoView> {
                     controller: newPasswordController,
                     obscureText: !isNewPasswordVisible,
                     decoration: InputDecoration(
-                      labelText: 'new_password'.tr(), // ✅ GÜNCELLENDİ
-                      prefixIcon: const Icon(Icons.lock_outline),
+                      labelText: 'new_password'.tr(),
+                      // Metin boyutlarını 12 olarak ayarladık
+                      labelStyle: const TextStyle(fontSize: 12),
+                      floatingLabelStyle: const TextStyle(fontSize: 12, color: Color(0xFF6366F1)),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                      prefixIcon: const Icon(Icons.lock_outline, size: 20),
                       suffixIcon: IconButton(
                         icon: Icon(isNewPasswordVisible
                             ? Icons.visibility_off
@@ -679,8 +687,13 @@ class _UserInfoViewState extends State<UserInfoView> {
                     controller: confirmPasswordController,
                     obscureText: !isConfirmPasswordVisible,
                     decoration: InputDecoration(
-                      labelText: 'confirm_new_password'.tr(), // ✅ GÜNCELLENDİ
-                      prefixIcon: const Icon(Icons.lock_outline),
+                      labelText: 'confirm_new_password'.tr(),
+                      // Diğerleri gibi metin boyutu 12
+                      labelStyle: const TextStyle(fontSize: 12),
+                      floatingLabelStyle: const TextStyle(fontSize: 12, color: Color(0xFF6366F1)),
+                      // Dikey boşluğu diğerleriyle aynı (12) yaparak kutu boyutlarını eşitledik
+                      contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                      prefixIcon: const Icon(Icons.lock_outline, size: 20),
                       suffixIcon: IconButton(
                         icon: Icon(isConfirmPasswordVisible
                             ? Icons.visibility_off

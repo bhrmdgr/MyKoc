@@ -5,6 +5,8 @@ import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:mykoc/firebase/auth/firebaseSignUp.dart';
 import 'package:mykoc/routers/appRouter.dart';
 
+import '../../../policy/legal_content_sheet.dart';
+
 class Signup extends StatefulWidget {
   const Signup({super.key});
 
@@ -27,6 +29,7 @@ class _SignupState extends State<Signup> {
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
   bool _isLoading = false;
+  bool _isPolicyAccepted = false; // Politika onay durumu
 
   @override
   void dispose() {
@@ -40,8 +43,27 @@ class _SignupState extends State<Signup> {
     super.dispose();
   }
 
+  // Politika Sheet'ini gösteren yardımcı metod
+  void _showPolicy(String titleKey, String contentKey) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => LegalContentSheet(
+        titleKey: titleKey,
+        contentKey: contentKey,
+      ),
+    );
+  }
+
   // 1. ADIM: Telefon Doğrulama Başlatma
   Future<void> _handleSignUp() async {
+    // Politika Onay Kontrolü
+    if (!_isPolicyAccepted) {
+      _showError('error_accept_policies'.tr());
+      return;
+    }
+
     if (_nameController.text.trim().isEmpty) { _showError('error_empty_name'.tr()); return; }
     if (_emailController.text.trim().isEmpty) { _showError('error_empty_email'.tr()); return; }
     if (_passwordController.text.length < 6) { _showError('error_password_length'.tr()); return; }
@@ -57,11 +79,11 @@ class _SignupState extends State<Signup> {
           // Bazı Android cihazlarda otomatik doğrulama yapabilir
         },
         verificationFailed: (FirebaseAuthException e) {
-          // Bu logu mutlaka kontrol et!
           debugPrint("🔥 SMS HATASI GELDİ: ${e.code}");
           debugPrint("🔥 HATA MESAJI: ${e.message}");
 
           if (mounted) {
+            setState(() => _isLoading = false);
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text("SMS Hatası: ${e.message}")),
             );
@@ -126,24 +148,17 @@ class _SignupState extends State<Signup> {
 
   // 3. ADIM: Son Kayıt İşlemi
   Future<void> _completeRegistration() async {
-    // 1. Önce OTP diyaloğunu kapatıyoruz
     Navigator.pop(context);
     setState(() => _isLoading = true);
 
     try {
-      // 2. Kullanıcının girdiği kodla Credential oluştur
       PhoneAuthCredential credential = PhoneAuthProvider.credential(
         verificationId: _verificationId,
         smsCode: _otpController.text.trim(),
       );
 
-      // --- EN KRİTİK ADIM: KODUN DOĞRULANMASI ---
-      // Eğer girilen kod yanlışsa, Firebase burada hata fırlatır ve catch bloğuna atlar.
-      // Bu satır yoksa, kod kontrol edilmeden bir sonraki adıma geçer!
       await FirebaseAuth.instance.signInWithCredential(credential);
-      // ------------------------------------------
 
-      // 3. Kod doğruysa (buraya kadar geldiyse), asıl kayıt işlemini yap
       await _firebaseSignUp.signUpWithEmailAndPassword(
         name: _nameController.text.trim(),
         email: _emailController.text.trim(),
@@ -154,22 +169,20 @@ class _SignupState extends State<Signup> {
             : null,
       );
 
-      // 4. Başarılı yönlendirme
       if (mounted) {
         _showSuccess('success_signup'.tr());
         await Future.delayed(const Duration(seconds: 1));
         if (mounted) navigateToHome(context);
       }
     } on FirebaseAuthException catch (e) {
-      // Firebase spesifik hataları yakala (Yanlış kod, süresi dolmuş kod vb.)
       if (mounted) {
         String errorMessage;
         switch (e.code) {
           case 'invalid-verification-code':
-            errorMessage = 'error_invalid_otp'.tr(); // "Geçersiz kod"
+            errorMessage = 'error_invalid_otp'.tr();
             break;
           case 'session-expired':
-            errorMessage = 'error_otp_expired'.tr(); // "Kodun süresi doldu"
+            errorMessage = 'error_otp_expired'.tr();
             break;
           default:
             errorMessage = e.message ?? 'error_unknown'.tr();
@@ -177,7 +190,6 @@ class _SignupState extends State<Signup> {
         _showError(errorMessage);
       }
     } catch (e) {
-      // Diğer genel hatalar (Limit aşımı vb.)
       if (mounted) {
         final errorString = e.toString();
         if (errorString.contains('STUDENT_LIMIT_REACHED')) {
@@ -254,7 +266,9 @@ class _SignupState extends State<Signup> {
                 _buildInfoCard(),
                 const SizedBox(height: 16),
                 _buildClassCodeField(),
-                const SizedBox(height: 32),
+                const SizedBox(height: 16),
+                _buildPolicyCheckbox(), // Onay kutusu eklendi
+                const SizedBox(height: 24),
                 _buildSignUpButton(),
                 const SizedBox(height: 16),
                 _buildSignInLink(),
@@ -369,6 +383,47 @@ class _SignupState extends State<Signup> {
         fillColor: const Color(0xFFF9FAFB),
         counterText: '',
       ),
+    );
+  }
+
+  Widget _buildPolicyCheckbox() {
+    return Row(
+      children: [
+        SizedBox(
+          height: 24,
+          width: 24,
+          child: Checkbox(
+            value: _isPolicyAccepted,
+            activeColor: const Color(0xFF6366F1),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+            onChanged: (value) => setState(() => _isPolicyAccepted = value ?? false),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Wrap(
+            children: [
+              Text('accept_terms_text'.tr(), style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+              GestureDetector(
+                onTap: () => _showPolicy('terms_of_service_title', 'terms_of_use_content'),
+                child: Text(
+                  'terms_of_service_title'.tr(),
+                  style: const TextStyle(fontSize: 12, color: Color(0xFF6366F1), fontWeight: FontWeight.bold),
+                ),
+              ),
+              Text('and'.tr(), style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+              GestureDetector(
+                onTap: () => _showPolicy('privacy_policy_title', 'privacy_policy_content'),
+                child: Text(
+                  'privacy_policy_title'.tr(),
+                  style: const TextStyle(fontSize: 12, color: Color(0xFF6366F1), fontWeight: FontWeight.bold),
+                ),
+              ),
+              Text('confirm_read_text'.tr(), style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

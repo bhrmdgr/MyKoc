@@ -170,52 +170,39 @@ class ChatRoomViewModel extends ChangeNotifier {
     required String messageText,
     File? file,
   }) async {
-    if (_currentUserId == null || _currentUserName == null) return false;
+    if (_currentUserId == null || _currentChatRoomId == null) return false;
     if (messageText.trim().isEmpty && file == null) return false;
-    if (_isDisposed) return false;
-    if (_currentChatRoomId == null) return false;
 
     _isSending = true;
-    if (!_isDisposed) notifyListeners();
+    notifyListeners();
 
     try {
       String? mentorId, mentorName, mentorImageUrl;
       String? studentId, studentName, studentImageUrl;
 
+      // Geçici ID verilerini ayrıştır
       if (_currentChatRoomId!.startsWith('direct_')) {
-        // Temporary ID formatı: direct_{mentorId}_{studentId}
         final parts = _currentChatRoomId!.split('_');
         if (parts.length >= 3) {
           mentorId = parts[1];
           studentId = parts[2];
 
-          final currentUserRole = _localStorage.getUserRole();
           final userData = _localStorage.getUserData();
+          final isMentor = _localStorage.getUserRole() == 'mentor';
 
-          if (currentUserRole == 'mentor') {
-            mentorName = userData?['name'] ?? 'Mentor';
+          if (isMentor) {
+            mentorName = userData?['name'];
             mentorImageUrl = userData?['profileImage'];
-            if (_chatRoomData != null && _chatRoomData!['otherUserName'] != null) {
-              studentName = _chatRoomData!['otherUserName'];
-              studentImageUrl = _chatRoomData!['otherUserImageUrl'];
-            } else {
-              studentName = 'Student';
-            }
+            studentName = _chatRoomData?['otherUserName'] ?? 'Student';
           } else {
-            studentName = userData?['name'] ?? 'Student';
+            studentName = userData?['name'];
             studentImageUrl = userData?['profileImage'];
-            if (_chatRoomData != null && _chatRoomData!['otherUserName'] != null) {
-              mentorName = _chatRoomData!['otherUserName'];
-              mentorImageUrl = _chatRoomData!['otherUserImageUrl'];
-            } else {
-              mentorName = 'Mentor';
-            }
+            mentorName = _chatRoomData?['otherUserName'] ?? 'Mentor';
           }
         }
       }
 
-      // sendMessage artık gerçek chat room ID'sini döndürüyor
-      final realChatRoomId = await _messagingService.sendMessage(
+      final realId = await _messagingService.sendMessage(
         chatRoomId: _currentChatRoomId!,
         senderId: _currentUserId!,
         senderName: _currentUserName!,
@@ -224,32 +211,25 @@ class ChatRoomViewModel extends ChangeNotifier {
         file: file,
         mentorId: mentorId,
         mentorName: mentorName,
-        mentorImageUrl: mentorImageUrl,
         studentId: studentId,
         studentName: studentName,
-        studentImageUrl: studentImageUrl,
       );
 
-      if (realChatRoomId != null) {
-        // Eğer chat room ID değiştiyse (temporary → gerçek) listener'ı güncelle
-        if (realChatRoomId != _currentChatRoomId) {
-          debugPrint('🔄 Switching from temporary to real chat room: $_currentChatRoomId → $realChatRoomId');
-          _currentChatRoomId = realChatRoomId;
-          _listenToMessages(realChatRoomId, _currentUserId!);
-          _loadChatRoomData(realChatRoomId);
+      if (realId != null) {
+        // ID DEĞİŞİM KONTROLÜ
+        if (realId != _currentChatRoomId) {
+          _currentChatRoomId = realId;
+          // Eski aboneliği kapat ve yenisini gerçek ID ile başlat
+          _messagesSubscription?.cancel();
+          _listenToMessages(realId, _currentUserId!);
+          await _loadChatRoomData(realId);
         }
         return true;
       }
-
-      return false;
-    } catch (e) {
-      debugPrint("Send message error: $e");
       return false;
     } finally {
-      if (!_isDisposed) {
-        _isSending = false;
-        notifyListeners();
-      }
+      _isSending = false;
+      if (!_isDisposed) notifyListeners();
     }
   }
 

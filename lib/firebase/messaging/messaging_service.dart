@@ -354,41 +354,41 @@ class MessagingService {
   }
 
   /// Chat room mesajlarını getir (WhatsApp tarzı deletedAt filtresi ile)
+  /// Chat room mesajlarını getir
   Stream<List<MessageModel>> getChatMessages(String chatRoomId, String userId) {
     return _firestore
         .collection('chatRooms')
         .doc(chatRoomId)
         .snapshots()
         .asyncExpand((chatRoomSnapshot) {
-      if (!chatRoomSnapshot.exists) {
-        return Stream.value([]);
-      }
+      if (!chatRoomSnapshot.exists) return Stream.value([]);
 
       final chatRoomData = chatRoomSnapshot.data()!;
       final deletedAtMap = chatRoomData['deletedAt'] as Map<String, dynamic>?;
 
-      // Kullanıcının silme timestamp'ini al
       Timestamp? deletedAtTimestamp;
       if (deletedAtMap != null && deletedAtMap.containsKey(userId)) {
         deletedAtTimestamp = deletedAtMap[userId] as Timestamp?;
       }
 
-      // Mesajları çek
       Query query = _firestore
           .collection('chatRooms')
           .doc(chatRoomId)
           .collection('messages')
-          .orderBy('timestamp', descending: true)
-          .limit(50);
+          .orderBy('timestamp', descending: true);
 
-      // Eğer kullanıcı silme yapmışsa, sadece o tarihten sonraki mesajları getir
-      if (deletedAtTimestamp != null) {
-        query = query.where('timestamp', isGreaterThan: deletedAtTimestamp);
-        debugPrint('🔍 Filtering messages after: ${deletedAtTimestamp.toDate()}');
-      }
-
-      return query.snapshots().map((snapshot) =>
-          snapshot.docs.map((doc) => MessageModel.fromFirestore(doc)).toList());
+      return query.snapshots().map((snapshot) {
+        return snapshot.docs.map((doc) {
+          return MessageModel.fromFirestore(doc);
+        }).where((message) {
+          // KRİTİK DÜZELTME:
+          // 1. Eğer mesaj henüz sunucu saati almadıysa (null ise) göster.
+          // 2. Eğer deletedAtTimestamp'ten sonraysa göster.
+          if (deletedAtTimestamp == null) return true;
+          if (message.timestamp == null) return true;
+          return message.timestamp!.isAfter(deletedAtTimestamp.toDate());
+        }).toList();
+      });
     });
   }
 

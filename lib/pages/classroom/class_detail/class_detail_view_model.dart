@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mykoc/firebase/classroom/classroom_service.dart';
 import 'package:mykoc/firebase/tasks/task_service.dart';
 import 'package:mykoc/pages/classroom/class_detail/announcement_model.dart';
-import 'package:mykoc/firebase/announcement/announcement_service.dart';  // ← YENİ: FCM destekli service
+import 'package:mykoc/firebase/announcement/announcement_service.dart';
 import 'package:mykoc/pages/classroom/class_model.dart';
 import 'package:mykoc/pages/tasks/task_model.dart';
 import 'package:mykoc/services/storage/local_storage_service.dart';
@@ -11,7 +11,7 @@ class ClassDetailViewModel extends ChangeNotifier {
   final String classId;
   final ClassroomService _classroomService = ClassroomService();
   final TaskService _taskService = TaskService();
-  final AnnouncementService _announcementService = AnnouncementService();  // ← Bu artık FCM destekli
+  final AnnouncementService _announcementService = AnnouncementService();
   final LocalStorageService _localStorage = LocalStorageService();
 
   ClassModel? _classData;
@@ -29,8 +29,10 @@ class ClassDetailViewModel extends ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
+  // ✅ Dispose kontrolü için flag
+  bool _isDisposed = false;
+
   // ==================== YENİ: GÖREV DETAYLARI VE İSTATİSTİK MAP'İ ====================
-  // Her görevin (taskId) detaylı durumlarını (StudentTaskStatus listesi) tutar.
   Map<String, TaskDetailWithStudents> _taskDetails = {};
   Map<String, TaskDetailWithStudents> get taskDetails => _taskDetails;
   // =================================================================================
@@ -75,8 +77,8 @@ class ClassDetailViewModel extends ChangeNotifier {
   double get overallCompletionRatio {
     if (_tasks.isEmpty || _taskDetails.isEmpty) return 0.0;
 
-    int totalAssignments = 0; // Toplam atanan ödev sayısı (Görev Sayısı * Öğrenci Sayısı gibi)
-    int totalCompleted = 0;   // Toplam tamamlanan ödev sayısı
+    int totalAssignments = 0;
+    int totalCompleted = 0;
 
     for (var detail in _taskDetails.values) {
       totalAssignments += detail.totalStudents;
@@ -94,31 +96,51 @@ class ClassDetailViewModel extends ChangeNotifier {
 
   ClassDetailViewModel({required this.classId});
 
-  bool _isProcessing = false; // Metodun meşgul olup olmadığını tutar
+  bool _isProcessing = false;
+
+  // ✅ Güvenli notifyListeners
+  void _safeNotifyListeners() {
+    if (!_isDisposed) {
+      notifyListeners();
+    }
+  }
 
   Future<void> initialize() async {
-    if (_isProcessing) return;
+    if (_isDisposed || _isProcessing) return; // ✅ Dispose kontrolü
     _isProcessing = true;
 
     try {
       _isLoading = true;
+      _safeNotifyListeners();
+
       await _loadFromLocal();
-      notifyListeners();
+      if (_isDisposed) return; // ✅ Her async işlem sonrası kontrol
+
+      _safeNotifyListeners();
 
       await _loadFromFirestore();
+      if (_isDisposed) return; // ✅ Tekrar kontrol
+
     } catch (e) {
-      debugPrint('Error: $e');
+      if (_isDisposed) return; // ✅ Hata durumunda da kontrol
+      debugPrint('❌ Error loading from Firestore: $e');
     } finally {
-      _isLoading = false;
-      _isProcessing = false;
-      notifyListeners();
+      if (!_isDisposed) {
+        _isLoading = false;
+        _isProcessing = false;
+        _safeNotifyListeners();
+      }
     }
   }
 
   /// Öğrenci ekleme limitini servisten kontrol eder
   Future<bool> checkStudentLimit() async {
+    if (_isDisposed) return false; // ✅ Erken çıkış
+
     try {
       final bool canAdd = await _classroomService.checkStudentLimit(classId);
+      if (_isDisposed) return false; // ✅ Kontrol
+
       if (!canAdd) {
         await refresh();
       }
@@ -130,6 +152,8 @@ class ClassDetailViewModel extends ChangeNotifier {
   }
 
   Future<void> _loadFromLocal() async {
+    if (_isDisposed) return; // ✅ Erken çıkış
+
     try {
       final localClass = _localStorage.getClass(classId);
       if (localClass != null) {
@@ -158,29 +182,37 @@ class ClassDetailViewModel extends ChangeNotifier {
   }
 
   Future<void> _loadFromFirestore() async {
+    if (_isDisposed) return; // ✅ Erken çıkış
+
     try {
       debugPrint('🔥 Firestore\'dan class bilgisi çekiliyor: $classId');
 
       _classData = await _classroomService.getClassById(classId);
+      if (_isDisposed) return; // ✅ Kontrol
+
       if (_classData != null) {
         await _localStorage.saveClass(classId, _classData!.toMap());
       }
 
       _students = await _classroomService.getClassStudents(classId);
+      if (_isDisposed) return; // ✅ Kontrol
+
       if (_students.isNotEmpty) {
         await _localStorage.saveClassStudents(classId, _students);
       }
 
       _tasks = await _taskService.getClassTasks(classId);
+      if (_isDisposed) return; // ✅ Kontrol
+
       if (_tasks.isNotEmpty) {
         await _localStorage.saveStudentTasks(_tasks.map((t) => t.toMap()).toList());
-
-        // ==================== YENİ: GÖREV İSTATİSTİKLERİNİ ÇEK ====================
         await _fetchAllTaskDetails();
-        // =========================================================================
+        if (_isDisposed) return; // ✅ Kontrol
       }
 
       _announcements = await _announcementService.getClassAnnouncements(classId);
+      if (_isDisposed) return; // ✅ Kontrol
+
       if (_announcements.isNotEmpty) {
         await _localStorage.saveClassAnnouncements(
             classId,
@@ -188,30 +220,41 @@ class ClassDetailViewModel extends ChangeNotifier {
         );
       }
 
-      notifyListeners();
+      if (!_isDisposed) {
+        _safeNotifyListeners();
+      }
     } catch (e) {
-      debugPrint('❌ Error loading from Firestore: $e');
+      if (!_isDisposed) {
+        debugPrint('❌ Error loading from Firestore: $e');
+      }
     }
   }
 
   /// Tüm görevlerin istatistiklerini (kim yaptı, kim yapmadı) arka arkaya çeker.
   Future<void> _fetchAllTaskDetails() async {
-    if (_tasks.isEmpty) return;
+    if (_isDisposed || _tasks.isEmpty) return; // ✅ Erken çıkış
 
     Map<String, TaskDetailWithStudents> tempDetails = {};
 
     for (var task in _tasks) {
+      if (_isDisposed) return; // ✅ Her döngü iterasyonunda kontrol
+
       final detail = await _taskService.getTaskDetailWithStudents(taskId: task.id);
+      if (_isDisposed) return; // ✅ Kontrol
+
       if (detail != null) {
         tempDetails[task.id] = detail;
       }
     }
 
-    _taskDetails = tempDetails;
-    notifyListeners();
+    if (!_isDisposed) {
+      _taskDetails = tempDetails;
+      _safeNotifyListeners();
+    }
   }
 
   Future<void> refresh() async {
+    if (_isDisposed) return; // ✅ Erken çıkış
     await _loadFromFirestore();
   }
 
@@ -222,6 +265,8 @@ class ClassDetailViewModel extends ChangeNotifier {
     required String title,
     required String description,
   }) async {
+    if (_isDisposed) return false; // ✅ Erken çıkış
+
     try {
       final announcementId = await _announcementService.createAnnouncement(
         classId: classId,
@@ -229,6 +274,8 @@ class ClassDetailViewModel extends ChangeNotifier {
         title: title,
         description: description,
       );
+
+      if (_isDisposed) return false; // ✅ Kontrol
 
       if (announcementId != null) {
         final newAnnouncement = AnnouncementModel(
@@ -240,7 +287,7 @@ class ClassDetailViewModel extends ChangeNotifier {
           createdAt: DateTime.now(),
         );
         _announcements.insert(0, newAnnouncement);
-        notifyListeners();
+        _safeNotifyListeners();
         await refresh();
         return true;
       }
@@ -256,6 +303,8 @@ class ClassDetailViewModel extends ChangeNotifier {
     required String title,
     required String description,
   }) async {
+    if (_isDisposed) return false; // ✅ Erken çıkış
+
     try {
       final success = await _announcementService.updateAnnouncement(
         announcementId: announcementId,
@@ -263,6 +312,8 @@ class ClassDetailViewModel extends ChangeNotifier {
         title: title,
         description: description,
       );
+
+      if (_isDisposed) return false; // ✅ Kontrol
 
       if (success) {
         await refresh();
@@ -276,11 +327,15 @@ class ClassDetailViewModel extends ChangeNotifier {
   }
 
   Future<bool> deleteAnnouncement(String announcementId) async {
+    if (_isDisposed) return false; // ✅ Erken çıkış
+
     try {
       final success = await _announcementService.deleteAnnouncement(
         announcementId,
         classId,
       );
+
+      if (_isDisposed) return false; // ✅ Kontrol
 
       if (success) {
         await refresh();
@@ -295,6 +350,7 @@ class ClassDetailViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
+    _isDisposed = true; // ✅ Dispose flag'ini set et
     super.dispose();
   }
 }

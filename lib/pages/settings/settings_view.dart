@@ -246,7 +246,6 @@ class _SettingsViewState extends State<SettingsView> {
   }
 
   Widget _buildSubscriptionSection(BuildContext context, SettingsModel settingsData) {
-    // Sadece mentörler plan yönetimi yapabilir
     if (settingsData.userRole != 'mentor') return const SizedBox.shrink();
 
     final bool isPremium = settingsData.subscriptionTier == 'premium';
@@ -482,14 +481,14 @@ class _SettingsViewState extends State<SettingsView> {
           ),
           _buildSettingItem(
             icon: Icons.privacy_tip_outlined,
-            title: 'privacy_policy'.tr(),
-            onTap: () => _showComingSoonDialog(context, 'privacy_policy'.tr()),
+            title: 'privacy_policy_title'.tr(),
+            onTap: () => _showLegalSheet(context, 'privacy_policy_title', 'privacy_policy_content'),
           ),
           _buildDivider(),
           _buildSettingItem(
             icon: Icons.description_outlined,
-            title: 'terms_of_service'.tr(),
-            onTap: () => _showComingSoonDialog(context, 'terms_of_service'.tr()),
+            title: 'terms_of_service_title'.tr(),
+            onTap: () => _showLegalSheet(context, 'terms_of_service_title', 'terms_of_use_content'),
           ),
           _buildDivider(),
           _buildSettingItem(
@@ -501,8 +500,12 @@ class _SettingsViewState extends State<SettingsView> {
           _buildDivider(),
           _buildSettingItem(
             icon: Icons.support_agent_outlined,
-            title: 'help_support'.tr(),
-            onTap: () => _showComingSoonDialog(context, 'help_support'.tr()),
+            title: 'help_support'.tr(), // Veya 'help_support_title'.tr()
+            onTap: () => _showLegalSheet(
+                context,
+                'help_support_title',
+                'help_support_content'
+            ),
           ),
         ],
       ),
@@ -694,6 +697,18 @@ class _SettingsViewState extends State<SettingsView> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showLegalSheet(BuildContext context, String title, String contentKey) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => LegalContentSheet(
+        titleKey: title,
+        contentKey: contentKey,
       ),
     );
   }
@@ -900,16 +915,19 @@ class _SettingsViewState extends State<SettingsView> {
                   onPressed: selectedReason == null
                       ? null
                       : () async {
-                    // BuildContext'leri asenkron işlem öncesi güvenliğe alıyoruz
+                    // 1. Asenkron işlemden önce gerekli referansları yerel değişkenlere al
                     final navigator = Navigator.of(context, rootNavigator: true);
                     final scaffoldMessenger = ScaffoldMessenger.of(context);
+                    final currentContext = context;
 
-                    // 1. Sebep seçme dialog'unu kapat
-                    Navigator.pop(context);
+                    // İlk seçim diyaloğunu kapat
+                    navigator.pop();
 
-                    // 2. Loading dialog'unu göster
+                    // 2. Bekleme diyaloğunu açmadan önce mounted kontrolü
+                    if (!mounted) return;
+
                     showDialog(
-                      context: context,
+                      context: currentContext,
                       barrierDismissible: false,
                       useRootNavigator: true,
                       builder: (loadingContext) => const PopScope(
@@ -928,11 +946,13 @@ class _SettingsViewState extends State<SettingsView> {
                         ),
                       );
 
-                      // 3. İşlem bitince loading'i kapat
+                      // 3. Await sonrası mounted kontrolü (Çökme engelleyici en kritik nokta)
+                      if (!mounted) return;
+
+                      // Yükleme diyaloğunu kapat
                       navigator.pop();
 
                       if (success) {
-                        // 4. Başarılıysa doğrudan giriş ekranına yönlendir
                         navigator.pushAndRemoveUntil(
                           MaterialPageRoute(builder: (_) => const Signin()),
                               (route) => false,
@@ -943,16 +963,19 @@ class _SettingsViewState extends State<SettingsView> {
                         );
                       }
                     } on FirebaseAuthException catch (e) {
-                      navigator.pop(); // Loading kapat
+                      if (!mounted) return;
+                      if (navigator.canPop()) navigator.pop(); // Yükleme diyaloğunu kapat
+
                       if (e.code == 'requires-recent-login') {
-                        _showReauthDialog(context);
+                        _showReauthDialog(currentContext);
                       } else {
                         scaffoldMessenger.showSnackBar(
                           SnackBar(content: Text('error_code'.tr(args: [e.code]))),
                         );
                       }
                     } catch (e) {
-                      if (navigator.canPop()) navigator.pop(); // Loading açıksa kapat
+                      if (!mounted) return;
+                      if (navigator.canPop()) navigator.pop();
                       scaffoldMessenger.showSnackBar(
                         SnackBar(content: Text('delete_account_error'.tr())),
                       );
@@ -974,7 +997,6 @@ class _SettingsViewState extends State<SettingsView> {
     );
   }
 
-  // Yeniden kimlik doğrulama gereksinimi için yardımcı metod
   void _showReauthDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -1014,5 +1036,81 @@ class _SettingsViewState extends State<SettingsView> {
       case DeleteReason.other:
         return 'delete_reason_other'.tr();
     }
+  }
+}
+
+class LegalContentSheet extends StatelessWidget {
+  final String titleKey;
+  final String contentKey;
+
+  const LegalContentSheet({
+    super.key,
+    required this.titleKey,
+    required this.contentKey,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.85,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  titleKey.tr(),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1F2937),
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+          const Divider(),
+          Expanded(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 16),
+                  Text(
+                    contentKey.tr(),
+                    style: const TextStyle(
+                      fontSize: 15,
+                      color: Color(0xFF4B5563),
+                      height: 1.6,
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

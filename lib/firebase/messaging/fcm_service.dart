@@ -97,14 +97,24 @@ class FCMService {
   /// Token al ve gerekiyorsa kaydet
   Future<String?> getToken() async {
     try {
+      // Google servislerinin hazır olması için bir saniye daha bekle
+      await Future.delayed(const Duration(seconds: 2));
+
+      // Token almayı dene
       _fcmToken = await _fcm.getToken();
-      final userId = _localStorage.getUid();
-      if (userId != null && _fcmToken != null) {
-        await saveToken(userId);
+
+      if (_fcmToken != null) {
+        debugPrint('✅ FCM Token Alındı: $_fcmToken');
+        final userId = _localStorage.getUid();
+        // "android" gibi sahte UID'leri engelle
+        if (userId != null && userId != "android") {
+          await saveToken(userId);
+        }
       }
       return _fcmToken;
     } catch (e) {
-      debugPrint('❌ Error getting token: $e');
+      debugPrint('❌ FCM Token Hatası: $e');
+      // Eğer SERVICE_NOT_AVAILABLE ise 5 saniye sonra bir kez daha dene (Opsiyonel)
       return null;
     }
   }

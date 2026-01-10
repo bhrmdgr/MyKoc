@@ -3,13 +3,13 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:provider/provider.dart'; // ✅ Provider eklendi
+import 'package:provider/provider.dart';
 import 'package:mykoc/firebase_options.dart';
 import 'package:mykoc/pages/auth/sign_in/signIn.dart';
 import 'package:mykoc/pages/main/main_screen.dart';
 import 'package:mykoc/services/storage/local_storage_service.dart';
 import 'package:mykoc/firebase/messaging/fcm_service.dart';
-import 'package:mykoc/pages/home/homeViewModel.dart'; // ✅ ViewModel eklendi
+import 'package:mykoc/pages/home/homeViewModel.dart';
 
 void main() async {
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
@@ -28,8 +28,8 @@ void main() async {
       cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
     );
 
-    // Yan servisleri başlat
-    _initSideServices();
+    // Yan servisleri başlat ve bitmesini bekle
+    await _initSideServices();
 
     debugPrint('✅ Firebase ana modülü hazır');
   } catch (e) {
@@ -41,33 +41,23 @@ void main() async {
       supportedLocales: const [Locale('tr', 'TR'), Locale('en', 'US')],
       path: 'assets/translations',
       fallbackLocale: const Locale('tr', 'TR'),
-      child: MultiProvider( // ✅ MultiProvider ile sarmalandı
-        providers: [
-          ChangeNotifierProvider(create: (_) => HomeViewModel()), // ✅ Global HomeViewModel
-        ],
-        child: const MyApp(),
-      ),
+      child: const MyApp(),
     ),
   );
 }
 
-void _initSideServices() async {
+Future<void> _initSideServices() async {
   try {
     // 1. Önce LocalStorage
     await LocalStorageService().init();
     debugPrint('✅ LocalStorage hazır');
 
-    // 2. FCM Temel Ayarları
+    // 2. FCM Temel Ayarları (Bildirim izinleri ve kanal kurulumu)
     await FCMService().initialize();
     debugPrint('✅ FCM Temel Kurulum hazır');
 
-    // 3. Kullanıcı giriş yapmışsa FCM işlemleri
-    final uid = LocalStorageService().getUid();
-    if (uid != null) {
-      debugPrint('🚀 Giriş yapılmış kullanıcı bulundu, FCM Token alınıyor...');
-      await FCMService().getToken();
-      debugPrint('✅ FCM Token kontrolü tamamlandı');
-    }
+    // NOT: getToken() çağrısını buraya koymuyoruz,
+    // çünkü henüz Auth durumu netleşmedi.
   } catch (e) {
     debugPrint('❌ Yan servisler başlatılırken hata: $e');
   }
@@ -87,7 +77,8 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF6366F1)),
       ),
-      home: const AuthStateHandler(),
+      // ✅ UniqueKey ile her locale değişiminde yeniden inşa et
+      home: AuthStateHandler(key: ValueKey(context.locale.toString())),
     );
   }
 }
@@ -107,10 +98,13 @@ class AuthStateHandler extends StatelessWidget {
         }
 
         final user = snapshot.data;
-        final localUid = LocalStorageService().getUid();
-
-        if (user != null && localUid != null) {
-          return const MainScreen();
+        // Firebase User varsa, MainScreen'e yönlendir
+        if (user != null) {
+          // ✅ Her dil değişikliğinde yeni bir HomeViewModel instance'ı oluştur
+          return ChangeNotifierProvider(
+            create: (_) => HomeViewModel(),
+            child: MainScreen(key: ValueKey(context.locale.toString())),
+          );
         }
 
         return const Signin();

@@ -85,6 +85,8 @@ class FirebaseSignUp {
       'role': 'mentor',
       'profileImage': '',
       'bio': '',
+      'acceptedPolicies': true,
+      'policyAcceptedAt': FieldValue.serverTimestamp(),
       'createdAt': FieldValue.serverTimestamp(),
     };
 
@@ -160,6 +162,8 @@ class FirebaseSignUp {
       'role': 'student',
       'profileImage': '',
       'bio': '',
+      'acceptedPolicies': true,
+      'policyAcceptedAt': FieldValue.serverTimestamp(),
       'createdAt': FieldValue.serverTimestamp(),
     };
 
