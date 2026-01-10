@@ -417,22 +417,27 @@ class _CalendarViewContentState extends State<_CalendarViewContent> {
               ),
             )
           else
-            ...viewModel.selectedDayTasks.map((task) => _buildTaskItem(context, task)).toList(),
-        ],
+            ...viewModel.selectedDayTasks.map((task) => _buildTaskItem(context, task, viewModel)).toList(),        ],
       ),
     );
   }
 
-  Widget _buildTaskItem(BuildContext context, TaskModel task) {
+  Widget _buildTaskItem(BuildContext context, TaskModel task, CalendarViewModel viewModel) {
+    // Kullanıcının rolüne göre tıklanabilirlik durumunu belirle
+    // Not: viewModel içinde 'isMentor' veya 'isStudent' gibi bir boolean olduğunu varsayıyoruz.
+    final bool canClick = viewModel.isMentor;
+
     return GestureDetector(
-      onTap: () {
+      onTap: canClick
+          ? () {
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => MentorTaskDetailView(taskId: task.id),
           ),
         );
-      },
+      }
+          : null, // Öğrenci ise tıklama fonksiyonu atanmaz
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
@@ -487,7 +492,9 @@ class _CalendarViewContentState extends State<_CalendarViewContent> {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, color: Colors.grey),
+            // Sadece mentörler tıklayabildiği için oku sadece onlara gösteriyoruz
+            if (canClick)
+              const Icon(Icons.chevron_right, color: Colors.grey),
           ],
         ),
       ),

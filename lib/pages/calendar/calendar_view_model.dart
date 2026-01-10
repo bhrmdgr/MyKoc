@@ -33,6 +33,9 @@ class CalendarViewModel extends ChangeNotifier {
   bool _isEditingNote = false;
   bool get isEditingNote => _isEditingNote;
 
+  // --- YENİ EKLENEN KISIM: ROL KONTROLÜ ---
+  bool get isMentor => _localStorage.isMentor();
+
   String get currentDayNoteContent {
     if (_selectedDay == null) return '';
     final normalizedDate = DateTime(_selectedDay!.year, _selectedDay!.month, _selectedDay!.day);
@@ -146,6 +149,10 @@ class CalendarViewModel extends ChangeNotifier {
     _safeNotifyListeners();
   }
 
+  void onFormatChangedWithoutNotify(CalendarFormat format) {
+    _calendarFormat = format;
+  }
+
   void onPageChanged(DateTime focusedDay) {
     _focusedDay = focusedDay;
     _safeNotifyListeners();
@@ -173,14 +180,13 @@ class CalendarViewModel extends ChangeNotifier {
 
     // UI'da hemen göstermek için geçici yedek alalım (Hata olursa geri döneceğiz)
     final oldNote = _notes[normalizedDate];
-    bool isSuccess = false;
 
     try {
       if (trimmedContent.isEmpty) {
         // 1. Durum: Notu Silme
         _notes.remove(normalizedDate); // UI'dan anında kaldır
 
-        isSuccess = await _calendarService.deleteNote(uid, normalizedDate);
+        bool isSuccess = await _calendarService.deleteNote(uid, normalizedDate);
 
         if (!isSuccess) {
           // Firebase silme başarısızsa eski notu geri getir
@@ -201,7 +207,7 @@ class CalendarViewModel extends ChangeNotifier {
         _notes[normalizedDate] = newNote;
 
         // Firebase'e gönder ve BEKLE (await)
-        isSuccess = await _calendarService.saveNote(
+        bool isSuccess = await _calendarService.saveNote(
           userId: uid,
           date: normalizedDate,
           content: trimmedContent,
@@ -240,8 +246,6 @@ class CalendarViewModel extends ChangeNotifier {
     });
     _localStorage.saveCalendarNotes(mapForStorage);
   }
-
-
 
   @override
   void dispose() {

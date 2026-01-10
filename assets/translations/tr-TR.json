@@ -410,8 +410,22 @@
   "no_data_available": "Veri bulunamadı",
   "manage_notifications": "Bildirimleri yönet",
   "help_support_title": "Yardım ve Destek",
-  "help_support_content": "Size nasıl yardımcı olabiliriz? Destek ekibimizle iletişime geçin."
+  "help_support_content": "Size nasıl yardımcı olabiliriz? Destek ekibimizle iletişime geçin.",
 
+
+
+  "tasks_count": "{} Görev",
+  "status_desc_not_started": "Bu göreve henüz başlanmadı",
+  "status_desc_in_progress": "Bu görev üzerinde çalışılıyor",
+  "status_desc_completed": "Bu görev tamamlandı",
+  "start_task_ready_text": "Göreve başlamaya hazır mısınız? Başlat butonuna tıklayın.",
+  "start_task_button": "Göreve Başla",
+  "file_cannot_open": "Dosya açılamıyor",
+  "error_opening_file": "Dosya açılırken hata oluştu",
+
+  "downloading_document": "Doküman indiriliyor...",
+  "image_load_error": "Resim yüklenemedi",
+  "error_opening_file_detail": "Dosya açılırken hata oluştu: {{0}}"
 
 }
 

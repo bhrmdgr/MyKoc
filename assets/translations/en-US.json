@@ -412,7 +412,20 @@
   "no_data_available": "No data available",
   "manage_notifications": "Manage notifications",
   "help_support_title": "Help & Support",
-  "help_support_content": "How can we help you? Contact our support team."
+  "help_support_content": "How can we help you? Contact our support team.",
 
+
+  "tasks_count": "{} Tasks",
+  "status_desc_not_started": "This task has not been started yet",
+  "status_desc_in_progress": "This task is in progress",
+  "status_desc_completed": "This task has been completed",
+  "start_task_ready_text": "Ready to start the task? Click the start button.",
+  "start_task_button": "Start Task",
+  "file_cannot_open": "Cannot open file",
+  "error_opening_file": "Error opening file",
+
+  "downloading_document": "Downloading document...",
+  "image_load_error": "Image could not be loaded",
+  "error_opening_file_detail": "Error opening file: {{0}}"
 
 }

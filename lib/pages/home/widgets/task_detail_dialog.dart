@@ -7,6 +7,10 @@ import 'package:mykoc/firebase/tasks/task_service.dart';
 import 'package:mykoc/firebase/storage/storage_service.dart';
 import 'package:mykoc/services/storage/local_storage_service.dart';
 import 'package:intl/intl.dart';
+import 'package:dio/dio.dart'; // ✅ Eklendi
+import 'package:path_provider/path_provider.dart'; // ✅ Eklendi
+import 'package:open_filex/open_filex.dart'; // ✅ Eklendi
+import 'package:cached_network_image/cached_network_image.dart'; // ✅ Eklendi
 
 class TaskDetailDialog extends StatefulWidget {
   final TaskModel task;
@@ -358,7 +362,7 @@ class _TaskDetailDialogState extends State<TaskDetailDialog> {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            Icon(Icons.download, color: Colors.grey[400], size: 20),
+            Icon(Icons.open_in_new, color: Colors.grey[400], size: 20),
           ],
         ),
       ),
@@ -852,8 +856,133 @@ class _TaskDetailDialogState extends State<TaskDetailDialog> {
     }
   }
 
+  // ✅ GÜNCELLEME: Dosyaları uygulama içinde açma (Mentör ile aynı)
   Future<void> _openAttachment(String url) async {
-    _showError('File download feature will be implemented');
+    if (_isImageFile(url)) {
+      _showImagePreview(context, url);
+    } else {
+      await _downloadAndOpenFile(context, url);
+    }
+  }
+
+  bool _isImageFile(String url) {
+    final uri = Uri.parse(url);
+    final path = uri.path.toLowerCase();
+    return path.endsWith('.jpg') ||
+        path.endsWith('.jpeg') ||
+        path.endsWith('.png') ||
+        path.endsWith('.webp') ||
+        path.endsWith('.heic');
+  }
+
+  void _showImagePreview(BuildContext context, String url) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: EdgeInsets.zero,
+        child: Stack(
+          children: [
+            Center(
+              child: InteractiveViewer(
+                panEnabled: true,
+                minScale: 0.5,
+                maxScale: 4,
+                child: CachedNetworkImage(
+                  imageUrl: url,
+                  placeholder: (context, url) => const Center(
+                    child: CircularProgressIndicator(color: Colors.white),
+                  ),
+                  errorWidget: (context, error, stackTrace) => Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.broken_image, color: Colors.white, size: 50),
+                      const SizedBox(height: 8),
+                      Text(
+                        'image_load_error'.tr(),
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 40,
+              right: 20,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white, size: 30),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _downloadAndOpenFile(BuildContext context, String url) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Center(
+        child: Card(
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(16)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                Text(
+                  'downloading_document'.tr(),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    try {
+      final fileName = url.split('/').last.split('?').first;
+      final dir = await getTemporaryDirectory();
+      final savePath = "${dir.path}/$fileName";
+
+      await Dio().download(url, savePath);
+
+      if (context.mounted) Navigator.pop(context);
+
+      final result = await OpenFilex.open(savePath);
+
+      if (result.type != ResultType.done) {
+        throw result.message;
+      }
+    } catch (e) {
+      if (context.mounted) {
+        if (Navigator.canPop(context)) Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text('error_opening_file_detail'.tr(args: [e.toString()])),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFFEF4444),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    }
   }
 
   void _showError(String message) {
@@ -875,6 +1004,7 @@ class _TaskDetailDialogState extends State<TaskDetailDialog> {
   }
 }
 
+// CompleteTaskDialog sınıfı aynı kalıyor...
 class CompleteTaskDialog extends StatefulWidget {
   const CompleteTaskDialog({super.key});
 

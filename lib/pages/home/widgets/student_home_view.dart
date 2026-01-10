@@ -8,7 +8,10 @@ import 'package:mykoc/pages/home/widgets/announcement_detail_dialog.dart';
 import 'package:mykoc/pages/home/widgets/task_detail_dialog.dart';
 import 'package:intl/intl.dart';
 
-class StudentHomeView extends StatelessWidget {
+// Sıralama Seçenekleri
+enum TaskSortOption { upcoming, newest, oldest, priority }
+
+class StudentHomeView extends StatefulWidget {
   final HomeModel homeData;
   final HomeViewModel viewModel;
 
@@ -19,11 +22,115 @@ class StudentHomeView extends StatelessWidget {
   });
 
   @override
+  State<StudentHomeView> createState() => _StudentHomeViewState();
+}
+
+class _StudentHomeViewState extends State<StudentHomeView> {
+  // Seçili sıralama yöntemi (Varsayılan: Yaklaşan)
+  TaskSortOption _selectedSort = TaskSortOption.upcoming;
+
+  // Görevleri seçilen opsiyona göre sıralar
+  List<TaskModel> _getSortedTasks() {
+    List<TaskModel> sortedList = List.from(widget.viewModel.studentTasks);
+
+    switch (_selectedSort) {
+      case TaskSortOption.upcoming:
+      // Tarihi en yakın olan (DueDate)
+        sortedList.sort((a, b) => a.dueDate.compareTo(b.dueDate));
+        break;
+      case TaskSortOption.newest:
+      // Eklenme tarihi en yeni olan (CreatedAt Desc)
+        sortedList.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        break;
+      case TaskSortOption.oldest:
+      // Eklenme tarihi en eski olan (CreatedAt Asc)
+        sortedList.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        break;
+      case TaskSortOption.priority:
+      // Öncelik sırası (High > Medium > Low)
+        sortedList.sort((a, b) {
+          final pA = _getPriorityValue(a.priority);
+          final pB = _getPriorityValue(b.priority);
+          return pB.compareTo(pA);
+        });
+        break;
+    }
+    return sortedList;
+  }
+
+  int _getPriorityValue(String priority) {
+    switch (priority.toLowerCase()) {
+      case 'high':
+        return 3;
+      case 'medium':
+        return 2;
+      default:
+        return 1;
+    }
+  }
+
+  String _getSortLabel(TaskSortOption option) {
+    switch (option) {
+      case TaskSortOption.upcoming:
+        return 'sort_upcoming'.tr();
+      case TaskSortOption.newest:
+        return 'sort_newest'.tr();
+      case TaskSortOption.oldest:
+        return 'sort_oldest'.tr();
+      case TaskSortOption.priority:
+        return 'sort_priority'.tr();
+    }
+  }
+
+  IconData _getSortIcon(TaskSortOption option) {
+    switch (option) {
+      case TaskSortOption.upcoming:
+        return Icons.calendar_today;
+      case TaskSortOption.newest:
+        return Icons.fiber_new;
+      case TaskSortOption.oldest:
+        return Icons.history;
+      case TaskSortOption.priority:
+        return Icons.priority_high;
+    }
+  }
+
+  // Yeni: Pop-up menü item builder
+  PopupMenuItem<TaskSortOption> _buildPopupMenuItem(TaskSortOption value, IconData icon) {
+    final isSelected = _selectedSort == value;
+    return PopupMenuItem<TaskSortOption>(
+      value: value,
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 20,
+            color: isSelected ? const Color(0xFF6366F1) : const Color(0xFF6B7280),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            _getSortLabel(value),
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              color: isSelected ? const Color(0xFF6366F1) : const Color(0xFF1F2937),
+            ),
+          ),
+          if (isSelected) ...[
+            const Spacer(),
+            const Icon(Icons.check_circle, size: 16, color: Color(0xFF6366F1)),
+          ]
+        ],
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       body: RefreshIndicator(
-        onRefresh: () => viewModel.refresh(),
+        onRefresh: () => widget.viewModel.refresh(),
         child: Stack(
           children: [
             // Ana içerik
@@ -35,18 +142,18 @@ class StudentHomeView extends StatelessWidget {
                 ),
 
                 // Class Selector (eğer birden fazla sınıf varsa)
-                if (viewModel.classes.length > 1)
+                if (widget.viewModel.classes.length > 1)
                   SliverToBoxAdapter(
                     child: _buildClassSelector(context),
                   ),
 
                 // Announcements Section
-                if (viewModel.studentAnnouncements.isNotEmpty)
+                if (widget.viewModel.studentAnnouncements.isNotEmpty)
                   SliverToBoxAdapter(
                     child: _buildAnnouncementsSection(context),
                   ),
 
-                // My Tasks Section Header
+                // My Tasks Section Header with Sort Button
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
@@ -61,51 +168,103 @@ class StudentHomeView extends StatelessWidget {
                             color: Color(0xFF1F2937),
                           ),
                         ),
-                        if (viewModel.studentTasks.isNotEmpty)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF6366F1).withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              'tasks_count'.tr(args: [viewModel.studentTasks.length.toString()]),
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF6366F1),
+                        Row(
+                          children: [
+                            // My Tasks Section Header içindeki sayı kutucuğu
+                            if (widget.viewModel.studentTasks.isNotEmpty)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF6366F1).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  'tasks_count'.tr(args: [widget.viewModel.studentTasks.length.toString()]), // GÜNCELLENEN KISIM
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF6366F1),
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
+                            // YENİ: Dialog yerine PopupMenuButton
+                            if (widget.viewModel.studentTasks.isNotEmpty) ...[
+                              const SizedBox(width: 8),
+                              PopupMenuButton<TaskSortOption>(
+                                onSelected: (TaskSortOption result) {
+                                  setState(() {
+                                    _selectedSort = result;
+                                  });
+                                },
+                                initialValue: _selectedSort,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                elevation: 4,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF6366F1).withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.2)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.sort_rounded, size: 18, color: Color(0xFF6366F1)),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        _getSortLabel(_selectedSort),
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFF6366F1),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                itemBuilder: (BuildContext context) => <PopupMenuEntry<TaskSortOption>>[
+                                  _buildPopupMenuItem(TaskSortOption.upcoming, Icons.calendar_today_rounded),
+                                  _buildPopupMenuItem(TaskSortOption.newest, Icons.fiber_new_rounded),
+                                  _buildPopupMenuItem(TaskSortOption.oldest, Icons.history_rounded),
+                                  _buildPopupMenuItem(TaskSortOption.priority, Icons.priority_high_rounded),
+                                ],
+                              ),
+                            ],
+                          ],
+                        ),
                       ],
                     ),
                   ),
                 ),
 
                 // Loading State (Only Initial Load)
-                if (viewModel.isLoading && viewModel.studentTasks.isEmpty && !viewModel.isSwitchingClass)
+                if (widget.viewModel.isLoading &&
+                    widget.viewModel.studentTasks.isEmpty &&
+                    !widget.viewModel.isSwitchingClass)
                   SliverToBoxAdapter(
                     child: _buildLoadingState(),
                   )
                 // Empty State
-                else if (viewModel.studentTasks.isEmpty && !viewModel.isSwitchingClass)
+                else if (widget.viewModel.studentTasks.isEmpty &&
+                    !widget.viewModel.isSwitchingClass)
                   SliverToBoxAdapter(
                     child: _buildEmptyTasksState(),
                   )
                 // Tasks List
-                else if (viewModel.studentTasks.isNotEmpty)
+                else if (widget.viewModel.studentTasks.isNotEmpty)
                     SliverPadding(
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
                       sliver: SliverList(
                         delegate: SliverChildBuilderDelegate(
                               (context, index) {
-                            final task = viewModel.studentTasks[index];
+                            final sortedTasks = _getSortedTasks();
+                            final task = sortedTasks[index];
                             return _buildTaskCard(context, task);
                           },
-                          childCount: viewModel.studentTasks.length,
+                          childCount: _getSortedTasks().length,
                         ),
                       ),
                     ),
@@ -116,13 +275,14 @@ class StudentHomeView extends StatelessWidget {
             ),
 
             // Loading Overlay - Sadece sınıf değiştirirken göster
-            if (viewModel.isSwitchingClass)
+            if (widget.viewModel.isSwitchingClass)
               Positioned.fill(
                 child: Container(
                   color: Colors.black.withOpacity(0.3),
                   child: Center(
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 32, vertical: 24),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
@@ -142,12 +302,15 @@ class StudentHomeView extends StatelessWidget {
                             height: 40,
                             child: CircularProgressIndicator(
                               strokeWidth: 3,
-                              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                  Color(0xFF6366F1)),
                             ),
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            'loading_class'.tr(args: [viewModel.activeClass?.className ?? '']),
+                            'loading_class'.tr(args: [
+                              widget.viewModel.activeClass?.className ?? ''
+                            ]),
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
@@ -179,7 +342,7 @@ class StudentHomeView extends StatelessWidget {
             'loading_tasks'.tr(),
             style: const TextStyle(
               fontSize: 14,
-              color: Color(0xFF4B5563), // grey[600]
+              color: Color(0xFF4B5563),
             ),
           ),
         ],
@@ -224,7 +387,7 @@ class StudentHomeView extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          homeData.userName,
+                          widget.homeData.userName,
                           style: const TextStyle(
                             fontSize: 28,
                             color: Colors.white,
@@ -242,16 +405,16 @@ class StudentHomeView extends StatelessWidget {
                       color: Colors.white.withOpacity(0.3),
                       shape: BoxShape.circle,
                     ),
-                    child: (homeData.profileImageUrl != null &&
-                        homeData.profileImageUrl!.isNotEmpty)
+                    child: (widget.homeData.profileImageUrl != null &&
+                        widget.homeData.profileImageUrl!.isNotEmpty)
                         ? ClipOval(
                       child: Image.network(
-                        homeData.profileImageUrl!,
+                        widget.homeData.profileImageUrl!,
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) {
                           return Center(
                             child: Text(
-                              homeData.userInitials,
+                              widget.homeData.userInitials,
                               style: const TextStyle(
                                 fontSize: 20,
                                 color: Colors.white,
@@ -264,7 +427,7 @@ class StudentHomeView extends StatelessWidget {
                     )
                         : Center(
                       child: Text(
-                        homeData.userInitials,
+                        widget.homeData.userInitials,
                         style: const TextStyle(
                           fontSize: 20,
                           color: Colors.white,
@@ -349,7 +512,10 @@ class StudentHomeView extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'tasks_completed_count'.tr(args: [_getCompletedTasksCount().toString(), viewModel.studentTasks.length.toString()]),
+                      'tasks_completed_count'.tr(args: [
+                        _getCompletedTasksCount().toString(),
+                        widget.viewModel.studentTasks.length.toString()
+                      ]),
                       style: TextStyle(
                         fontSize: 13,
                         color: Colors.white.withOpacity(0.8),
@@ -384,29 +550,34 @@ class StudentHomeView extends StatelessWidget {
             height: 110,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              physics: viewModel.isSwitchingClass
+              physics: widget.viewModel.isSwitchingClass
                   ? const NeverScrollableScrollPhysics()
                   : const ScrollPhysics(),
-              itemCount: viewModel.classes.length,
+              itemCount: widget.viewModel.classes.length,
               itemBuilder: (context, index) {
-                final classItem = viewModel.classes[index];
-                final isActive = viewModel.activeClass?.id == classItem.id;
+                final classItem = widget.viewModel.classes[index];
+                final isActive =
+                    widget.viewModel.activeClass?.id == classItem.id;
 
                 return GestureDetector(
-                  onTap: viewModel.isSwitchingClass
+                  onTap: widget.viewModel.isSwitchingClass
                       ? null
                       : () {
                     if (!isActive) {
-                      viewModel.switchActiveClass(classItem.id);
+                      widget.viewModel.switchActiveClass(classItem.id);
                     }
                   },
                   child: AnimatedOpacity(
                     duration: const Duration(milliseconds: 200),
-                    opacity: viewModel.isSwitchingClass && !isActive ? 0.5 : 1.0,
+                    opacity: widget.viewModel.isSwitchingClass && !isActive
+                        ? 0.5
+                        : 1.0,
                     child: Container(
                       width: 200,
                       margin: EdgeInsets.only(
-                        right: index < viewModel.classes.length - 1 ? 12 : 0,
+                        right: index < widget.viewModel.classes.length - 1
+                            ? 12
+                            : 0,
                       ),
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
@@ -414,7 +585,8 @@ class StudentHomeView extends StatelessWidget {
                             ? LinearGradient(
                           colors: [
                             Color(classItem.getColorFromType()),
-                            Color(classItem.getColorFromType()).withOpacity(0.7),
+                            Color(classItem.getColorFromType())
+                                .withOpacity(0.7),
                           ],
                         )
                             : null,
@@ -429,7 +601,8 @@ class StudentHomeView extends StatelessWidget {
                         boxShadow: [
                           BoxShadow(
                             color: isActive
-                                ? Color(classItem.getColorFromType()).withOpacity(0.3)
+                                ? Color(classItem.getColorFromType())
+                                .withOpacity(0.3)
                                 : Colors.black.withOpacity(0.03),
                             blurRadius: 8,
                             offset: const Offset(0, 4),
@@ -471,7 +644,9 @@ class StudentHomeView extends StatelessWidget {
                                 style: TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.bold,
-                                  color: isActive ? Colors.white : const Color(0xFF1F2937),
+                                  color: isActive
+                                      ? Colors.white
+                                      : const Color(0xFF1F2937),
                                   height: 1.2,
                                 ),
                                 maxLines: 1,
@@ -484,7 +659,7 @@ class StudentHomeView extends StatelessWidget {
                                   fontSize: 12,
                                   color: isActive
                                       ? Colors.white.withOpacity(0.9)
-                                      : const Color(0xFF4B5563), // grey[600]
+                                      : const Color(0xFF4B5563),
                                   height: 1.2,
                                 ),
                                 maxLines: 1,
@@ -525,12 +700,14 @@ class StudentHomeView extends StatelessWidget {
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            itemCount: viewModel.studentAnnouncements.length,
+            itemCount: widget.viewModel.studentAnnouncements.length,
             itemBuilder: (context, index) {
-              final announcement = viewModel.studentAnnouncements[index];
+              final announcement = widget.viewModel.studentAnnouncements[index];
               return Padding(
                 padding: EdgeInsets.only(
-                  right: index < viewModel.studentAnnouncements.length - 1 ? 12 : 0,
+                  right: index < widget.viewModel.studentAnnouncements.length - 1
+                      ? 12
+                      : 0,
                 ),
                 child: _buildAnnouncementCard(context, announcement),
               );
@@ -541,8 +718,10 @@ class StudentHomeView extends StatelessWidget {
     );
   }
 
-  Widget _buildAnnouncementCard(BuildContext context, AnnouncementModel announcement) {
-    final formattedDate = DateFormat('MMM dd, HH:mm').format(announcement.createdAt);
+  Widget _buildAnnouncementCard(
+      BuildContext context, AnnouncementModel announcement) {
+    final formattedDate =
+    DateFormat('MMM dd, HH:mm').format(announcement.createdAt);
 
     return GestureDetector(
       onTap: () {
@@ -633,9 +812,11 @@ class StudentHomeView extends StatelessWidget {
 
   Widget _buildTaskCard(BuildContext context, TaskModel task) {
     final taskStatus = task.status ?? 'not_started';
-    final isOverdue = task.dueDate.isBefore(DateTime.now()) && taskStatus != 'completed';
+    final isOverdue = task.dueDate.isBefore(DateTime.now()) &&
+        taskStatus != 'completed';
     final daysUntilDue = task.dueDate.difference(DateTime.now()).inDays;
-    final isUrgent = daysUntilDue <= 1 && !isOverdue && taskStatus != 'completed';
+    final isUrgent =
+        daysUntilDue <= 1 && !isOverdue && taskStatus != 'completed';
 
     String dueText;
     if (taskStatus == 'completed') {
@@ -694,9 +875,8 @@ class StudentHomeView extends StatelessWidget {
           builder: (context) => TaskDetailDialog(
             task: task,
             onTaskUpdated: () {
-              // Cache'i temizle ve yeniden yükle
-              if (viewModel.activeClass != null) {
-                viewModel.refreshClass(viewModel.activeClass!.id);
+              if (widget.viewModel.activeClass != null) {
+                widget.viewModel.refreshClass(widget.viewModel.activeClass!.id);
               }
             },
           ),
@@ -709,7 +889,9 @@ class StudentHomeView extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isUrgent || isOverdue ? borderColor : const Color(0xFFE5E7EB),
+            color: isUrgent || isOverdue
+                ? borderColor
+                : const Color(0xFFE5E7EB),
             width: 2,
           ),
           boxShadow: [
@@ -737,13 +919,16 @@ class StudentHomeView extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: priorityColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    'priority_${task.priority.toLowerCase()}'.tr().toUpperCase(),
+                    'priority_${task.priority.toLowerCase()}'
+                        .tr()
+                        .toUpperCase(),
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
@@ -758,7 +943,7 @@ class StudentHomeView extends StatelessWidget {
               task.description,
               style: const TextStyle(
                 fontSize: 14,
-                color: Color(0xFF4B5563), // grey[600]
+                color: Color(0xFF4B5563),
               ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
@@ -767,7 +952,8 @@ class StudentHomeView extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: statusColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(6),
@@ -798,7 +984,7 @@ class StudentHomeView extends StatelessWidget {
                       ? const Color(0xFFEF4444)
                       : isUrgent
                       ? const Color(0xFFF59E0B)
-                      : const Color(0xFF4B5563), // grey[600]
+                      : const Color(0xFF4B5563),
                 ),
                 const SizedBox(width: 4),
                 Text(
@@ -812,7 +998,7 @@ class StudentHomeView extends StatelessWidget {
                         ? const Color(0xFFEF4444)
                         : isUrgent
                         ? const Color(0xFFF59E0B)
-                        : const Color(0xFF4B5563), // grey[600]
+                        : const Color(0xFF4B5563),
                   ),
                 ),
               ],
@@ -864,17 +1050,18 @@ class StudentHomeView extends StatelessWidget {
             style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF374151), // grey[700]
+              color: Color(0xFF374151),
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            viewModel.activeClass != null
-                ? 'no_tasks_class'.tr(args: [viewModel.activeClass!.className])
+            widget.viewModel.activeClass != null
+                ? 'no_tasks_class'
+                .tr(args: [widget.viewModel.activeClass!.className])
                 : 'no_tasks_mentor'.tr(),
             style: const TextStyle(
               fontSize: 14,
-              color: Color(0xFF6B7280), // grey[500]
+              color: Color(0xFF6B7280),
             ),
             textAlign: TextAlign.center,
           ),
@@ -884,13 +1071,13 @@ class StudentHomeView extends StatelessWidget {
   }
 
   double _calculateProgress() {
-    if (viewModel.studentTasks.isEmpty) return 0;
+    if (widget.viewModel.studentTasks.isEmpty) return 0;
     final completedCount = _getCompletedTasksCount();
-    return (completedCount / viewModel.studentTasks.length) * 100;
+    return (completedCount / widget.viewModel.studentTasks.length) * 100;
   }
 
   int _getCompletedTasksCount() {
-    return viewModel.studentTasks
+    return widget.viewModel.studentTasks
         .where((task) => (task.status ?? 'not_started') == 'completed')
         .length;
   }
